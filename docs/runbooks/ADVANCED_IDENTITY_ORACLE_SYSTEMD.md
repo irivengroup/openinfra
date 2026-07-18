@@ -58,6 +58,41 @@ sudo install -o root -g openinfra -m 0640 /dev/stdin /etc/openinfra/secrets/orac
 
 Saisir le mot de passe dans l’entrée standard sans l’inscrire dans l’historique shell. Le mode thin de `python-oracledb` est utilisé par défaut ; Oracle Client n’est pas requis pour ce mode.
 
+### Catalogue et application des migrations Oracle
+
+OpenInfra livre un catalogue Oracle 19c complet de `0001_bootstrap.sql` à `0057_federated_identity_team_sync.sql`. Chaque migration conserve le numéro et le nom fonctionnel de sa source PostgreSQL. Le manifeste `manifest.json` contient les empreintes SHA-256 PostgreSQL/Oracle et le nombre d’instructions attendues.
+
+Avant promotion d’une release depuis les sources :
+
+```bash
+python scripts/validate_oracle_migrations.py
+```
+
+Cette commande ne modifie aucun fichier. Elle échoue si le catalogue Oracle, le manifeste, l’ordre, un nom ou une empreinte diverge de la conversion déterministe attendue. La régénération explicite, réservée au développement, utilise :
+
+```bash
+python scripts/generate_oracle_migrations.py
+python scripts/validate_oracle_migrations.py
+```
+
+Sur le serveur cible, après sauvegarde Oracle et avec le compte applicatif réel :
+
+```bash
+sudo -u openinfra /opt/openinfra/venv/bin/openinfra database status \
+  --backend oracle \
+  --root /opt/openinfra/share/migrations/oracle
+sudo -u openinfra /opt/openinfra/venv/bin/openinfra database apply-migrations \
+  --backend oracle \
+  --root /opt/openinfra/share/migrations/oracle
+sudo -u openinfra /opt/openinfra/venv/bin/openinfra database status \
+  --backend oracle \
+  --root /opt/openinfra/share/migrations/oracle
+```
+
+L’état final doit indiquer `expected_count=57`, `applied_count=57`, `current=true` et une liste `drift` vide. Le journal `openinfra_schema_migrations` conserve les états `applying`, `applied` ou `failed`, l’empreinte Oracle, l’empreinte PostgreSQL source et le message d’erreur borné. Une ancienne installation ne contenant que `0001_document_state.sql` est reprise de manière compatible.
+
+Oracle valide implicitement de nombreuses instructions DDL. OpenInfra ne revendique donc pas un rollback transactionnel global du DDL : les opérations DML sont annulées lorsque le pilote le permet, l’échec est persisté, et la reprise DDL est limitée aux erreurs idempotentes explicitement reconnues. Une sauvegarde/restauration Oracle testée reste obligatoire avant toute montée de version de production.
+
 ## SAML 2.0
 
 ```ini
@@ -154,7 +189,7 @@ Le snapshot doit être un fichier normal, non symbolique, avec signature HMAC va
 ## Installation et unités systemd
 
 ```bash
-sudo /opt/openinfra/venv/bin/python -m pip install '/opt/openinfra/openinfra-0.34.1-py3-none-any.whl[postgresql,advanced-identity]'
+sudo /opt/openinfra/venv/bin/python -m pip install '/opt/openinfra/openinfra-0.34.2-py3-none-any.whl[postgresql,advanced-identity]'
 # Oracle : remplacer postgresql par oracle.
 sudo install -o root -g root -m 0644 installers/systemd/openinfra-runtime-secrets.service /etc/systemd/system/
 sudo install -o root -g root -m 0644 installers/systemd/openinfra-migrate.service /etc/systemd/system/
@@ -189,6 +224,6 @@ L’état attendu du secret est `openinfra:openinfra 700` pour le répertoire et
 
 ```bash
 sudo systemctl stop openinfra-team-sync.timer openinfra-web.service openinfra.service
-sudo /opt/openinfra/venv/bin/python -m pip install --force-reinstall /opt/openinfra/releases/openinfra-0.33.12-py3-none-any.whl
+sudo /opt/openinfra/venv/bin/python -m pip install --force-reinstall /opt/openinfra/releases/openinfra-0.34.1-py3-none-any.whl
 sudo systemctl start openinfra-migrate.service openinfra.service openinfra-web.service openinfra-team-sync.timer
 ```

@@ -68,6 +68,14 @@ jobs:
           python -m pip install -e '.[postgresql]'
           python -m pip install --requirement requirements/dev.txt
 
+      - name: GATE-11 Oracle migration parity
+        run: |
+          python scripts/validate_oracle_migrations.py
+          python -m pytest -q --no-cov \
+            tests/unit/test_oracle_migration_generation.py \
+            tests/unit/test_oracle_complete.py \
+            tests/unit/test_oracle_runtime.py
+
       - name: Format check
         run: ruff format --check src tests scripts docker installers
 

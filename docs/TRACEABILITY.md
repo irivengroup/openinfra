@@ -1,13 +1,16 @@
-## v0.34.1 — Correctif migration PostgreSQL 0057
+## v0.34.2 — Parité complète des migrations PostgreSQL et Oracle
 
 | Exigence | Implémentation | Vérification |
 |---|---|---|
-| Persistance identité fédérée et Team Sync | génération sûre des 96 partitions avec `lpad()` et `%I` | tests de rendu `p00..p31`, catalogue et exécuteur de migrations |
-| Prévention de régression | rejet des directives PostgreSQL `format()` de type `%02s` utilisées comme suffixes | test négatif du validateur de migration |
-| Compatibilité | chaîne maintenue à 57 migrations, PostgreSQL par défaut et Oracle optionnel | tests de politique, packaging et smoke installé |
+| GATE-11 — parité des catalogues | générateur déterministe de `0001` à `0057`, mêmes noms et ordre, manifeste SHA-256 source/cible | `validate_oracle_migrations.py`, tests de drift, continuité et régénération |
+| Compatibilité Oracle 19c | conversion typée des DDL/DML, JSON/CLOB/BLOB, identités, contraintes, partitionnement, index fonctionnels, `MERGE` et PL/SQL | validation structurelle fermée, rejet des résidus PostgreSQL et des index incompatibles |
+| Exécution et reprise | journal `applying/applied/failed`, double checksum, erreur persistée, reprise DDL idempotente et récupération de l’ancien `0001_document_state.sql` | tests d’application, échec, reprise, dérive et upgrade du journal |
+| Readiness | présence du document state et concordance stricte des 57 lignes d’historique avec le catalogue packagé | tests ready/incomplete/checksum manquant/exception Oracle |
+| Packaging et CI | catalogues PostgreSQL/Oracle et manifeste inclus dans wheel/sdist ; GATE-11 exécuté avant les autres gates | vérificateur d’artefacts, smoke wheel isolé et workflows CI |
+| Compatibilité publique | PostgreSQL reste la valeur par défaut ; Oracle demeure explicite ; API, CLI métier, RBAC et thème inchangés | suites de non-régression backend/frontend et tests de configuration |
 
-- Aucune évolution du CDC ou de la roadmap : correction d’implémentation d’une exigence déjà livrée en 0.34.0.
-- Aucun changement de thème, API publique, CLI métier ou modèle de données.
+- CDC 4.9.0 et roadmap v2.2 inchangés : `REQ-00845`, `P22` et `GATE-11` prescrivaient déjà la qualification Oracle complète.
+- La qualification locale couvre la conversion, le catalogue, l’exécuteur simulé, la CI et le packaging. L’application sur une instance Oracle 19c réelle reste un contrôle d’environnement de promotion.
 
 ## v0.34.0 — Identité avancée, Team Sync, Oracle et production systemd
 

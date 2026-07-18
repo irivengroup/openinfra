@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import configparser
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -567,3 +569,175 @@ class TestInstallerConfigDomain:
             "configure trusted SAML/LDAP identity validation" in action
             for action in backend_report.actions
         )
+
+
+def _installer_parser(payload: str) -> configparser.ConfigParser:
+    parser = configparser.ConfigParser(interpolation=None)
+    parser.read_string(payload)
+    return parser
+
+
+def test_installer_oracle_saml_team_sync_and_plan_private_branches() -> None:
+    validator = InstallerConfigValidator()
+    catalog = InstallerScopeCatalog()
+    lite = catalog.policy_for("lite", "all-in-one")
+    server = catalog.policy_for("pro", "server")
+    web = catalog.policy_for("pro", "web")
+    agent = catalog.policy_for("enterprise", "agent")
+    assert lite is not None and server is not None and web is not None and agent is not None
+
+    empty = _installer_parser("[empty]\nvalue = true\n")
+    assert (
+        validator._application_filesystem_plan(replace(agent, managed_application_filesystem=False))
+        is None
+    )
+    assert validator._postgresql_filesystem_plan(empty, web) is None
+    assert validator._postgresql_ha_plan(empty, web) is None
+
+    errors: list[str] = []
+    validator._validate_auth(_installer_parser("[auth]\nmode = saml\n"), lite, errors)
+    assert "lite auth.mode must remain standard" in errors
+    assert "auth.mode=saml requires a [saml] section" in errors
+
+    errors = []
+    validator._validate_auth(
+        _installer_parser(
+            "[auth]\n"
+            "mode = ldap\n"
+            "directory_url = ldaps://ldap.example.test\n"
+            "base_dn = dc=example,dc=test\n"
+            "user_filter = (uid={username})\n"
+            "group_filter = (member={user_dn})\n"
+        ),
+        agent,
+        errors,
+    )
+    assert any("must not configure LDAP/IPA" in error for error in errors)
+
+    errors = []
+    validator._validate_auth(
+        _installer_parser(
+            "[auth]\n"
+            "mode = ldap\n"
+            "directory_url = https://ldap.example.test\n"
+            "base_dn = dc=example,dc=test\n"
+            "user_filter = (uid={username})\n"
+            "group_filter = (member={user_dn})\n"
+        ),
+        web,
+        errors,
+    )
+    assert "auth.directory_url must use ldap:// or ldaps:// with a host" in errors
+
+    errors = []
+    validator._validate_auth(
+        _installer_parser(
+            "[auth]\n"
+            "mode = ipa\n"
+            "directory_url = ldaps://ipa.example.test\n"
+            "start_tls = true\n"
+            "base_dn = dc=example,dc=test\n"
+            "user_filter = (uid={username})\n"
+            "group_filter = (member={user_dn})\n"
+        ),
+        web,
+        errors,
+    )
+    assert "auth.start_tls must be false with ldaps://" in errors
+
+    errors = []
+    validator._validate_database(
+        _installer_parser("[database]\nbackend = sqlite\n"), server, errors
+    )
+    assert errors == ["database.backend must be postgresql or oracle"]
+
+    errors = []
+    validator._validate_database(_installer_parser("[database]\nbackend = oracle\n"), web, errors)
+    assert any("Pro/Enterprise server scopes" in error for error in errors)
+
+    errors = []
+    validator._validate_database(
+        _installer_parser("[database]\nbackend = oracle\n"), server, errors
+    )
+    assert errors == ["database.backend=oracle requires an [oracle] section"]
+
+    errors = []
+    validator._validate_database(
+        _installer_parser("[database]\nbackend = oracle\n[oracle]\ndsn = db/service\n"),
+        server,
+        errors,
+    )
+    assert "missing option: oracle.user" in errors
+    assert "missing option: oracle.password_ref" in errors
+
+    errors = []
+    validator._validate_saml(_installer_parser("[saml]\ntenant_id = default\n"), lite, errors)
+    assert errors == ["SAML is not available in Lite edition"]
+
+    errors = []
+    validator._validate_saml(
+        _installer_parser(
+            "[saml]\n"
+            "tenant_id = default\n"
+            "idp_entity_id = urn:idp\n"
+            "idp_sso_url = http://idp.example.test/sso\n"
+            "idp_x509_cert_ref = file:///etc/openinfra/idp.pem\n"
+            "sp_entity_id = urn:openinfra\n"
+            "sp_acs_url = not-a-url\n"
+            "group_role_mappings = admins=admin\n"
+        ),
+        server,
+        errors,
+    )
+    assert "saml.idp_sso_url must be an HTTPS URL" in errors
+    assert "saml.sp_acs_url must be an HTTPS URL" in errors
+
+    errors = []
+    validator._validate_team_sync(
+        _installer_parser("[team_sync_ldap]\ntenant_id = default\n"), web, errors
+    )
+    assert errors == ["Team Sync is supported only by Pro/Enterprise server scopes"]
+
+    errors = []
+    validator._validate_team_sync(
+        _installer_parser("[team_sync_custom]\nprovider = invalid\n"), server, errors
+    )
+    assert errors == ["team_sync_custom.provider is invalid"]
+
+    errors = []
+    validator._validate_team_sync(
+        _installer_parser("[team_sync_oauth]\nprovider = oauth\n"), server, errors
+    )
+    assert "missing option: team_sync_oauth.tenant_id" in errors
+    assert "missing option: team_sync_oauth.endpoint" in errors
+    assert "missing option: team_sync_oauth.token_ref" in errors
+
+    errors = []
+    validator._validate_team_sync(
+        _installer_parser("[team_sync_proxy]\nprovider = auth_proxy\ntenant_id = default\n"),
+        server,
+        errors,
+    )
+    assert "missing option: team_sync_proxy.snapshot_file" in errors
+    assert "missing option: team_sync_proxy.signature_secret_ref" in errors
+
+
+def test_installer_security_invalid_boolean_and_transport_values() -> None:
+    validator = InstallerConfigValidator()
+    policy = InstallerScopeCatalog().policy_for("pro", "server")
+    assert policy is not None
+    errors: list[str] = []
+    validator._validate_security(
+        _installer_parser(
+            "[security]\n"
+            "transport = cleartext\n"
+            "tls_min_version = TLSv1.3\n"
+            "mtls_required = sometimes\n"
+            "loopback_only = maybe\n"
+        ),
+        policy,
+        errors,
+    )
+    assert "security.transport must be local, tls or mtls" in errors
+    assert "security.mtls_required must be true or false" in errors
+    assert "security.loopback_only must be true or false" in errors

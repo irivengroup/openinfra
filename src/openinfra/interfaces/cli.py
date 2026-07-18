@@ -10614,8 +10614,7 @@ class OpenInfraCLI:
             )
             if not isinstance(settings, OracleConnectionSettings):
                 raise OpenInfraError("invalid Oracle runtime settings")
-            root = Path(getattr(args, "root", None) or "installers/migrations/oracle")
-            return OracleMigrationExecutor(settings, OracleMigrationCatalog(root))
+            return OracleMigrationExecutor(settings, self._resolve_oracle_migration_catalog(args))
         if backend != "postgresql":
             raise ValidationError("database migrations support postgresql or oracle")
         dsn = RuntimeDatabaseDsnResolver().resolve(getattr(args, "postgres_dsn", None))
@@ -10629,6 +10628,15 @@ class OpenInfraCLI:
             registry,
             PostgreSQLMigrationCatalog(self._resolve_migration_root(args)),
         )
+
+    def _resolve_oracle_migration_catalog(self, args: argparse.Namespace) -> OracleMigrationCatalog:
+        explicit_root = getattr(args, "root", None)
+        if explicit_root is not None:
+            return OracleMigrationCatalog(Path(explicit_root))
+        runtime_root = RuntimeConfigLoader().load().get("OPENINFRA_MIGRATIONS_ROOT")
+        if runtime_root:
+            return OracleMigrationCatalog(Path(runtime_root))
+        return OracleMigrationCatalog.from_project_root()
 
     def _resolve_migration_root(self, args: argparse.Namespace) -> Path:
         explicit_root = getattr(args, "root", None)

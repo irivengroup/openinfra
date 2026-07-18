@@ -1,3 +1,13 @@
+## v0.34.2 — Parité complète des migrations Oracle 19c
+
+- conversion déterministe des 57 migrations PostgreSQL vers un catalogue Oracle 19c de même ordre et de mêmes noms ;
+- manifeste de parité avec empreintes SHA-256 des sources PostgreSQL et des artefacts Oracle ;
+- validation bloquante des syntaxes résiduelles PostgreSQL, des LOB indexés, des clés d’index surdimensionnées et des dérives manuelles ;
+- conservation des index uniques partiels par index fonctionnels Oracle et adaptation explicite des types, JSON, tableaux, partitions, DML et blocs PL/SQL ;
+- exécuteur Oracle renforcé avec états `applying`, `applied`, `failed`, reprise idempotente contrôlée, détection de dérive et compatibilité de l’ancien historique `0001_document_state` ;
+- disponibilité Oracle conditionnée à l’application complète du catalogue et à la cohérence des empreintes ;
+- GATE-11 Oracle intégré à la CI, aux contrôles de packaging et au smoke test du wheel installé.
+
 ## v0.34.1 — Correctif de génération des partitions identité et Team Sync
 
 - corrige la migration PostgreSQL `0057_federated_identity_team_sync.sql` qui produisait des identifiants de partition invalides tels que `identity_team_sync_sources_p 0` ;

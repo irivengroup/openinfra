@@ -1,0 +1,407 @@
+{
+  "count": 57,
+  "migrations": [
+    {
+      "filename": "0001_bootstrap.sql",
+      "oracle_sha256": "a378b0b2461d8113e085bf2b6e4abd4060dc1ceada01a822db36d94669aa88ba",
+      "source_sha256": "a9507fb1755c88e287cffeafd2f751ff0756f4894b4041a866552f92d446ae0f",
+      "statement_count": 22,
+      "version": "0001"
+    },
+    {
+      "filename": "0002_security_rbac.sql",
+      "oracle_sha256": "b4ff6553b38d5324387c452b4e3abf61a4ca05bf7b1d6e753cab4732602e531e",
+      "source_sha256": "6c2ec4b7827e569b19697bccfb3500f625418b1b2a5c62fd1f1d885b670b857d",
+      "statement_count": 4,
+      "version": "0002"
+    },
+    {
+      "filename": "0003_security_token_lifecycle.sql",
+      "oracle_sha256": "0ed54d21f0a7e379d82800f7420d86144fe662e89f159a94989010ebb8e586bf",
+      "source_sha256": "ecab1386fb587558a71e06a6972c8f09890a2f0830d26ebddb781e470a867c1e",
+      "statement_count": 8,
+      "version": "0003"
+    },
+    {
+      "filename": "0004_identity_users_groups.sql",
+      "oracle_sha256": "805f90bb328b07e3f5f8106892d6e82a04809e421c903dade27595bc8299f406",
+      "source_sha256": "307da3c5790a37abcd28f0be0c21ef997f5c42a63157a30444abd38af8eac6ab",
+      "statement_count": 6,
+      "version": "0004"
+    },
+    {
+      "filename": "0005_access_policy_abac.sql",
+      "oracle_sha256": "52fc2df7a8620d5c5ea1a9336d719fb0e1aba1c6b582369f1ca31c3065672ef3",
+      "source_sha256": "2eddb2a170f6c9568dbe05b2c0ad53b38d6467044759abdb96e0b0699a80e3dc",
+      "statement_count": 3,
+      "version": "0005"
+    },
+    {
+      "filename": "0006_audit_trail_integrity.sql",
+      "oracle_sha256": "3a5c2534551c844b845375ea0f6e4840246b49b8fa296636a9f4a4807c32d022",
+      "source_sha256": "d61cecc0ad35ec595d0cb9d2067f0020891af1dab5dbf5cbef4dd12721eec27c",
+      "statement_count": 7,
+      "version": "0006"
+    },
+    {
+      "filename": "0007_source_of_truth_core.sql",
+      "oracle_sha256": "330aee58a690cf42589de0872edf39b3d96191aa59b313c2453d59ccdae500b2",
+      "source_sha256": "77443df6b166a968a936d1860d571dde4a64ba1bf4dad3ab4de242a5dc51ab02",
+      "statement_count": 8,
+      "version": "0007"
+    },
+    {
+      "filename": "0008_source_governance.sql",
+      "oracle_sha256": "2c2ed9ee29189f1dabc6444f51f2686bb31e8f34667c4314b587fc80aa64504e",
+      "source_sha256": "fc3b3c84d2917c5feb6e5502c05df2849d56b5649a6c829268e6119cf16f46b0",
+      "statement_count": 5,
+      "version": "0008"
+    },
+    {
+      "filename": "0009_dcim_physical_model.sql",
+      "oracle_sha256": "e4a66ef40ce031ae917d322d090266253c0139cf21e05c6829eb2c80e6330427",
+      "source_sha256": "ae8ab86f4f19b636acf3ee182385aee4d7c7d8ef425a636ea002e001a4deadf7",
+      "statement_count": 20,
+      "version": "0009"
+    },
+    {
+      "filename": "0010_dcim_rack_capacity.sql",
+      "oracle_sha256": "aedafc22f67b9391d16f09b35b4cf1328508a1d04614d2da7499d425fb7e7870",
+      "source_sha256": "92a6f6b4a5d59ffa719f066718bbd7f9f4b73674e088c975651431e471ef937a",
+      "statement_count": 20,
+      "version": "0010"
+    },
+    {
+      "filename": "0011_dcim_field_operations.sql",
+      "oracle_sha256": "a8efabd838b352a2121ec2841fc0a78295f9c5b8801f89fc0c912218fd36022b",
+      "source_sha256": "e1142d32857b451849bc8f2fe039cecfa520d0f21af42010ad4a1073de98357b",
+      "statement_count": 4,
+      "version": "0011"
+    },
+    {
+      "filename": "0012_dcim_visualization_indexes.sql",
+      "oracle_sha256": "e892682e92d340d505946bca9d054b29ac0fdbe0c3d151a0782ad0836be4943b",
+      "source_sha256": "7603abc962105f9e6d3c67ac5a18652b8859510b77aebfd8d263b96e3695e4f9",
+      "statement_count": 4,
+      "version": "0012"
+    },
+    {
+      "filename": "0013_dcim_cabling_foundation.sql",
+      "oracle_sha256": "67402c07cf6d466dff95a188d93d5be6b4da454849948bbdaa2a55b32d3c0c56",
+      "source_sha256": "5b4395a50ce5be9e106f0d594609bc295566adb5db9c51b41d1dc926bbcdecdf",
+      "statement_count": 9,
+      "version": "0013"
+    },
+    {
+      "filename": "0014_dcim_energy_cooling_foundation.sql",
+      "oracle_sha256": "eeaf9484759fe708bb8fb9839adfc7b6cde49ac2dcb4768d397eef74307f08b9",
+      "source_sha256": "f710d3e804290f2d9be9a467b8e2f4f1586efa10511de63cc8b1f38a6fe1f565",
+      "statement_count": 11,
+      "version": "0014"
+    },
+    {
+      "filename": "0015_ipam_enterprise_foundation.sql",
+      "oracle_sha256": "056f8cafccb2bb89e8ba3f6bda262b0676b5b34bc51d964eb0f7feedf0d01de9",
+      "source_sha256": "c8c3239524b61976da45443c7caf330668ad3e2596142248606ed90554fce416",
+      "statement_count": 13,
+      "version": "0015"
+    },
+    {
+      "filename": "0016_ipam_transactional_allocation.sql",
+      "oracle_sha256": "abf3531ef25edb29c1942f39c806dcf3907827defc5e9ce6d943782888bb797d",
+      "source_sha256": "761347418e5855faf9b7988fd369b10c8f12255284fcfa8568b4deef43483c83",
+      "statement_count": 4,
+      "version": "0016"
+    },
+    {
+      "filename": "0017_ipam_networking_foundation.sql",
+      "oracle_sha256": "0df2a628712d25964a31ed0c9e6a33bb719ada84039ccb6157ac3d30c3402b76",
+      "source_sha256": "b687d12754e1e43245eb39e838cc60ef4dcd09206d680ea499c59807443ea6c8",
+      "statement_count": 11,
+      "version": "0017"
+    },
+    {
+      "filename": "0018_ipam_conflict_detection.sql",
+      "oracle_sha256": "5a6773c5d024e4a59cf17490f86eb2ad8af0b1891203822e641855ba1781347e",
+      "source_sha256": "9c53e14dbba4fdbce76830910b1cb1079db95d731cf9732ae42c0a5a681339bd",
+      "statement_count": 8,
+      "version": "0018"
+    },
+    {
+      "filename": "0019_import_framework.sql",
+      "oracle_sha256": "1d5f040958595f017b58ac1501cffe4de0ac0720ac356a0e555da914ab068e72",
+      "source_sha256": "5e5207bd89ee57407fc20458f51759f2ccbdb41307e292d1352068260a7cee85",
+      "statement_count": 4,
+      "version": "0019"
+    },
+    {
+      "filename": "0020_bulk_import_framework.sql",
+      "oracle_sha256": "b735d66252b9bb40c9712b4222586d4c3c1d6909fe9a15a4633f0d9672368b80",
+      "source_sha256": "eaa4b680e52681d29343295e725ac06bf79061aa457c69490a76c40c04e2da11",
+      "statement_count": 5,
+      "version": "0020"
+    },
+    {
+      "filename": "0021_export_framework.sql",
+      "oracle_sha256": "1ae00cbb3b473c28176cd8e921a405a578c2a4f6b9e24c78f8b6e42d3695290a",
+      "source_sha256": "3b209753aad4f0c0a3a4ba457dde47207f4ec1b0cb849b192dbc74d37ced4630",
+      "statement_count": 5,
+      "version": "0021"
+    },
+    {
+      "filename": "0022_legacy_migration_framework.sql",
+      "oracle_sha256": "b5868b8dd9ee73c9d3c4cf4379b0ffb51bcfe44a4b2b51cb51a67bf4cbbc0fe6",
+      "source_sha256": "2c83a2a1c3b6053e5e0bc271f0b58e37312192625f625e8d9de9a074c1ef73f8",
+      "statement_count": 3,
+      "version": "0022"
+    },
+    {
+      "filename": "0023_discovery_collector_registry.sql",
+      "oracle_sha256": "6ccd75933750b86ade1606c236bdc2afdbb5d840baa332b0c56ed46cfd054f0f",
+      "source_sha256": "8ae324b5562be65fbd04a72b67e5e7d5b00cf52504a9cf857c692b6fd5fa958d",
+      "statement_count": 5,
+      "version": "0023"
+    },
+    {
+      "filename": "0024_postgresql_ha_backup_registry.sql",
+      "oracle_sha256": "289979b8b7d940643b4a40343371812cd918c4717bfe721d38109571bd98afb3",
+      "source_sha256": "40532bb90965a41091b0dc2a2e086ac95fe83efc8b8647c7e2c48b0e6be4c415",
+      "statement_count": 9,
+      "version": "0024"
+    },
+    {
+      "filename": "0025_authentication_ldap_ipa_rbac.sql",
+      "oracle_sha256": "40c9419024d37a7424350a48f7980c60fde36ac4f99d1c69dd5167c077f75e73",
+      "source_sha256": "2a6b265409a4c41e51df7861bef5d69c0744c5ece6dc9aa895fae97c3aba1385",
+      "statement_count": 4,
+      "version": "0025"
+    },
+    {
+      "filename": "0026_itrm_as_of_audit_indexes.sql",
+      "oracle_sha256": "a9994e305f9073a86ae7c7bbaa7462db9ea43c7ae7ad472e44a0dfe7a5680036",
+      "source_sha256": "87e72cf601e507e5536ade7c2b99cbe4a4cf9d72a50cdd0afcb4441c49e175f4",
+      "statement_count": 4,
+      "version": "0026"
+    },
+    {
+      "filename": "0027_itam_asset_support_profiles.sql",
+      "oracle_sha256": "111df7597a009f76ab77008fabccc0495c60aee9651c109c884ab0715696f339",
+      "source_sha256": "5d77fdfe80d4790e31785c0117ff861c4cc408af8de55f4312fb795fc5b17028",
+      "statement_count": 3,
+      "version": "0027"
+    },
+    {
+      "filename": "0028_itam_software_license_entitlements.sql",
+      "oracle_sha256": "0d4443be340f0bd95973aa063419a4ee15a840c7ee5531c873a4d045fb964abe",
+      "source_sha256": "d9a9595fc814e9677a52b6bfa9eff6e47f48542f03c45c4aebe1145e61db55b3",
+      "statement_count": 5,
+      "version": "0028"
+    },
+    {
+      "filename": "0029_itam_tenant_lifecycle.sql",
+      "oracle_sha256": "c9f2879d4b84cb33649834ebaa3ffcf7818cd41a14555149733e20f0e769f44b",
+      "source_sha256": "70807f05ee11a1d0c2ebed0144f6e7e55171796cd5d0feed9b93c97c243c644f",
+      "statement_count": 6,
+      "version": "0029"
+    },
+    {
+      "filename": "0030_dcim_site_lifecycle.sql",
+      "oracle_sha256": "a0cf9e350ed9be52aee0cad5939e079eeff85feff4f9b3f0a36180a24571cceb",
+      "source_sha256": "b06ecf1fc715faf22b77bf1e255c627e8730f6d2e202c450e2f1344d3ffb1d5b",
+      "statement_count": 26,
+      "version": "0030"
+    },
+    {
+      "filename": "0031_itam_organization_identity.sql",
+      "oracle_sha256": "8648b0dc45191ca5b4106c6fb553582596d7668fce54e965eaf6d2678325b99e",
+      "source_sha256": "f8607306a46ec4ca949fefc4ac77953b972409f1c74ae43361aca97bb8c501ab",
+      "statement_count": 9,
+      "version": "0031"
+    },
+    {
+      "filename": "0032_itam_partner_registry.sql",
+      "oracle_sha256": "9f4970488be96107a6a7ed148f77c3fd9a277cae37daccf0dfa15300425a6e1a",
+      "source_sha256": "ccdcc29a6855d1fb298ce6cbb11c3d03cb0fd7a9b78bfa397bc07e8172ee0e0f",
+      "statement_count": 6,
+      "version": "0032"
+    },
+    {
+      "filename": "0033_dcim_site_dependencies_rack_lifecycle.sql",
+      "oracle_sha256": "27f03cb8fba080885dd609e0c266ef2f99683469283e5f2f9295620fb88ff999",
+      "source_sha256": "1cd9e3eb031aa21b53a1a96fdf48f45bf9e064f14c174112c13cdec2e01087ef",
+      "statement_count": 7,
+      "version": "0033"
+    },
+    {
+      "filename": "0034_discovery_protocol_profiles.sql",
+      "oracle_sha256": "e0203d00f51e7f25ee4a48339692bc584131a671675507d40a551283ba0dde48",
+      "source_sha256": "1db8f975bb1262067e119c86a97f7787f72b4140350d8e5b6a08326a379fa558",
+      "statement_count": 4,
+      "version": "0034"
+    },
+    {
+      "filename": "0035_dcim_generated_building_floors.sql",
+      "oracle_sha256": "5f927c506602e44d403af7dd53362fb0d01e821292f55ec502ba26da45a61749",
+      "source_sha256": "915c3c04dd7d085f9bbccee1178896ae36217eb5f587ff91dd1e25e863670bb3",
+      "statement_count": 12,
+      "version": "0035"
+    },
+    {
+      "filename": "0036_site_organization_addresses.sql",
+      "oracle_sha256": "73c2eccbee2558cf4d95189dae3e023bd98306ae59af425b865c5ed812b92dbf",
+      "source_sha256": "bffc12d7de9df21c5fbe55e76b229211e50678130396b757ba5b9e326abbedb4",
+      "statement_count": 25,
+      "version": "0036"
+    },
+    {
+      "filename": "0037_discovery_integration_profiles.sql",
+      "oracle_sha256": "1553c11c291454a712e0db0bcd71ca440a9a5f4d767bd7d24dad153fda39403b",
+      "source_sha256": "c905d062dd977c0f64bcf80d73d4fdc119c40036cc4d9a6cc8ff5394bc946511",
+      "statement_count": 4,
+      "version": "0037"
+    },
+    {
+      "filename": "0038_discovery_multisource_reconciliation.sql",
+      "oracle_sha256": "709010ac4522144488fd65f12136d6a3c216f90c81f5806c473a9f02ff05bfed",
+      "source_sha256": "676af9b02a37ab503b3debc920dce8c8ab4081c0f3dc0caf118650db32a5597b",
+      "statement_count": 7,
+      "version": "0038"
+    },
+    {
+      "filename": "0039_discovery_job_resilience.sql",
+      "oracle_sha256": "91e4480555bc603cdcb59b9c78ef22e05c53bf9e30fc91465c7238c6fd2e34df",
+      "source_sha256": "471d810ba04d1ddd7778246a1b4b0f108d4ec7ed9c0dc80163b81f3e35ca49f4",
+      "statement_count": 5,
+      "version": "0039"
+    },
+    {
+      "filename": "0040_dcim_floor_nomenclature.sql",
+      "oracle_sha256": "ff1cbc2a5db99202b717eef1e24ee2e977a6d51c8e984d34a9efce382b8a59fb",
+      "source_sha256": "de9b9b52d095cd081222ea4f369dbdb22344ab985746b36e13a50e35226a514e",
+      "statement_count": 12,
+      "version": "0040"
+    },
+    {
+      "filename": "0041_flow_matrix.sql",
+      "oracle_sha256": "f34785957a5d77526ded499e91fb69634b502ebc136c581644b89ee35b9f4d51",
+      "source_sha256": "8b56ee61d55d6e1f201febfa66322b2a9aaefbad1d96d6f352349f11507374d9",
+      "statement_count": 10,
+      "version": "0041"
+    },
+    {
+      "filename": "0042_certificate_pki_inventory.sql",
+      "oracle_sha256": "0ae09183182a31768fc7a3c159e7bc86129517b9caacdafa3ee8ba393e4dd8e8",
+      "source_sha256": "fe6a6bed9845c6ff24d15c0dc1fd2dd081275a49b09bc1fba9dc43689fa964f9",
+      "statement_count": 10,
+      "version": "0042"
+    },
+    {
+      "filename": "0043_network_config_compliance.sql",
+      "oracle_sha256": "74ac706383f2d255d0bb9edbbcabf830e6044385506e1a8c1ee65900b3a45df5",
+      "source_sha256": "e817b8a59abf1dc6773b97d880953d0216672ea55aaaf182b75aa2a5aa9c3238",
+      "statement_count": 7,
+      "version": "0043"
+    },
+    {
+      "filename": "0044_field_operations_mobile_offline.sql",
+      "oracle_sha256": "c9156f8989c61e4ef7114d00cdb99532ab3084e8b06a39d4c61530019af81f89",
+      "source_sha256": "9d8cd622c420070c570622aa5f6d8c1c74c84b2709320f649d239b782813c063",
+      "statement_count": 15,
+      "version": "0044"
+    },
+    {
+      "filename": "0045_simulation_migration_planning.sql",
+      "oracle_sha256": "5a26e2f3188d7f7dc6b2a5ba98783bf36e9d4e6a405748ada804a030f36f9796",
+      "source_sha256": "0925adc7984e35b97add7f389a2d1c8417b8721e735718765e50f35457bb532f",
+      "statement_count": 11,
+      "version": "0045"
+    },
+    {
+      "filename": "0046_finops_costs_showback.sql",
+      "oracle_sha256": "e15e015fc22e69940b683bf61a60154565e4063ba2100b53f6489192a051dff1",
+      "source_sha256": "a041dfe0eb46ad3003b27391b9bc6677127de2116f73a27e5f4c2302036adb7e",
+      "statement_count": 21,
+      "version": "0046"
+    },
+    {
+      "filename": "0047_greenops_energy_capacity.sql",
+      "oracle_sha256": "e89b406d69fea5a2199ed7d578ef925cd9cd3c071e5a97a468ac87c3c90c593c",
+      "source_sha256": "77811a89bee3ce6fb9f9e42ab271214509d1e9fcfb951b9eb24b8364ecd2cae9",
+      "statement_count": 24,
+      "version": "0047"
+    },
+    {
+      "filename": "0048_sbom_vulnerabilities_exposure.sql",
+      "oracle_sha256": "203e16c131038791553223a6bad2e6498b9f88ee76718717359a78b45d64a091",
+      "source_sha256": "07bd7c97f1f2d298dad39cbe026a956371e0f142a5a409c3e049b2f4a0959502",
+      "statement_count": 15,
+      "version": "0048"
+    },
+    {
+      "filename": "0049_rag_governed_assistant.sql",
+      "oracle_sha256": "7294c907d836a36385cc9caf5e2d13e169b312427b76a18b30cfa62f5ed1fc68",
+      "source_sha256": "6e5d7becd2e85a33c22e8eb3e7e17772187dc716a7e762389b0e35c016cfe869",
+      "statement_count": 14,
+      "version": "0049"
+    },
+    {
+      "filename": "0050_pro_centralized_multisite.sql",
+      "oracle_sha256": "6fa6959e4f7e61a367f7ad81fea3a5166ca25b77ab49ca73d8d647b9919a838d",
+      "source_sha256": "99c3f731422796739251daff28a2e159b150d28bdc8bb9fb3ff17b1b1e68207d",
+      "statement_count": 6,
+      "version": "0050"
+    },
+    {
+      "filename": "0051_enterprise_regional_discovery_routing.sql",
+      "oracle_sha256": "3edb682486cbf0001e94d4f0d3baf352c23a3efea1902b6f3f52fe4d148a6197",
+      "source_sha256": "8ef2a79797896534d82c450fb87d70d8d8299441cfb8fdf8b107650e9b608199",
+      "statement_count": 6,
+      "version": "0051"
+    },
+    {
+      "filename": "0052_multisite_disaster_recovery.sql",
+      "oracle_sha256": "b824112caee126100fa64de95f3a9a13f8e89ef081ac7469a8af1253408db3f6",
+      "source_sha256": "3320e65f50bf25b11366c5806cf60bdf287d33c882ceb5bf2356846b998b5d88",
+      "statement_count": 6,
+      "version": "0052"
+    },
+    {
+      "filename": "0053_keyset_pagination_indexes.sql",
+      "oracle_sha256": "8cf98306bb92346426ce0dc08fe3c27629a8898e1895d8e4c638a71e96db2850",
+      "source_sha256": "d4bbd48196f8975b75afab37bd7f631169dac46417adec12cc37fa1689180ad3",
+      "statement_count": 46,
+      "version": "0053"
+    },
+    {
+      "filename": "0054_async_outbox_workers.sql",
+      "oracle_sha256": "fde855b1b54ce40688c1597627d7d284853ffdc978806e160754a240721ab8bd",
+      "source_sha256": "b6c6cbfc491558e13f58de4943bfcbf016b96649938be3a03c2b6509cc8fc001",
+      "statement_count": 11,
+      "version": "0054"
+    },
+    {
+      "filename": "0055_kubernetes_topology_inventory.sql",
+      "oracle_sha256": "41b9cde912abd1097079bc9601e69aea2a050faf5576e590b0700d2238f7db7b",
+      "source_sha256": "aedc26690b57eaa0f79128bdb4d2f0198f124e2fa5c1cc4bb78d32e7b74cbde4",
+      "statement_count": 6,
+      "version": "0055"
+    },
+    {
+      "filename": "0056_kubernetes_gitops_drift.sql",
+      "oracle_sha256": "33abd8f21598375d6a2848dcdccbeb5feb5fc4697521b6679302622cb565a4ab",
+      "source_sha256": "fa0d5f90ad59a9e8bc9f1eeb753944fd5cfd9cae58dfb86d7368585962befed0",
+      "statement_count": 6,
+      "version": "0056"
+    },
+    {
+      "filename": "0057_federated_identity_team_sync.sql",
+      "oracle_sha256": "0c31410e843ecc497b9369221f931ab005bd4355f3a19062e2d4877e192a9841",
+      "source_sha256": "370eeba1599ee9737b6546da6096029a0e1f72590befd82712a3bee00c2d93af",
+      "statement_count": 7,
+      "version": "0057"
+    }
+  ],
+  "schema": "openinfra.oracle-migration-catalog/v1",
+  "source": "postgresql",
+  "target": "oracle-19c"
+}

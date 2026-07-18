@@ -7,6 +7,7 @@ import openinfra
 from openinfra.infrastructure.multisite_observability import (
     MultisiteOperationalMetricsProvider,
 )
+from openinfra.infrastructure.oracle import OracleMigrationCatalog
 from openinfra.interfaces.http_api import OpenApiDocumentProvider
 from openinfra.quality.cloud_native_promotion import CloudNativePromotionPolicy
 from openinfra.quality.continuity_certification import PraPcaCertificationEvidence
@@ -24,7 +25,7 @@ class InstalledWheelSmokeError(RuntimeError):
 
 
 class InstalledWheelSmoke:
-    EXPECTED_VERSION = "0.34.1"
+    EXPECTED_VERSION = "0.34.2"
     EXPECTED_ASYNC_ROUTES = (
         "/api/v1/async/jobs",
         "/api/v1/async/jobs/get",
@@ -624,7 +625,7 @@ class InstalledWheelSmoke:
     def _assert_release_security_contract(package_root: Path) -> None:
         controls = ReleaseSecurityControlCatalog.build(
             package_root,
-            image_ref="openinfra/runtime:0.34.1",
+            image_ref="openinfra/runtime:0.34.2",
             api_base_url="http://127.0.0.1:8080",
             web_base_url="http://127.0.0.1:2006",
         )
@@ -652,7 +653,9 @@ class InstalledWheelSmoke:
             package_root / "infrastructure" / "external_identity.py",
             package_root / "infrastructure" / "oracle.py",
             package_root / "interfaces" / "server_runtime.py",
-            package_root / "migrations" / "oracle" / "0001_document_state.sql",
+            package_root / "migrations" / "oracle" / "0001_bootstrap.sql",
+            package_root / "migrations" / "oracle" / "0057_federated_identity_team_sync.sql",
+            package_root / "migrations" / "oracle" / "manifest.json",
             package_root / "docs" / "runbooks" / "RUNTIME_NATIVE.md",
             package_root / "docs" / "runbooks" / "ADVANCED_IDENTITY_ORACLE_SYSTEMD.md",
             package_root / "systemd" / "openinfra-runtime-secrets.service",
@@ -665,6 +668,19 @@ class InstalledWheelSmoke:
             raise InstalledWheelSmokeError(
                 "installed wheel is missing advanced identity/Oracle runtime assets: "
                 + ", ".join(missing)
+            )
+        oracle_migrations = OracleMigrationCatalog(
+            package_root / "migrations" / "oracle"
+        ).migrations()
+        if len(oracle_migrations) != InstalledWheelSmoke.EXPECTED_MIGRATION_COUNT:
+            raise InstalledWheelSmokeError(
+                "installed wheel Oracle migration catalog is incomplete: "
+                f"expected {InstalledWheelSmoke.EXPECTED_MIGRATION_COUNT}, "
+                f"got {len(oracle_migrations)}"
+            )
+        if oracle_migrations[-1].path.name != InstalledWheelSmoke.EXPECTED_LAST_MIGRATION:
+            raise InstalledWheelSmokeError(
+                "installed wheel Oracle migration catalog is not current"
             )
 
     def _assert_console_scripts(self) -> None:

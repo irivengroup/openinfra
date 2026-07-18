@@ -491,7 +491,7 @@ def test_web_asgi_static_bootstrap_cache_and_security() -> None:
         app,
         "GET",
         "/assets/openinfra-web.js",
-        query=b"v=0.34.1",
+        query=b"v=0.34.2",
         headers=((b"accept-encoding", b"gzip"),),
     )
     assert asset_status == 200

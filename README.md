@@ -1,17 +1,38 @@
-# OpenInfra v0.34.1
+# OpenInfra v0.34.2
 
-OpenInfra 0.34.1 corrige l’application de la migration PostgreSQL `0057_federated_identity_team_sync.sql` livrée avec l’identité avancée et Team Sync. PostgreSQL reste le backend par défaut ; Oracle Database demeure sélectionnable explicitement pour les éditions Pro et Enterprise. Docker reste un environnement local facultatif : l’installation, les migrations, l’API, le Web, les secrets runtime et Team Sync sont exploitables directement sous systemd.
+OpenInfra 0.34.2 industrialise la prise en charge Oracle 19c pour l’ensemble du schéma applicatif. Les **57 migrations PostgreSQL** disposent désormais de **57 migrations Oracle correspondantes**, générées de manière déterministe, vérifiées par empreintes SHA-256 et exécutées avec suivi d’état, reprise idempotente et détection de dérive. PostgreSQL reste le backend par défaut ; Oracle doit être sélectionné explicitement pour les éditions Pro et Enterprise.
 
-## Identité avancée, Team Sync et Oracle — P22 / REL-12
+## Parité PostgreSQL / Oracle — P22 / GATE-11
+
+- catalogue Oracle complet `0001` à `0057`, aligné sur les noms, versions et fonctionnalités du catalogue PostgreSQL ;
+- convertisseur déterministe PostgreSQL → Oracle 19c, limité aux constructions réellement utilisées par OpenInfra et bloquant toute syntaxe PostgreSQL résiduelle ;
+- manifeste `installers/migrations/oracle/manifest.json` avec empreintes SHA-256 source/cible et nombre d’instructions ;
+- adaptation des types, UUID, JSON, CLOB/BLOB, identités, contraintes, index fonctionnels, partitionnement hash, `MERGE`, DML et blocs PL/SQL ;
+- refus des index B-tree sur LOB, des clés d’index dépassant la limite conservatrice de 6 000 octets, des identifiants incompatibles et des migrations modifiées manuellement ;
+- journal Oracle `applying` / `applied` / `failed`, contrôle des deux empreintes, détection de dérive et reprise idempotente après interruption ;
+- compatibilité de reprise avec l’ancien historique Oracle limité à `0001_document_state.sql` ;
+- readiness Oracle exigeant le document state et l’application cohérente des 57 migrations ;
+- GATE-11 bloquant dans les workflows CI avant lint, typage, sécurité, build et promotion ;
+- packaging du catalogue PostgreSQL, du catalogue Oracle et du manifeste dans le wheel et le sdist ;
+- aucune modification du thème, d’une route API, d’une commande CLI métier ou d’une permission RBAC.
+
+La génération et la validation locale s’effectuent avec :
+
+```bash
+python scripts/generate_oracle_migrations.py
+python scripts/validate_oracle_migrations.py
+```
+
+Le second appel est non destructif et échoue si une migration Oracle ou le manifeste diverge du résultat déterministe attendu. Voir `docs/runbooks/ADVANCED_IDENTITY_ORACLE_SYSTEMD.md`.
+
+## Identité avancée, Team Sync et production systemd — P22 / REL-12
 
 - authentification SAML 2.0 avec validation cryptographique, configuration fournisseur chargée uniquement depuis le serveur et mapping groupes → rôles OpenInfra ;
 - LDAP/IPA avancé avec LDAPS, StartTLS, autorité de certification, pagination, timeouts, referrals et résolution bornée des groupes imbriqués ;
 - Team Sync idempotent pour LDAP, OAuth, Auth Proxy signé HMAC et Okta, avec propriété des appartenances par source, audit et politique contrôlée des orphelins ;
-- backend Oracle optionnel via `python-oracledb`, pool borné, Unit of Work, verrouillage transactionnel, contrôle optimiste et migrations versionnées ;
 - PostgreSQL reste le backend de référence et le choix automatique lorsqu’aucun backend n’est configuré ;
 - déploiement serveur standard avec `openinfra.conf`, fichiers de secrets protégés et unités systemd pour migrations, génération du jeton bootstrap, API/Web et synchronisation des équipes ;
-- correction du volume de secret runtime : le répertoire et le fichier sont attribués au compte OpenInfra avec permissions `0700/0400`, sous Docker comme sous systemd ;
-- migration PostgreSQL additive `0057_federated_identity_team_sync.sql`, partitionnée par tenant ;
+- correction historique de la migration PostgreSQL `0057_federated_identity_team_sync.sql` conservée et transposée dans le catalogue Oracle ;
 - aucune modification de la charte graphique ni suppression d’API, de CLI ou de permission existante.
 
 Voir `docs/runbooks/ADVANCED_IDENTITY_ORACLE_SYSTEMD.md` et `docs/runbooks/RUNTIME_NATIVE.md`.

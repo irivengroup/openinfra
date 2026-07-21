@@ -1,4 +1,0 @@
-edition,multisite_inventory,site_rbac,site_filtered_reports,distributed_agents,agent_clustering,regional_discovery,dr_multisite,itsm_context_by_site
-lite,non,non,non,non,non,non,non,non
-pro,oui,oui,oui,non,non,non,limité au cluster/backup central,oui
-enterprise,oui,oui,oui,oui,oui,oui,oui,oui

@@ -22,8 +22,8 @@ class KubernetesExposureProjectValidator:
         "docs/api/openapi.yaml",
         "docs/architecture/kubernetes-cloud-native-topology.md",
         "docs/operations/kubernetes-topology.md",
-        "docs/specifications/OpenInfra-Roadmap-Developpement-v2.4/04-roadmap-epics.csv",
-        "docs/specifications/OpenInfra-Roadmap-Developpement-v2.4/14-alignement-cdc-v4.11.0.csv",
+        "docs/specifications/OpenInfra-Roadmap-Developpement-v2.5/04-roadmap-epics.csv",
+        "docs/specifications/OpenInfra-Roadmap-Developpement-v2.5/14-alignement-cdc-v4.12.0.csv",
         "tests/unit/test_kubernetes_exposure.py",
         "tests/integration/test_kubernetes_exposure_services.py",
         "tests/integration/test_kubernetes_exposure_http_api.py",
@@ -98,11 +98,11 @@ class KubernetesExposureProjectValidator:
                 ("kubernetes-exposure-latest", "kubernetes-exposure-snapshot"),
             )
         self._assert_fragments(
-            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.4/04-roadmap-epics.csv",
+            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.5/04-roadmap-epics.csv",
             ("EPIC-2102", "Expositions et dépendances réseau cloud-native"),
         )
         self._assert_fragments(
-            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.4/14-alignement-cdc-v4.11.0.csv",
+            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.5/14-alignement-cdc-v4.12.0.csv",
             ("REQ-00470", "EPIC-2102"),
         )
         migrations = sorted((self._root / "installers/migrations/postgresql").glob("*.sql"))

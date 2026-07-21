@@ -33,7 +33,7 @@ class SpecValidationReport:
 
 
 class ContractualSpecValidator:
-    SUPPORTED_VERSIONS = frozenset({"4.0.0", "4.8.1", "4.9.0", "4.10.0", "4.11.0"})
+    SUPPORTED_VERSIONS = frozenset({"4.0.0", "4.8.1", "4.9.0", "4.10.0", "4.11.0", "4.12.0"})
 
     def validate(self, root: Path) -> SpecValidationReport:
         errors: list[str] = []

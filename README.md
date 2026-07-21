@@ -1,6 +1,21 @@
-# OpenInfra v0.34.6
+# OpenInfra v0.34.7
 
-OpenInfra 0.34.6 finalise le contrat **RSOT — Ressource Source of Truth** : les anciens alias ITRM, RI et SOT sont supprimés de la CLI, de l’API, du RBAC, des capacités d’édition et des modules de compatibilité. Les fonctions métier restent disponibles sous les seuls contrats `rsot`, `rsot:*` et `core_rsot`. Le licensing runtime offline de GATE-12 reste inchangé ; PostgreSQL demeure le backend par défaut et Oracle 19c reste réservé à Enterprise.
+OpenInfra 0.34.7 introduit **GATE-14**, le contrôle fail-closed de complétude contractuelle de REL-15. Les 667 tests du CDC 4.12.0 sont classifiés sans ambiguïté comme preuves automatisées, partielles ou externes ; seuls les nœuds pytest réellement résolus sont comptabilisés comme automatisés. La canonicalisation RSOT et le licensing runtime offline restent inchangés. PostgreSQL demeure le backend par défaut et Oracle 19c reste exclusivement disponible pour l’édition Enterprise.
+
+## Complétude contractuelle — P25 / REL-15 / GATE-14
+
+- CDC 4.12.0 : 861 exigences, 667 tests, 861 lignes de traçabilité et 529 entités ;
+- roadmap 2.5.0 : P25, REL-15, EPIC-2501 à EPIC-2504 et GATE-14 ;
+- registre exhaustif de 667 preuves : 19 automatisées, 600 partielles et 48 externes ;
+- 27 sélecteurs pytest réels, validés par analyse AST, rattachés aux preuves automatisées ;
+- 54 fichiers d’évidence distincts, aucun test sans preuve et aucune exigence N1 non classifiée ;
+- scanner d’hygiène contextuel : les règles de détection sont exclues par chemin exact, tandis que les sources produit restent contrôlées ;
+- packaging du registre, de la politique, du runbook et du validateur dans le wheel et le sdist ;
+- workflow GitHub Actions complet : formatage, lint, typage, tests, couverture, sécurité, frontend, build, vérification et smoke isolé.
+
+Les preuves `partial` et `external` ne constituent jamais une validation fonctionnelle complète. La promotion production reste NO-GO tant que les qualifications externes ne sont pas exécutées sur l’infrastructure cible et rattachées au véritable commit de publication.
+
+Voir `docs/runbooks/CONTRACT_COMPLETENESS_PROMOTION.md`.
 
 ## RSOT canonique — P24 / REL-14 / GATE-13
 

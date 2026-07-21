@@ -1,4 +1,21 @@
-## v0.34.6 — Canonicalisation RSOT définitive et GATE-13
+## v0.34.7 — Complétude contractuelle et GATE-14
+
+| Domaine | Contrat | Preuves exécutables |
+|---|---|---|
+| Gouvernance contractuelle | CDC 4.12.0, roadmap 2.5.0, P25, REL-15 et politique GATE-14 | validateurs CDC/roadmap, `openinfra-gate14`, registre exhaustif et tests de résolution AST |
+| Classification | 667 tests : 19 automatisés, 600 partiels, 48 externes | 27 sélecteurs pytest, 54 fichiers d’évidence, 0 preuve manquante |
+| Hygiène | exclusions contextuelles limitées aux définitions de règles | scanner GATE-14, security gate et quality gate |
+| Packaging | wheel et sdist contiennent module, politique, registre, runbook et workflow | `verify_artifact.py` et smoke du wheel installé |
+
+Références :
+
+- `docs/specifications/OpenInfra-CDC-SFG-STG-v4.12.0` ;
+- `docs/specifications/OpenInfra-Roadmap-Developpement-v2.5` ;
+- `docs/release/contract-proof-registry-v4.12.csv` ;
+- `docs/release/contract-completeness-promotion-policy.json` ;
+- `docs/runbooks/CONTRACT_COMPLETENESS_PROMOTION.md`.
+
+## v0.34.7 — Canonicalisation RSOT définitive et GATE-13
 
 | Exigence | Implémentation | Vérification |
 |---|---|---|
@@ -6,11 +23,11 @@
 | Rejet des anciens alias | `itrm`, `ri` et `sot` sont refusés par la CLI et retournent HTTP 404 ; les rôles et symboles historiques ne sont plus exposés | contrôles `RSOT-CLI`, `RSOT-HTTP`, `RSOT-RBAC`, `RSOT-EDITION` |
 | Suppression des modules de compatibilité | services ITRM/RI supprimés et module qualité canonique `rsot_quality_services.py` intégré | contrôles `RSOT-CODE`, tests unitaires et intégration |
 | Packaging sans alias actif | wheel et sdist inspectés pour empêcher la réintroduction de modules, symboles ou routes historiques | contrôle `RSOT-PACKAGING`, `scripts/verify_artifact.py` |
-| Gouvernance contractuelle | CDC 4.11.0, roadmap 2.4.0, P24, REL-14 et politique de promotion fail-closed | validateurs CDC/roadmap et `openinfra-gate13` |
+| Gouvernance contractuelle | CDC 4.12.0, roadmap 2.5.0, P24, REL-14 et politique de promotion fail-closed | validateurs CDC/roadmap et `openinfra-gate13` |
 | Promotion | GATE-13 exige les six preuves RSOT avant publication de REL-14 | `src/openinfra/quality/rsot_canonical_promotion.py`, `.github/workflows/rsot-canonical.yml` |
 
 - Guide de migration : `docs/runbooks/RSOT_CANONICAL_MIGRATION.md`.
-- Matrice de contrôle : `docs/specifications/OpenInfra-CDC-SFG-STG-v4.11.0/11-Matrices/Matrice-rsot-canonical-v4.11.csv`.
+- Matrice de contrôle : `docs/specifications/OpenInfra-CDC-SFG-STG-v4.12.0/11-Matrices/Matrice-rsot-canonical-v4.11.csv`.
 - La suppression des alias est volontairement incompatible pour les noms publics concernés ; aucune capacité métier RSOT n’est supprimée.
 - La charte graphique approuvée n’est pas modifiée.
 

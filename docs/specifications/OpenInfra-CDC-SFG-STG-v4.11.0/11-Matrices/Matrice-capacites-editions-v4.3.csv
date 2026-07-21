@@ -1,4 +1,0 @@
-edition,haute_performance,profil_bdd,separation_backend_frontend,pgsql_clustering,frontend_clustering,agents_distribues,agent_clustering,multithreading,async,autodiscovery,autodiscovery_agent,itsm_connectors,abonnements_licences,max_equipements,max_subnets_vlans,max_reservations_ip_dns,max_utilisateurs,local_auth,ldap_ipa_auth,group_rbac
-lite,non,low,non,non,non,non,non,non,non,oui,non,non,non,200,20,200,5,oui,non,local
-pro,oui,medium,oui,option_disabled_default,non,non,non,non,oui,oui,non,oui,oui,5000,100,5000,100,oui,oui,oui
-enterprise,oui,large,oui,option_disabled_default,oui,oui,oui,oui,oui,oui,oui,oui,oui,illimite,illimite,illimite,illimite,oui,oui,oui

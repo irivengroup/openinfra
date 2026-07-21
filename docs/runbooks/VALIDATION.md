@@ -20,9 +20,9 @@ python scripts/security_gate.py
 python scripts/quality_gate.py
 python scripts/validate_openapi.py \
   docs/api/openapi.yaml \
-  docs/specifications/OpenInfra-CDC-SFG-STG-v4.11.0/09-API/OpenAPI/openapi.yaml
-python docs/specifications/OpenInfra-CDC-SFG-STG-v4.11.0/scripts/validate_docs.py
-python docs/specifications/OpenInfra-Roadmap-Developpement-v2.4/scripts/validate_roadmap.py
+  docs/specifications/OpenInfra-CDC-SFG-STG-v4.12.0/09-API/OpenAPI/openapi.yaml
+python docs/specifications/OpenInfra-CDC-SFG-STG-v4.12.0/scripts/validate_docs.py
+python docs/specifications/OpenInfra-Roadmap-Developpement-v2.5/scripts/validate_roadmap.py
 python scripts/validate_enterprise_alignment.py --project-root .
 ```
 
@@ -61,7 +61,7 @@ PYTHONPATH=src:. python -m pytest -q --no-cov \
 
 PYTHONPATH=src:. python scripts/validate_openapi.py \
   docs/api/openapi.yaml \
-  docs/specifications/OpenInfra-CDC-SFG-STG-v4.11.0/09-API/OpenAPI/openapi.yaml
+  docs/specifications/OpenInfra-CDC-SFG-STG-v4.12.0/09-API/OpenAPI/openapi.yaml
 ```
 
 Contrôles bloquants : disponibilité Enterprise uniquement, site DCIM existant, proxy actif, endpoint HTTPS, portée région/site/VRF exacte, idempotence des jobs, audit, isolation tenant, migration non destructive et absence d’écriture RSOT directe.
@@ -78,7 +78,7 @@ PYTHONPATH=src python -m pytest -q --no-cov \
   tests/integration/test_multisite_postgresql_repository.py \
   tests/integration/test_multisite_web_contract.py
 python scripts/validate_openapi.py docs/api/openapi.yaml \
-  docs/specifications/OpenInfra-CDC-SFG-STG-v4.11.0/09-API/OpenAPI/openapi.yaml
+  docs/specifications/OpenInfra-CDC-SFG-STG-v4.12.0/09-API/OpenAPI/openapi.yaml
 ```
 
 Contrôles bloquants : portée locale obligatoire hors `multisite.admin`, rejet atomique des sites non autorisés, disponibilité Pro/Enterprise uniquement, audit des mutations, migration non destructive et absence d’agent régional Pro.
@@ -100,7 +100,7 @@ PYTHONPATH=src:. pytest -q --no-cov \
 
 PYTHONPATH=src:. python scripts/validate_openapi.py \
   docs/api/openapi.yaml \
-  docs/specifications/OpenInfra-CDC-SFG-STG-v4.11.0/09-API/OpenAPI/openapi.yaml
+  docs/specifications/OpenInfra-CDC-SFG-STG-v4.12.0/09-API/OpenAPI/openapi.yaml
 
 cd web && npm test && npm run lint && npm run a11y && npm run a11y:jsx && npm run build
 ```
@@ -137,7 +137,7 @@ PYTHONPATH=src:. pytest -q --no-cov \
 
 PYTHONPATH=src:. python scripts/validate_openapi.py \
   docs/api/openapi.yaml \
-  docs/specifications/OpenInfra-CDC-SFG-STG-v4.11.0/09-API/OpenAPI/openapi.yaml
+  docs/specifications/OpenInfra-CDC-SFG-STG-v4.12.0/09-API/OpenAPI/openapi.yaml
 
 cd web && npm test && npm run lint && npm run a11y && npm run a11y:jsx && npm run build
 ```
@@ -159,7 +159,7 @@ PYTHONPATH=src:. pytest -q --no-cov \
 
 PYTHONPATH=src:. python scripts/validate_openapi.py \
   docs/api/openapi.yaml \
-  docs/specifications/OpenInfra-CDC-SFG-STG-v4.11.0/09-API/OpenAPI/openapi.yaml
+  docs/specifications/OpenInfra-CDC-SFG-STG-v4.12.0/09-API/OpenAPI/openapi.yaml
 ```
 
 Ces contrôles garantissent la distinction observé/estimé, la provenance du facteur carbone, les calculs PUE/CO₂e reproductibles, l’idempotence tenant-wide, les recommandations soumises à validation humaine, les 16 routes GreenOps et la migration `0047`.
@@ -176,8 +176,8 @@ Valider également que `openinfra-web` publie les groupes contextuels du panneau
 PYTHONPATH=src python -m pytest -q   tests/unit/test_data_import_domain.py   tests/integration/test_import_services.py   tests/integration/test_cli_import.py   tests/integration/test_http_api.py   tests/integration/test_http_api_error_contracts.py   tests/integration/test_openinfra_web.py   -o addopts=""
 PYTHONPATH=src python scripts/validate_frontend.py --project-root .
 node --check src/openinfra/interfaces/rendering/static/assets/openinfra-web.js
-PYTHONPATH=src python -m openinfra.interfaces.cli spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4.11.0
-PYTHONPATH=src python docs/specifications/OpenInfra-Roadmap-Developpement-v2.4/scripts/validate_roadmap.py --root docs/specifications/OpenInfra-Roadmap-Developpement-v2.4
+PYTHONPATH=src python -m openinfra.interfaces.cli spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4.12.0
+PYTHONPATH=src python docs/specifications/OpenInfra-Roadmap-Developpement-v2.5/scripts/validate_roadmap.py --root docs/specifications/OpenInfra-Roadmap-Developpement-v2.5
 ```
 
 Ces contrôles garantissent que les guides Device42, NetBox, Nautobot, GLPI et CSV exposent template, étapes, contrôles, rollback et critères de succès via CLI/API/discovery/OpenAPI/portail web, sans mutation RSOT ni ticketing natif.
@@ -210,7 +210,7 @@ PYTHONPATH=src python scripts/validate_autonomous_installer.py --root installers
 PYTHONPATH=src python scripts/validate_enterprise_alignment.py --project-root .
 PYTHONPATH=src python -m openinfra.interfaces.cli installer validate --root installers
 PYTHONPATH=src python -m openinfra.interfaces.cli installer dry-run --root installers
-PYTHONPATH=src python -m openinfra.interfaces.cli spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4.11.0
+PYTHONPATH=src python -m openinfra.interfaces.cli spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4.12.0
 ```
 
 Ces contrôles garantissent que les installateurs Lite/Pro/Enterprise n'exposent aucun secret en clair, respectent les tailles LVM PostgreSQL attendues, utilisent les services systemd canoniques et restent alignés avec les nouveaux référentiels contractuels.
@@ -239,7 +239,7 @@ Contrôles bloquants spécifiques :
 PYTHONPATH=src python -m pytest
 PYTHONPATH=src python -m compileall -q src tests scripts docker
 PYTHONPATH=src python -m openinfra.interfaces.cli version
-PYTHONPATH=src python -m openinfra.interfaces.cli spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4.11.0
+PYTHONPATH=src python -m openinfra.interfaces.cli spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4.12.0
 PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0001_bootstrap --root installers/migrations/postgresql >/tmp/openinfra-0001.sql
 PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0002_security_rbac --root installers/migrations/postgresql >/tmp/openinfra-0002.sql
 PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0003_security_token_lifecycle --root installers/migrations/postgresql >/tmp/openinfra-0003.sql
@@ -468,7 +468,7 @@ PYTHONPATH=src python3 -m pytest -q
 PYTHONPATH=src python3 scripts/quality_gate.py
 PYTHONPATH=src python3 -m compileall -q src tests scripts docker
 PYTHONPATH=src python3 -m openinfra.interfaces.cli version
-PYTHONPATH=src python3 -m openinfra.interfaces.cli spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4.11.0
+PYTHONPATH=src python3 -m openinfra.interfaces.cli spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4.12.0
 PYTHONPATH=src python3 -m openinfra.interfaces.cli database render-migration --name 0014_dcim_energy_cooling_foundation --root installers/migrations/postgresql
 python3 scripts/native_runtime_smoke.py --project-root .
 ```
@@ -749,8 +749,8 @@ PYTHONPATH=src python -m openinfra.interfaces.cli version
 PYTHONPATH=src python scripts/security_gate.py
 PYTHONPATH=src python scripts/validate_enterprise_alignment.py --project-root .
 PYTHONPATH=src python scripts/validate_autonomous_installer.py --root installers
-PYTHONPATH=src python -m openinfra.interfaces.cli spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4.11.0
-python docs/specifications/OpenInfra-Roadmap-Developpement-v2.4/scripts/validate_roadmap.py
+PYTHONPATH=src python -m openinfra.interfaces.cli spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4.12.0
+python docs/specifications/OpenInfra-Roadmap-Developpement-v2.5/scripts/validate_roadmap.py
 PYTHONPATH=src python -m pytest --collect-only -q -o addopts='' --no-cov
 PYTHONPATH=src python -m pytest -q tests/integration/test_import_services.py tests/integration/test_cli_import.py -o addopts=''
 PYTHONPATH=src python -m pytest -q tests/integration/test_http_api.py::TestHttpApi::test_bulk_import_rollback_api_endpoint -o addopts=''
@@ -808,7 +808,7 @@ PYTHONPATH=src python -m pytest -q --no-cov \
 ```bash
 python scripts/validate_openapi.py docs/api/openapi.yaml
 python scripts/validate_openapi.py \
-  docs/specifications/OpenInfra-CDC-SFG-STG-v4.11.0/09-API/OpenAPI/openapi.yaml
+  docs/specifications/OpenInfra-CDC-SFG-STG-v4.12.0/09-API/OpenAPI/openapi.yaml
 PYTHONPATH=src python scripts/security_gate.py --project-root .
 PYTHONPATH=src python scripts/quality_gate.py --project-root .
 ```
@@ -874,7 +874,7 @@ PYTHONPATH=src:. pytest -q \
 
 PYTHONPATH=src python scripts/validate_openapi.py \
   docs/api/openapi.yaml \
-  docs/specifications/OpenInfra-CDC-SFG-STG-v4.11.0/09-API/OpenAPI/openapi.yaml
+  docs/specifications/OpenInfra-CDC-SFG-STG-v4.12.0/09-API/OpenAPI/openapi.yaml
 
 ruff format --check src tests scripts docker installers
 ruff check src tests scripts docker installers
@@ -906,7 +906,7 @@ PYTHONPATH=src:. pytest -q --no-cov \
 
 PYTHONPATH=src:. python scripts/validate_openapi.py \
   docs/api/openapi.yaml \
-  docs/specifications/OpenInfra-CDC-SFG-STG-v4.11.0/09-API/OpenAPI/openapi.yaml
+  docs/specifications/OpenInfra-CDC-SFG-STG-v4.12.0/09-API/OpenAPI/openapi.yaml
 
 ruff format --check src tests scripts docker installers
 ruff check src tests scripts docker installers
@@ -946,7 +946,7 @@ Contrats, frontend et installateurs :
 ```bash
 python scripts/validate_openapi.py \
   docs/api/openapi.yaml \
-  docs/specifications/OpenInfra-CDC-SFG-STG-v4.11.0/09-API/OpenAPI/openapi.yaml
+  docs/specifications/OpenInfra-CDC-SFG-STG-v4.12.0/09-API/OpenAPI/openapi.yaml
 npm --prefix web run lint
 npm --prefix web run a11y
 npm --prefix web run a11y:jsx

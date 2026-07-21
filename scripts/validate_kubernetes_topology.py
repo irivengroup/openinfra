@@ -20,9 +20,9 @@ class KubernetesTopologyProjectValidator:
         "installers/migrations/postgresql/0055_kubernetes_topology_inventory.sql",
         "docs/architecture/kubernetes-cloud-native-topology.md",
         "docs/operations/kubernetes-topology.md",
-        "docs/specifications/OpenInfra-Roadmap-Developpement-v2.4/VERSION",
-        "docs/specifications/OpenInfra-Roadmap-Developpement-v2.4/04-roadmap-epics.csv",
-        "docs/specifications/OpenInfra-Roadmap-Developpement-v2.4/14-alignement-cdc-v4.11.0.csv",
+        "docs/specifications/OpenInfra-Roadmap-Developpement-v2.5/VERSION",
+        "docs/specifications/OpenInfra-Roadmap-Developpement-v2.5/04-roadmap-epics.csv",
+        "docs/specifications/OpenInfra-Roadmap-Developpement-v2.5/14-alignement-cdc-v4.12.0.csv",
         "tests/unit/test_kubernetes_topology.py",
         "tests/integration/test_kubernetes_topology_services.py",
         "tests/integration/test_kubernetes_topology_http_api.py",
@@ -84,11 +84,11 @@ class KubernetesTopologyProjectValidator:
             ),
         )
         self._assert_fragments(
-            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.4/04-roadmap-epics.csv",
+            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.5/04-roadmap-epics.csv",
             ("EPIC-2101", "EPIC-2106"),
         )
         self._assert_fragments(
-            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.4/14-alignement-cdc-v4.11.0.csv",
+            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.5/14-alignement-cdc-v4.12.0.csv",
             ("REQ-00469", "REQ-00470"),
         )
         migrations = sorted((self._root / "installers/migrations/postgresql").glob("*.sql"))

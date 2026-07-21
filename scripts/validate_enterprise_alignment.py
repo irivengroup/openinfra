@@ -53,7 +53,7 @@ class EnterpriseAlignmentValidator:
         "CDC-PERF-002",
         "CDC-PERF-003",
     )
-    _required_roadmap_phases = tuple(f"P{number:02d}" for number in range(25))
+    _required_roadmap_phases = tuple(f"P{number:02d}" for number in range(26))
     _required_services = ("openinfra.service", "openinfra-web.service", "openinfra-agent.service")
 
     def validate(
@@ -70,15 +70,15 @@ class EnterpriseAlignmentValidator:
     def _validate_roots(self, cdc_root: Path, roadmap_root: Path, errors: list[str]) -> None:
         for path in (cdc_root / "00-README.md", cdc_root / "00-Delta-v4.11.md"):
             if not path.is_file():
-                errors.append(f"missing CDC v4.11.0 file: {path}")
+                errors.append(f"missing CDC v4.12.0 file: {path}")
         version_file = roadmap_root / "VERSION"
         if not version_file.is_file():
-            errors.append("missing roadmap v2.4 VERSION")
-        elif version_file.read_text(encoding="utf-8").strip() != "2.4.0":
-            errors.append("roadmap VERSION must be 2.4.0")
-        alignment = roadmap_root / "14-alignement-cdc-v4.11.0.csv"
+            errors.append("missing roadmap v2.5 VERSION")
+        elif version_file.read_text(encoding="utf-8").strip() != "2.5.0":
+            errors.append("roadmap VERSION must be 2.5.0")
+        alignment = roadmap_root / "14-alignement-cdc-v4.12.0.csv"
         if not alignment.is_file():
-            errors.append("missing CDC v4.11.0 alignment matrix")
+            errors.append("missing CDC v4.12.0 alignment matrix")
             return
         rows = self._read_csv(alignment)
         decision_ids = {row.get("cdc_decision_id", "") for row in rows}
@@ -183,17 +183,17 @@ class EnterpriseAlignmentCli:
     def main(cls) -> int:
         parser = argparse.ArgumentParser(
             prog="validate_enterprise_alignment",
-            description="Validate OpenInfra project alignment with CDC v4.11.0 and roadmap v2.4.",
+            description="Validate OpenInfra project alignment with CDC v4.12.0 and roadmap v2.5.",
         )
         parser.add_argument(
             "--cdc-root",
             type=Path,
-            default=Path("docs/specifications/OpenInfra-CDC-SFG-STG-v4.11.0"),
+            default=Path("docs/specifications/OpenInfra-CDC-SFG-STG-v4.12.0"),
         )
         parser.add_argument(
             "--roadmap-root",
             type=Path,
-            default=Path("docs/specifications/OpenInfra-Roadmap-Developpement-v2.4"),
+            default=Path("docs/specifications/OpenInfra-Roadmap-Developpement-v2.5"),
         )
         parser.add_argument("--project-root", type=Path, default=Path("."))
         parser.add_argument("--json", action="store_true")

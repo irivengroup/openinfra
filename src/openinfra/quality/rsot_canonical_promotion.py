@@ -255,7 +255,7 @@ class Gate13Qualification:
                     "rsot_quality_service",
                 ),
                 (
-                    "docs/specifications/OpenInfra-CDC-SFG-STG-v4.11.0/scripts/"
+                    "docs/specifications/OpenInfra-CDC-SFG-STG-v4.12.0/scripts/"
                     "validate_rsot_canonical.py"
                 ): ("REQ-00860", "TST-RSOT-163"),
             },

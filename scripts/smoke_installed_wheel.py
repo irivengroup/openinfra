@@ -12,6 +12,7 @@ from openinfra.interfaces.http_api import OpenApiDocumentProvider
 from openinfra.quality.advanced_identity_oracle_promotion import Gate11PromotionPolicy
 from openinfra.quality.cloud_native_promotion import CloudNativePromotionPolicy
 from openinfra.quality.continuity_certification import PraPcaCertificationEvidence
+from openinfra.quality.contract_completeness_promotion import Gate14Policy
 from openinfra.quality.dependency_graph_benchmark import DependencyGraphBenchmarkConfig
 from openinfra.quality.ga_go_no_go import GaGoNoGoPolicy
 from openinfra.quality.multisite_chaos import MultisiteChaosCampaignEvidence
@@ -28,7 +29,7 @@ class InstalledWheelSmokeError(RuntimeError):
 
 
 class InstalledWheelSmoke:
-    EXPECTED_VERSION = "0.34.6"
+    EXPECTED_VERSION = "0.34.7"
     EXPECTED_ASYNC_ROUTES = (
         "/api/v1/async/jobs",
         "/api/v1/async/jobs/get",
@@ -313,6 +314,7 @@ class InstalledWheelSmoke:
         self._assert_cloud_native_promotion_contract(package_root)
         self._assert_offline_licensing_promotion_contract(package_root)
         self._assert_rsot_canonical_promotion_contract(package_root)
+        self._assert_contract_completeness_promotion_contract(package_root)
         self._assert_benchmark_contract()
         self._assert_release_security_contract(package_root)
         self._assert_release_packaging_contract()
@@ -355,6 +357,7 @@ class InstalledWheelSmoke:
             "cloud_native_gate": "GATE-10",
             "offline_licensing_gate": "GATE-12",
             "rsot_canonical_gate": "GATE-13",
+            "contract_completeness_gate": "GATE-14",
         }
 
     @staticmethod
@@ -425,6 +428,31 @@ class InstalledWheelSmoke:
         if policy.required_controls != Gate13Policy.EXPECTED_CONTROLS:
             raise InstalledWheelSmokeError(
                 "installed RSOT canonical promotion policy is incomplete"
+            )
+
+    @staticmethod
+    def _assert_contract_completeness_promotion_contract(package_root: Path) -> None:
+        policy_path = (
+            package_root / "docs" / "release" / "contract-completeness-promotion-policy.json"
+        )
+        registry_path = package_root / "docs" / "release" / "contract-proof-registry-v4.12.csv"
+        runbook_path = package_root / "docs" / "runbooks" / "CONTRACT_COMPLETENESS_PROMOTION.md"
+        if not registry_path.is_file() or not runbook_path.is_file():
+            raise InstalledWheelSmokeError(
+                "installed wheel is missing GATE-14 registry or promotion runbook"
+            )
+        policy = Gate14Policy.load(policy_path)
+        if policy.gate_id != "GATE-14" or policy.release_id != "REL-15":
+            raise InstalledWheelSmokeError(
+                "installed contractual completeness promotion policy is inconsistent"
+            )
+        if policy.required_controls != Gate14Policy.EXPECTED_CONTROLS:
+            raise InstalledWheelSmokeError(
+                "installed contractual completeness promotion policy is incomplete"
+            )
+        if policy.expected_metrics.contractual_tests != 667:
+            raise InstalledWheelSmokeError(
+                "installed contractual completeness metrics are inconsistent"
             )
 
     @staticmethod
@@ -685,7 +713,7 @@ class InstalledWheelSmoke:
     def _assert_release_security_contract(package_root: Path) -> None:
         controls = ReleaseSecurityControlCatalog.build(
             package_root,
-            image_ref="openinfra/runtime:0.34.6",
+            image_ref="openinfra/runtime:0.34.7",
             api_base_url="http://127.0.0.1:8080",
             web_base_url="http://127.0.0.1:2006",
         )
@@ -775,6 +803,9 @@ class InstalledWheelSmoke:
             ),
             "openinfra-gate13": (
                 "openinfra.quality.rsot_canonical_promotion:Gate13QualificationCli.main"
+            ),
+            "openinfra-gate14": (
+                "openinfra.quality.contract_completeness_promotion:Gate14QualificationCli.main"
             ),
         }
         if entry_points != expected:

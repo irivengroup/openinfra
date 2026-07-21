@@ -22,8 +22,8 @@ class KubernetesSecurityProjectValidator:
         "docs/api/openapi.yaml",
         "docs/architecture/kubernetes-cloud-native-security.md",
         "docs/operations/kubernetes-security-correlation.md",
-        "docs/specifications/OpenInfra-Roadmap-Developpement-v2.4/04-roadmap-epics.csv",
-        "docs/specifications/OpenInfra-Roadmap-Developpement-v2.4/09-roadmap-tests-validation.csv",
+        "docs/specifications/OpenInfra-Roadmap-Developpement-v2.5/04-roadmap-epics.csv",
+        "docs/specifications/OpenInfra-Roadmap-Developpement-v2.5/09-roadmap-tests-validation.csv",
         "tests/unit/test_kubernetes_security.py",
         "tests/integration/test_kubernetes_security_services.py",
         "tests/integration/test_kubernetes_security_http_api.py",
@@ -105,11 +105,11 @@ class KubernetesSecurityProjectValidator:
                 ("kubernetes-security-latest", "kubernetes-security-snapshot"),
             )
         self._assert_fragments(
-            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.4/04-roadmap-epics.csv",
+            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.5/04-roadmap-epics.csv",
             ("EPIC-2103", "Corrélation images SBOM certificats et secrets référencés"),
         )
         self._assert_fragments(
-            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.4/09-roadmap-tests-validation.csv",
+            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.5/09-roadmap-tests-validation.csv",
             ("TST-P21-K8S-SECURITY-CORRELATION", "Corrélation sécurité"),
         )
         migrations = sorted((self._root / "installers/migrations/postgresql").glob("*.sql"))

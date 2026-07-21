@@ -1,7 +1,0 @@
-rule,allowed,owner,mode,edition_scope,validation,acceptance
-sudoers_dropin_root_owned,oui,root:root,0440,toutes,stat /etc/sudoers.d/openinfra,Le fichier est protégé
-wildcard_shell,non,root:root,0440,toutes,visudo -c,Aucun shell arbitraire n'est autorisé
-absolute_paths_only,oui,root:root,0440,toutes,static analysis,Toutes les commandes ont un chemin absolu
-openinfra_wrappers_only,oui,root:root,0440,toutes,static analysis,Les élévations passent par des wrappers contrôlés
-self_modification,non,root:root,0440,toutes,permission test,openinfra ne peut pas modifier sudoers
-audit_elevation,oui,root:root,0440,toutes,audit log,Chaque élévation est journalisée

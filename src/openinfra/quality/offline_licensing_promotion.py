@@ -256,7 +256,7 @@ class Gate12Qualification:
                     "scripts/smoke_installed_wheel.py",
                 ),
                 (
-                    "docs/specifications/OpenInfra-CDC-SFG-STG-v4.11.0/scripts/"
+                    "docs/specifications/OpenInfra-CDC-SFG-STG-v4.12.0/scripts/"
                     "validate_runtime_licensing.py"
                 ): (
                     "EXPECTED_REQUIREMENTS",
@@ -264,7 +264,7 @@ class Gate12Qualification:
                     "EXPECTED_TRACE_ROWS",
                 ),
                 (
-                    "docs/specifications/OpenInfra-Roadmap-Developpement-v2.4/scripts/"
+                    "docs/specifications/OpenInfra-Roadmap-Developpement-v2.5/scripts/"
                     "validate_roadmap.py"
                 ): (
                     "EXPECTED_COUNTS",

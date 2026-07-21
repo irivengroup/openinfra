@@ -1,3 +1,27 @@
+# Changelog
+
+## 0.34.7 — 2026-07-21
+
+### Ajouté
+
+- CDC 4.12.0 et roadmap 2.5.0 avec P25, REL-15, EPIC-2501 à EPIC-2504 et GATE-14.
+- Registre exhaustif `contract-proof-registry-v4.12.csv` couvrant les 667 tests contractuels.
+- Qualification `openinfra-gate14` avec six contrôles fail-closed et rapport JSON atomique.
+- Résolution statique des sélecteurs pytest par analyse AST et classification explicite `automated`, `partial`, `external`.
+- Workflow GitHub Actions GATE-14 et smoke du contrat installé depuis le wheel hors du dépôt.
+
+### Corrigé
+
+- Audit d’obsolescence rendu contextuel : exclusions limitées aux fichiers qui définissent ou testent les règles de détection.
+- Références actives CDC/roadmap/version réalignées sur 4.12.0, 2.5.0 et 0.34.7 dans la CLI, les validateurs, la CI, les runbooks et le packaging.
+- Aide du validateur d’installateur réalignée sur le CDC 4.12.0.
+
+### Compatibilité
+
+- Aucune route métier, commande CLI, permission RBAC, migration ou fonctionnalité existante supprimée.
+- GATE-11, GATE-12 et GATE-13 restent exécutables et sont revalidés sur les référentiels actifs.
+- PostgreSQL reste le backend par défaut ; Oracle 19c reste réservé à Enterprise.
+
 ## v0.34.6 — Canonicalisation RSOT définitive et qualification GATE-13
 
 - retire définitivement les commandes CLI `itrm`, `ri` et `sot` au profit de la commande unique `rsot` ;

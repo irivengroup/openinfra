@@ -140,8 +140,8 @@ class TestInstallerAlignment:
 
     def test_enterprise_alignment_validator_accepts_cdc_v481_and_roadmap_v2(self) -> None:
         report = EnterpriseAlignmentValidator().validate(
-            Path("docs/specifications/OpenInfra-CDC-SFG-STG-v4.11.0"),
-            Path("docs/specifications/OpenInfra-Roadmap-Developpement-v2.4"),
+            Path("docs/specifications/OpenInfra-CDC-SFG-STG-v4.12.0"),
+            Path("docs/specifications/OpenInfra-Roadmap-Developpement-v2.5"),
             Path(),
         )
 

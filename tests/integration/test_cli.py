@@ -16,14 +16,14 @@ class TestOpenInfraCli:
         assert captured.out.strip() == __version__
 
     def test_spec_validate_command(self, capsys: object) -> None:
-        root = Path("docs/specifications/OpenInfra-CDC-SFG-STG-v4.11.0")
+        root = Path("docs/specifications/OpenInfra-CDC-SFG-STG-v4.12.0")
 
         code = OpenInfraCLI().run(["spec", "validate", "--root", str(root)])
         captured = capsys.readouterr()
 
         assert code == 0
         assert "status=valid" in captured.out
-        assert "version=4.11.0" in captured.out
+        assert "version=4.12.0" in captured.out
 
     def test_database_render_migration_command(self, capsys: object) -> None:
         code = OpenInfraCLI().run(

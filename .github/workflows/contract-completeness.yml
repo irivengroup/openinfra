@@ -1,0 +1,146 @@
+name: Contractual completeness GATE-14
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  pull_request:
+    branches: ['**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: openinfra-gate14-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PYTHONHASHSEED: '0'
+  OPENINFRA_LICENSE_ENFORCEMENT: 'false'
+
+jobs:
+  gate14:
+    name: REL-15 / GATE-14 / Python 3.13
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+          cache: pip
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install production and validation dependencies
+        run: |
+          python -m pip install --upgrade "pip>=26.0"
+          python -m pip install -e '.[postgresql,oracle]'
+          python -m pip install --requirement requirements/dev.txt
+          npm ci --prefix web --ignore-scripts --no-audit --no-fund
+
+      - name: Validate CDC 4.12.0 and roadmap 2.5.0
+        run: |
+          python docs/specifications/OpenInfra-CDC-SFG-STG-v4.12.0/scripts/validate_docs.py
+          python docs/specifications/OpenInfra-CDC-SFG-STG-v4.12.0/scripts/validate_runtime_licensing.py
+          python docs/specifications/OpenInfra-CDC-SFG-STG-v4.12.0/scripts/validate_rsot_canonical.py
+          python docs/specifications/OpenInfra-CDC-SFG-STG-v4.12.0/scripts/validate_contract_completeness.py
+          python docs/specifications/OpenInfra-Roadmap-Developpement-v2.5/scripts/validate_roadmap.py
+          python scripts/validate_enterprise_alignment.py
+
+      - name: Validate migrations and OpenAPI contracts
+        run: |
+          python scripts/validate_oracle_migrations.py
+          python scripts/validate_openapi.py \
+            docs/api/openapi.yaml \
+            docs/specifications/OpenInfra-CDC-SFG-STG-v4.12.0/09-API/OpenAPI/openapi.yaml
+
+      - name: Format, lint and strict typing
+        run: |
+          ruff format --check src tests scripts docker installers
+          ruff check src tests scripts docker installers
+          mypy src/openinfra
+          python -m compileall -q src/openinfra scripts installers/setup
+
+      - name: Security gates
+        run: |
+          bandit -q -r src/openinfra
+          python scripts/security_gate.py --project-root .
+
+      - name: GATE-14 focused regressions
+        run: |
+          python -m pytest -q --no-cov \
+            tests/unit/test_gate14_qualification.py \
+            tests/integration/test_contract_completeness_specifications.py \
+            tests/integration/test_contract_proof_registry.py \
+            tests/unit/test_gate12_qualification.py \
+            tests/unit/test_gate13_qualification.py
+
+      - name: Full Python regression and coverage gate
+        run: python -m pytest -n 4 --dist loadfile --cov-fail-under=98
+
+      - name: Frontend tests, accessibility and build
+        working-directory: web
+        run: |
+          npm test
+          npm run lint
+          npm run a11y
+          npm run a11y:jsx
+          npm run build
+          npm audit --audit-level=high --omit=optional
+
+      - name: Generate enforced GATE-14 report
+        run: |
+          mkdir -p artifacts/gate14
+          openinfra-gate14 \
+            --project-root . \
+            --candidate-id "openinfra-0.34.7-${GITHUB_RUN_ID}" \
+            --source-commit "${GITHUB_SHA}" \
+            --output artifacts/gate14/report.json \
+            --enforce
+          python -m json.tool artifacts/gate14/report.json >/dev/null
+
+      - name: Build and verify distributions
+        run: |
+          rm -rf build dist
+          python -m build
+          python -m twine check dist/*
+          python scripts/verify_artifact.py dist/*
+
+      - name: Smoke installed wheel outside source tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m venv /tmp/openinfra-gate14-smoke
+          /tmp/openinfra-gate14-smoke/bin/python -m pip install --upgrade pip
+          /tmp/openinfra-gate14-smoke/bin/python -m pip install \
+            "dist/openinfra-0.34.7-py3-none-any.whl[postgresql,oracle]"
+          cd /tmp
+          /tmp/openinfra-gate14-smoke/bin/python \
+            "$GITHUB_WORKSPACE/scripts/smoke_installed_wheel.py"
+
+      - name: Dependency vulnerability audit
+        run: python -m pip_audit --strict --progress-spinner=off
+
+      - name: Upload immutable GATE-14 evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: openinfra-gate14-${{ github.run_id }}
+          path: |
+            artifacts/gate14/report.json
+            dist/*
+            web/dist/**
+          if-no-files-found: error
+          retention-days: 90

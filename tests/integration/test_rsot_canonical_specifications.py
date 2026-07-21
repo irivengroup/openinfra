@@ -9,8 +9,8 @@ from pathlib import Path
 from openinfra.quality.rsot_canonical_promotion import Gate13Policy
 
 ROOT = Path(__file__).parents[2]
-CDC = ROOT / "docs/specifications/OpenInfra-CDC-SFG-STG-v4.11.0"
-ROADMAP = ROOT / "docs/specifications/OpenInfra-Roadmap-Developpement-v2.4"
+CDC = ROOT / "docs/specifications/OpenInfra-CDC-SFG-STG-v4.12.0"
+ROADMAP = ROOT / "docs/specifications/OpenInfra-Roadmap-Developpement-v2.5"
 
 
 def _run(relative: Path) -> subprocess.CompletedProcess[str]:
@@ -33,8 +33,8 @@ def test_cdc_411_rsot_contract_is_executable() -> None:
 def test_roadmap_24_contract_is_executable() -> None:
     result = _run(ROADMAP / "scripts/validate_roadmap.py")
     assert result.returncode == 0, result.stderr
-    assert "roadmap 2.4.0" in result.stdout
-    assert "14 gates" in result.stdout
+    assert "roadmap 2.5.0" in result.stdout
+    assert "15 gates" in result.stdout
 
 
 def test_gate13_policy_matches_cdc_matrix() -> None:

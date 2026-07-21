@@ -171,7 +171,7 @@ class OpenInfraObservabilityValidator:
                 )
         for name in (
             "docs/api/openapi.yaml",
-            "docs/specifications/OpenInfra-CDC-SFG-STG-v4.11.0/09-API/OpenAPI/openapi.yaml",
+            "docs/specifications/OpenInfra-CDC-SFG-STG-v4.12.0/09-API/OpenAPI/openapi.yaml",
         ):
             if "  /metrics:" not in (self._root / name).read_text(encoding="utf-8"):
                 raise ObservabilityValidationError(f"OpenAPI metrics contract missing: {name}")

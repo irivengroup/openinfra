@@ -23,8 +23,8 @@ class KubernetesGitOpsProjectValidator:
         "docs/api/openapi.yaml",
         "docs/architecture/kubernetes-gitops-drift.md",
         "docs/operations/kubernetes-gitops-drift.md",
-        "docs/specifications/OpenInfra-Roadmap-Developpement-v2.4/04-roadmap-epics.csv",
-        "docs/specifications/OpenInfra-Roadmap-Developpement-v2.4/09-roadmap-tests-validation.csv",
+        "docs/specifications/OpenInfra-Roadmap-Developpement-v2.5/04-roadmap-epics.csv",
+        "docs/specifications/OpenInfra-Roadmap-Developpement-v2.5/09-roadmap-tests-validation.csv",
         "tests/unit/test_kubernetes_gitops.py",
         "tests/integration/test_kubernetes_gitops_services.py",
         "tests/integration/test_kubernetes_gitops_http_api.py",
@@ -118,11 +118,11 @@ class KubernetesGitOpsProjectValidator:
                 ),
             )
         self._assert_fragments(
-            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.4/04-roadmap-epics.csv",
+            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.5/04-roadmap-epics.csv",
             ("EPIC-2104", "Conformité GitOps et dérive observée"),
         )
         self._assert_fragments(
-            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.4/09-roadmap-tests-validation.csv",
+            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.5/09-roadmap-tests-validation.csv",
             ("TST-P21-K8S-GITOPS-DRIFT", "GitOps drift"),
         )
         migrations = sorted((self._root / "installers/migrations/postgresql").glob("*.sql"))

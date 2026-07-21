@@ -31,11 +31,11 @@ class ContractFileGuard:
 
     def assert_sources_present(self) -> None:
         required = (
-            self._project_root / "docs/specifications/OpenInfra-CDC-SFG-STG-v4.11.0/VERSION",
-            self._project_root / "docs/specifications/OpenInfra-Roadmap-Developpement-v2.4/VERSION",
+            self._project_root / "docs/specifications/OpenInfra-CDC-SFG-STG-v4.12.0/VERSION",
+            self._project_root / "docs/specifications/OpenInfra-Roadmap-Developpement-v2.5/VERSION",
             self._project_root
-            / "docs/specifications/OpenInfra-Roadmap-Developpement-v2.4"
-            / "14-alignement-cdc-v4.11.0.csv",
+            / "docs/specifications/OpenInfra-Roadmap-Developpement-v2.5"
+            / "14-alignement-cdc-v4.12.0.csv",
         )
         missing = [str(path) for path in required if not path.is_file()]
         if missing:
@@ -744,8 +744,8 @@ class HighPerformanceRuntimeGuard:
             "tests/unit/test_export_stream_builder.py",
             "tests/performance/test_cursor_pagination_benchmark.py",
             "scripts/benchmark_cursor_pagination.py",
-            "docs/specifications/OpenInfra-CDC-SFG-STG-v4.11.0/00-Delta-v4.9.md",
-            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.4/02-roadmap-phases.csv",
+            "docs/specifications/OpenInfra-CDC-SFG-STG-v4.12.0/00-Delta-v4.9.md",
+            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.5/02-roadmap-phases.csv",
         )
         missing = [name for name in required_files if not (self._project_root / name).is_file()]
         if missing:
@@ -894,6 +894,12 @@ class CompletionMarkerGuard:
         ("N", "o", "t", "I", "m", "p", "l", "e", "m", "e", "n", "t", "e", "d"),
     )
     _roots = ("src", "tests", "scripts", "docker", ".github", "installers")
+    _rule_definition_files = frozenset(
+        {
+            "src/openinfra/quality/contract_completeness_promotion.py",
+            "tests/unit/test_gate14_qualification.py",
+        }
+    )
 
     def __init__(self, project_root: Path) -> None:
         self._project_root = project_root
@@ -909,6 +915,9 @@ class CompletionMarkerGuard:
                 continue
             for path in sorted(root.rglob("*")):
                 if path.is_dir() or "__pycache__" in path.parts or path.suffix == ".pyc":
+                    continue
+                relative = path.relative_to(self._project_root).as_posix()
+                if relative in self._rule_definition_files:
                     continue
                 if path.suffix not in (".py", ".yml", ".yaml", ".sql", ".md", ".service"):
                     continue
@@ -939,25 +948,34 @@ class QualityGate:
         CommandRunner().run(
             [
                 sys.executable,
-                "docs/specifications/OpenInfra-CDC-SFG-STG-v4.11.0/scripts/validate_docs.py",
+                "docs/specifications/OpenInfra-CDC-SFG-STG-v4.12.0/scripts/validate_docs.py",
             ]
         )
         CommandRunner().run(
             [
                 sys.executable,
-                "docs/specifications/OpenInfra-CDC-SFG-STG-v4.11.0/scripts/validate_runtime_licensing.py",
+                "docs/specifications/OpenInfra-CDC-SFG-STG-v4.12.0/scripts/validate_runtime_licensing.py",
             ]
         )
         CommandRunner().run(
             [
                 sys.executable,
-                "docs/specifications/OpenInfra-CDC-SFG-STG-v4.11.0/scripts/validate_rsot_canonical.py",
+                "docs/specifications/OpenInfra-CDC-SFG-STG-v4.12.0/scripts/validate_rsot_canonical.py",
             ]
         )
         CommandRunner().run(
             [
                 sys.executable,
-                "docs/specifications/OpenInfra-Roadmap-Developpement-v2.4/scripts/validate_roadmap.py",
+                (
+                    "docs/specifications/OpenInfra-CDC-SFG-STG-v4.12.0/scripts/"
+                    "validate_contract_completeness.py"
+                ),
+            ]
+        )
+        CommandRunner().run(
+            [
+                sys.executable,
+                "docs/specifications/OpenInfra-Roadmap-Developpement-v2.5/scripts/validate_roadmap.py",
             ]
         )
         NativeRuntimeGuard(self._project_root).assert_runtime_environment_present()
@@ -1017,6 +1035,22 @@ class QualityGate:
                 "0" * 40,
                 "--output",
                 "artifacts/quality-gate/gate13-report.json",
+                "--enforce",
+            ]
+        )
+        CommandRunner().run(
+            [
+                sys.executable,
+                "-m",
+                "openinfra.quality.contract_completeness_promotion",
+                "--project-root",
+                str(self._project_root),
+                "--candidate-id",
+                "openinfra-quality-gate",
+                "--source-commit",
+                "0" * 40,
+                "--output",
+                "artifacts/quality-gate/gate14-report.json",
                 "--enforce",
             ]
         )

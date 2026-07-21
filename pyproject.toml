@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "openinfra"
-version = "0.34.6"
+version = "0.34.7"
 description = "OpenInfra Python POO RSOT, DCIM and IPAM foundation"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -51,6 +51,7 @@ openinfra-server-runtime = "openinfra.interfaces.server_runtime:OpenInfraServerR
 openinfra-gate11 = "openinfra.quality.advanced_identity_oracle_promotion:Gate11QualificationCli.main"
 openinfra-gate12 = "openinfra.quality.offline_licensing_promotion:Gate12QualificationCli.main"
 openinfra-gate13 = "openinfra.quality.rsot_canonical_promotion:Gate13QualificationCli.main"
+openinfra-gate14 = "openinfra.quality.contract_completeness_promotion:Gate14QualificationCli.main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/openinfra"]
@@ -69,6 +70,7 @@ packages = ["src/openinfra"]
 "docs/runbooks/ADVANCED_IDENTITY_ORACLE_SYSTEMD.md" = "openinfra/docs/runbooks/ADVANCED_IDENTITY_ORACLE_SYSTEMD.md"
 "docs/runbooks/OFFLINE_RUNTIME_LICENSING.md" = "openinfra/docs/runbooks/OFFLINE_RUNTIME_LICENSING.md"
 "docs/runbooks/RSOT_CANONICAL_MIGRATION.md" = "openinfra/docs/runbooks/RSOT_CANONICAL_MIGRATION.md"
+"docs/runbooks/CONTRACT_COMPLETENESS_PROMOTION.md" = "openinfra/docs/runbooks/CONTRACT_COMPLETENESS_PROMOTION.md"
 "installers/systemd/openinfra-runtime-secrets.service" = "openinfra/systemd/openinfra-runtime-secrets.service"
 "installers/systemd/openinfra-migrate.service" = "openinfra/systemd/openinfra-migrate.service"
 "installers/systemd/openinfra-team-sync.service" = "openinfra/systemd/openinfra-team-sync.service"

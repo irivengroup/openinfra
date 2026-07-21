@@ -647,7 +647,7 @@ class Gate14Qualification:
         failures, scanned = RepositoryHygieneScanner.scan(root)
         required = {
             "pyproject.toml": (
-                'version = "0.34.7"',
+                f'version = "{__version__}"',
                 "openinfra-gate14",
                 "CONTRACT_COMPLETENESS_PROMOTION.md",
             ),

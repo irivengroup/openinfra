@@ -46,6 +46,7 @@ def test_gate14_workflow_is_fail_closed_and_complete() -> None:
         "npm audit --audit-level=high",
         "scripts/verify_artifact.py",
         "scripts/smoke_installed_wheel.py",
+        "tests/integration/test_dcim_energy_cooling_services.py",
         "actions/upload-artifact@v6",
     ):
         assert token in workflow
@@ -53,11 +54,11 @@ def test_gate14_workflow_is_fail_closed_and_complete() -> None:
 
 
 def test_release_contract_versions_are_consistent() -> None:
-    assert (ROOT / "VERSION").read_text(encoding="utf-8").strip() == "0.34.7"
+    assert (ROOT / "VERSION").read_text(encoding="utf-8").strip() == "0.34.8"
     assert (CDC / "VERSION").read_text(encoding="utf-8").strip() == "4.12.0"
     assert (ROADMAP / "VERSION").read_text(encoding="utf-8").strip() == "2.5.0"
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    assert 'version = "0.34.7"' in pyproject
+    assert 'version = "0.34.8"' in pyproject
     assert "openinfra-gate14" in pyproject
 
 
@@ -73,9 +74,9 @@ def test_registry_has_exact_policy_metrics() -> None:
         selectors.update(item for item in row["pytest_selectors"].split(";") if item)
         evidence.update(item for item in row["evidence_files"].split(";") if item)
     assert len(rows) == 667
-    assert levels == {"partial": 600, "external": 48, "automated": 19}
-    assert len(selectors) == 27
-    assert len(evidence) == 54
+    assert levels == {"partial": 599, "external": 48, "automated": 20}
+    assert len(selectors) == 28
+    assert len(evidence) == 55
 
 
 def test_historical_specifications_are_preserved() -> None:

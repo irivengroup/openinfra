@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "product": "OpenInfra",
-  "version": "0.34.7",
-  "candidate_id": "openinfra-0.34.7-final-candidate",
+  "version": "0.34.8",
+  "candidate_id": "openinfra-0.34.8-final-candidate",
   "certification_date": "2026-07-21",
   "decision": {
     "local_delivery": "go",
@@ -35,17 +35,17 @@
   },
   "tests": {
     "python_files": 280,
-    "python_total": 1613,
-    "python_passed": 1613,
-    "python_duration_seconds": 110.08,
-    "frontend_total": 79,
-    "frontend_passed": 79
+    "python_total": 1616,
+    "python_passed": 1616,
+    "python_duration_seconds": 251.1,
+    "frontend_total": 81,
+    "frontend_passed": 81
   },
   "coverage": {
-    "statements": 48763,
-    "covered": 47796,
-    "missing": 967,
-    "percent": 98.01693907265755,
+    "statements": 48973,
+    "covered": 48005,
+    "missing": 968,
+    "percent": 98.02340064933739,
     "threshold": 98.0,
     "status": "passed"
   },
@@ -77,11 +77,11 @@
     "gate13": "6/6 passed",
     "gate14": "6/6 passed",
     "contractual_tests": 667,
-    "automated_proofs": 19,
-    "partial_proofs": 600,
+    "automated_proofs": 20,
+    "partial_proofs": 599,
     "external_proofs": 48,
-    "pytest_selectors": 27,
-    "evidence_files": 54,
+    "pytest_selectors": 28,
+    "evidence_files": 55,
     "missing_proofs": 0,
     "unclassified_n1_requirements": 0,
     "source_commit": "bound-in-final-bundle-manifest",
@@ -91,12 +91,26 @@
     "build": "passed",
     "accessibility": "passed",
     "initial_raw_js_bytes": 2556,
-    "initial_gzip_js_bytes": 1265
+    "initial_gzip_js_bytes": 1263
   },
   "packaging": {
     "build": "passed",
     "twine_check": "passed",
     "artifact_verification": "passed",
     "installed_wheel_smoke": "passed"
+  },
+  "release_delta": {
+    "contract_test": "TST-FUNC-0007",
+    "capability": "deterministic DCIM equipment placement recommendations",
+    "interfaces": [
+      "application",
+      "cli",
+      "http",
+      "openapi",
+      "react",
+      "packaged-static-runtime"
+    ],
+    "database_migration_required": false,
+    "theme_changed": false
   }
 }

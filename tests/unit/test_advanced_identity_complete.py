@@ -29,6 +29,7 @@ from openinfra.domain.federated_identity import (
     TeamSyncSourceConfig,
     TeamSyncUser,
 )
+from openinfra.infrastructure import advanced_identity as advanced_identity_infrastructure
 from openinfra.infrastructure.advanced_identity import (
     AuthProxyTeamSyncSource,
     LdapTeamSyncSource,
@@ -198,16 +199,14 @@ class TestAdvancedIdentityComplete:
             "_load_auth_class",
             staticmethod(original_load_auth_class),
         )
-        original_import = __import__("importlib").import_module
-        monkeypatch.setattr(
-            "openinfra.infrastructure.advanced_identity.importlib.import_module",
-            lambda name: (_ for _ in ()).throw(ModuleNotFoundError(name)),
-        )
-        with pytest.raises(ValidationError, match="python3-saml"):
-            Python3SamlAssertionValidator._load_auth_class()
-        monkeypatch.setattr(
-            "openinfra.infrastructure.advanced_identity.importlib.import_module", original_import
-        )
+        with monkeypatch.context() as import_patch:
+            import_patch.setattr(
+                advanced_identity_infrastructure.importlib,
+                "import_module",
+                lambda name: (_ for _ in ()).throw(ModuleNotFoundError(name)),
+            )
+            with pytest.raises(ValidationError, match="python3-saml"):
+                Python3SamlAssertionValidator._load_auth_class()
 
     def test_payload_parser_request_factory_and_validation_branches(self) -> None:
         parser = TeamSyncPayloadParser()

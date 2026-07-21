@@ -3796,6 +3796,24 @@ const moduleDefinition = {
           "placeholder": "R01"
         }
       ]
+    },
+    {
+      "id": "dcim-placement-recommendations",
+      "label": "Recommander un placement en rack",
+      "method": "GET",
+      "path": "/v1/dcim/placement-recommendations",
+      "query": [
+        {"name": "site", "label": "Site", "required": true, "placeholder": "PAR1"},
+        {"name": "building", "label": "Bâtiment", "required": true, "placeholder": "BAT-A"},
+        {"name": "room", "label": "Salle", "required": true, "placeholder": "MMR1"},
+        {"name": "u_height", "label": "Hauteur requise (U)", "type": "number", "required": true, "min": 1, "max": 60},
+        {"name": "required_power_watts", "label": "Puissance requise (W)", "type": "number", "required": true, "min": 1, "max": 1000000},
+        {"name": "required_cooling_watts", "label": "Refroidissement requis (W)", "type": "number", "min": 1, "max": 10000000},
+        {"name": "required_power_feeds", "label": "Alimentations requises", "type": "select", "options": ["1", "2"], "defaultValue": "1"},
+        {"name": "preferred_face", "label": "Face préférée", "type": "select", "options": ["front", "rear"]},
+        {"name": "zone", "label": "Zone"},
+        {"name": "limit", "label": "Nombre maximal de recommandations", "type": "number", "defaultValue": "10", "min": 1, "max": 100}
+      ]
     }
   ]
 };

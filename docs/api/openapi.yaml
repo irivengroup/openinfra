@@ -3160,6 +3160,89 @@ paths:
       x-openinfra-component: DCIM
       x-openinfra-context: Énergie et refroidissement
 
+  /api/v1/dcim/placement-recommendations:
+    get:
+      summary: Recommend compatible rack placements from U-space, power and cooling constraints
+      description: >-
+        Evaluates active racks in one room without reserving capacity. A recommendation is returned
+        only when a contiguous U block, the requested single or redundant A/B power feeds, the rack
+        power headroom and an assigned cooling zone all satisfy the declared requirements. Results
+        are deterministic and the response exposes rejection counters when no rack is compatible.
+      security:
+      - bearerToken: []
+      parameters:
+      - {name: tenant_id, in: query, required: true, schema: {type: string}}
+      - {name: site, in: query, required: true, schema: {type: string}}
+      - {name: building, in: query, required: true, schema: {type: string}}
+      - {name: room, in: query, required: true, schema: {type: string}}
+      - name: u_height
+        in: query
+        required: true
+        schema: {type: integer, minimum: 1, maximum: 60}
+      - name: required_power_watts
+        in: query
+        required: true
+        schema: {type: integer, minimum: 1, maximum: 1000000}
+      - name: required_cooling_watts
+        in: query
+        required: false
+        description: Defaults to required_power_watts when omitted.
+        schema: {type: integer, minimum: 1, maximum: 10000000}
+      - name: required_power_feeds
+        in: query
+        required: false
+        schema: {type: integer, enum: [1, 2], default: 1}
+      - name: preferred_face
+        in: query
+        required: false
+        schema: {type: string, enum: [front, rear]}
+      - {name: zone, in: query, required: false, schema: {type: string}}
+      - name: limit
+        in: query
+        required: false
+        schema: {type: integer, minimum: 1, maximum: 100, default: 10}
+      responses:
+        '200':
+          description: Ranked compatible placements and rejection metrics
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [type, tenant_id, site, building, room, requirements, evaluated_racks, compatible_rack_count, recommendations]
+                properties:
+                  type: {type: string, enum: [equipment_placement_recommendation]}
+                  tenant_id: {type: string}
+                  site: {type: string}
+                  building: {type: string}
+                  room: {type: string}
+                  requirements: {type: object}
+                  evaluated_racks: {type: integer, minimum: 0}
+                  compatible_rack_count: {type: integer, minimum: 0}
+                  returned_candidate_count: {type: integer, minimum: 0}
+                  rejected_by_reason:
+                    type: object
+                    additionalProperties: {type: integer, minimum: 0}
+                  recommendations:
+                    type: array
+                    items:
+                      type: object
+                      required: [rank, rack, rack_face, start_u, end_u, power_feeds, cooling, compatible]
+                      properties:
+                        rank: {type: integer, minimum: 1}
+                        rack: {type: string}
+                        rack_face: {type: string, enum: [front, rear]}
+                        start_u: {type: integer, minimum: 1}
+                        end_u: {type: integer, minimum: 1}
+                        power_feeds: {type: array, minItems: 1, maxItems: 2}
+                        cooling: {type: object}
+                        compatible: {type: boolean, enum: [true]}
+        '400': {description: Missing hierarchy or invalid placement requirement}
+        '401': {description: Missing or invalid DCIM locate token}
+      tags:
+      - DCIM · Racks et capacité
+      x-openinfra-component: DCIM
+      x-openinfra-context: Racks et capacité
+
   /api/v1/ipam/vrfs:
     post:
       summary: Define or retrieve an IPAM VRF scoped to a tenant

@@ -2239,6 +2239,24 @@ const moduleDefinition = {
         "Salle",
         "Rack"
       ]
+    },
+    {
+      "id": "dcim-placement-recommendations",
+      "label": "Recommander un placement en rack",
+      "path": "/v1/dcim/placement-recommendations",
+      "method": "GET",
+      "fields": [
+        {"name": "site", "label": "Site", "required": true},
+        {"name": "building", "label": "Bâtiment", "required": true},
+        {"name": "room", "label": "Salle", "required": true},
+        {"name": "u_height", "label": "Hauteur requise (U)", "type": "number", "required": true, "min": 1, "max": 60},
+        {"name": "required_power_watts", "label": "Puissance requise (W)", "type": "number", "required": true, "min": 1, "max": 1000000},
+        {"name": "required_cooling_watts", "label": "Refroidissement requis (W)", "type": "number", "min": 1, "max": 10000000},
+        {"name": "required_power_feeds", "label": "Alimentations requises", "type": "select", "options": ["1", "2"], "defaultValue": "1"},
+        {"name": "preferred_face", "label": "Face préférée", "type": "select", "options": ["front", "rear"]},
+        {"name": "zone", "label": "Zone"},
+        {"name": "limit", "label": "Nombre maximal de recommandations", "type": "number", "defaultValue": "10", "min": 1, "max": 100}
+      ]
     }
   ]
 };

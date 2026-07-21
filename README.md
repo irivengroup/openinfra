@@ -1,14 +1,27 @@
-# OpenInfra v0.34.7
+# OpenInfra v0.34.8
 
-OpenInfra 0.34.7 introduit **GATE-14**, le contrôle fail-closed de complétude contractuelle de REL-15. Les 667 tests du CDC 4.12.0 sont classifiés sans ambiguïté comme preuves automatisées, partielles ou externes ; seuls les nœuds pytest réellement résolus sont comptabilisés comme automatisés. La canonicalisation RSOT et le licensing runtime offline restent inchangés. PostgreSQL demeure le backend par défaut et Oracle 19c reste exclusivement disponible pour l’édition Enterprise.
+OpenInfra 0.34.8 matérialise `TST-FUNC-0007` avec une recommandation DCIM déterministe de placement d’équipements compatible avec l’espace U, les circuits électriques simples ou A/B redondants et la capacité thermique. Le service est disponible en CLI, HTTP et dans le portail, sans réservation implicite ni modification du thème. La canonicalisation RSOT, le licensing runtime offline et GATE-14 restent inchangés dans leurs contrats ; PostgreSQL demeure le backend par défaut et Oracle 19c reste exclusivement disponible pour l’édition Enterprise.
+
+
+## Recommandation de placement DCIM — v0.34.8
+
+- sélection des racks actifs d’une salle avec filtrage optionnel de zone et de face ;
+- calcul des blocs U contigus en tenant compte des équipements et panneaux de brassage ;
+- validation de la puissance résiduelle du rack et des circuits simples ou A/B redondants ;
+- refus fail-closed lorsque la zone de refroidissement ou sa capacité est absente ;
+- classement stable par ajustement physique, marges électriques et marge thermique ;
+- CLI `openinfra dcim recommend-placement`, API `GET /api/v1/dcim/placement-recommendations` et portail DCIM ;
+- aucune réservation implicite, aucune migration et aucun changement de charte graphique.
+
+Voir `docs/runbooks/DCIM_PLACEMENT_RECOMMENDATIONS.md`.
 
 ## Complétude contractuelle — P25 / REL-15 / GATE-14
 
 - CDC 4.12.0 : 861 exigences, 667 tests, 861 lignes de traçabilité et 529 entités ;
 - roadmap 2.5.0 : P25, REL-15, EPIC-2501 à EPIC-2504 et GATE-14 ;
-- registre exhaustif de 667 preuves : 19 automatisées, 600 partielles et 48 externes ;
-- 27 sélecteurs pytest réels, validés par analyse AST, rattachés aux preuves automatisées ;
-- 54 fichiers d’évidence distincts, aucun test sans preuve et aucune exigence N1 non classifiée ;
+- registre exhaustif de 667 preuves : 20 automatisées, 599 partielles et 48 externes ;
+- 28 sélecteurs pytest réels, validés par analyse AST, rattachés aux preuves automatisées ;
+- 55 fichiers d’évidence distincts, aucun test sans preuve et aucune exigence N1 non classifiée ;
 - scanner d’hygiène contextuel : les règles de détection sont exclues par chemin exact, tandis que les sources produit restent contrôlées ;
 - packaging du registre, de la politique, du runbook et du validateur dans le wheel et le sdist ;
 - workflow GitHub Actions complet : formatage, lint, typage, tests, couverture, sécurité, frontend, build, vérification et smoke isolé.

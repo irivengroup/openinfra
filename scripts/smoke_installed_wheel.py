@@ -29,7 +29,7 @@ class InstalledWheelSmokeError(RuntimeError):
 
 
 class InstalledWheelSmoke:
-    EXPECTED_VERSION = "0.34.7"
+    EXPECTED_VERSION = "0.34.8"
     EXPECTED_ASYNC_ROUTES = (
         "/api/v1/async/jobs",
         "/api/v1/async/jobs/get",
@@ -54,6 +54,7 @@ class InstalledWheelSmoke:
         "/api/v1/async/outbox-events/replay",
         "/api/v1/async/metrics",
     )
+    EXPECTED_DCIM_PLACEMENT_ROUTES = ("/api/v1/dcim/placement-recommendations",)
     EXPECTED_OBSERVABILITY_ROUTES = ("/metrics",)
     EXPECTED_DATA_PLANE_ROUTES = ("/api/v1/database/routing",)
     EXPECTED_ADVANCED_IDENTITY_ROUTES = (
@@ -285,6 +286,7 @@ class InstalledWheelSmoke:
         package_root = Path(openinfra.__file__).resolve().parent
         openapi = OpenApiDocumentProvider().read_yaml()
         self._assert_openapi_taxonomy(openapi)
+        self._assert_dcim_placement_routes(openapi)
         self._assert_async_routes(openapi)
         self._assert_observability_routes(openapi)
         self._assert_data_plane_routes(openapi)
@@ -323,6 +325,7 @@ class InstalledWheelSmoke:
         return {
             "version": openinfra.__version__,
             "openapi_taxonomy": True,
+            "dcim_placement_routes": len(self.EXPECTED_DCIM_PLACEMENT_ROUTES),
             "async_routes": len(self.EXPECTED_ASYNC_ROUTES),
             "observability_routes": len(self.EXPECTED_OBSERVABILITY_ROUTES),
             "data_plane_routes": len(self.EXPECTED_DATA_PLANE_ROUTES),
@@ -437,7 +440,14 @@ class InstalledWheelSmoke:
         )
         registry_path = package_root / "docs" / "release" / "contract-proof-registry-v4.12.csv"
         runbook_path = package_root / "docs" / "runbooks" / "CONTRACT_COMPLETENESS_PROMOTION.md"
-        if not registry_path.is_file() or not runbook_path.is_file():
+        placement_runbook_path = (
+            package_root / "docs" / "runbooks" / "DCIM_PLACEMENT_RECOMMENDATIONS.md"
+        )
+        if (
+            not registry_path.is_file()
+            or not runbook_path.is_file()
+            or not placement_runbook_path.is_file()
+        ):
             raise InstalledWheelSmokeError(
                 "installed wheel is missing GATE-14 registry or promotion runbook"
             )
@@ -450,7 +460,18 @@ class InstalledWheelSmoke:
             raise InstalledWheelSmokeError(
                 "installed contractual completeness promotion policy is incomplete"
             )
-        if policy.expected_metrics.contractual_tests != 667:
+        if policy.expected_metrics != Gate14Policy.load(policy_path).expected_metrics:
+            raise InstalledWheelSmokeError(
+                "installed contractual completeness policy cannot be reloaded deterministically"
+            )
+        if (
+            policy.expected_metrics.contractual_tests != 667
+            or policy.expected_metrics.automated_proofs != 20
+            or policy.expected_metrics.partial_proofs != 599
+            or policy.expected_metrics.external_proofs != 48
+            or policy.expected_metrics.pytest_selectors != 28
+            or policy.expected_metrics.evidence_files != 55
+        ):
             raise InstalledWheelSmokeError(
                 "installed contractual completeness metrics are inconsistent"
             )
@@ -501,6 +522,13 @@ class InstalledWheelSmoke:
         if distribution_version != self.EXPECTED_VERSION:
             raise InstalledWheelSmokeError(
                 "installed distribution metadata version does not match runtime version"
+            )
+
+    def _assert_dcim_placement_routes(self, openapi: str) -> None:
+        missing = [route for route in self.EXPECTED_DCIM_PLACEMENT_ROUTES if route not in openapi]
+        if missing:
+            raise InstalledWheelSmokeError(
+                "installed OpenAPI document is missing DCIM placement routes: " + ", ".join(missing)
             )
 
     def _assert_async_routes(self, openapi: str) -> None:
@@ -713,7 +741,7 @@ class InstalledWheelSmoke:
     def _assert_release_security_contract(package_root: Path) -> None:
         controls = ReleaseSecurityControlCatalog.build(
             package_root,
-            image_ref="openinfra/runtime:0.34.7",
+            image_ref="openinfra/runtime:0.34.8",
             api_base_url="http://127.0.0.1:8080",
             web_base_url="http://127.0.0.1:2006",
         )

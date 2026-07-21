@@ -391,6 +391,7 @@ class TestHttpApi:
                     "cooling_zones": "/api/v1/dcim/cooling-zones",
                     "power_reservations": "/api/v1/dcim/power-reservations",
                     "energy_cooling_capacity": "/api/v1/dcim/energy-cooling-capacity",
+                    "placement_recommendations": "/api/v1/dcim/placement-recommendations",
                 },
                 "discovery": {
                     "collectors": "/api/v1/discovery/collectors",

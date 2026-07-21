@@ -1320,6 +1320,14 @@ const OPENINFRA_SEARCH_INDEX = [
     "path": "/v1/dcim/energy-cooling-capacity"
   },
   {
+    "moduleId": "dcim",
+    "moduleLabel": "DCIM",
+    "id": "dcim-placement-recommendations",
+    "label": "Recommander un placement en rack",
+    "method": "GET",
+    "path": "/v1/dcim/placement-recommendations"
+  },
+  {
     "moduleId": "itam",
     "moduleLabel": "ITAM",
     "id": "itam-organizations",

@@ -361,6 +361,7 @@ export const SIDEBAR_CONTEXTS = {
       "operationIds": [
         "dcim-locate-equipment",
         "dcim-rack-capacity",
+        "dcim-placement-recommendations",
         "dcim-room-plan",
         "dcim-rack-elevation"
       ]

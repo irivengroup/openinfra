@@ -95,6 +95,7 @@ from openinfra.application.dcim_services import (
     LocateEquipmentCommand,
     RackCapacityCommand,
     RackEnergyCoolingCapacityCommand,
+    RecommendEquipmentPlacementCommand,
     RenderDigitalTwinCommand,
     RenderRackElevationCommand,
     RenderRoomPlanCommand,
@@ -5310,6 +5311,31 @@ class OpenInfraCLI:
         energy_cooling.add_argument("--rack", required=True)
         energy_cooling.set_defaults(handler=self._handle_dcim_energy_cooling_capacity)
 
+        recommend_placement = dcim_subparsers.add_parser(
+            "recommend-placement",
+            help="recommend rack placement from U-space, power redundancy and cooling constraints",
+        )
+        recommend_placement.add_argument(
+            "--backend", choices=("json", "postgresql", "oracle"), default="json"
+        )
+        recommend_placement.add_argument("--data", type=Path, default=Path(".openinfra.json"))
+        recommend_placement.add_argument("--postgres-dsn")
+        recommend_placement.add_argument("--tenant", default="default")
+        recommend_placement.add_argument("--actor", default="cli")
+        recommend_placement.add_argument("--site", required=True)
+        recommend_placement.add_argument("--building", required=True)
+        recommend_placement.add_argument("--room", required=True)
+        recommend_placement.add_argument("--u-height", type=int, required=True)
+        recommend_placement.add_argument("--required-power-watts", type=int, required=True)
+        recommend_placement.add_argument("--required-cooling-watts", type=int)
+        recommend_placement.add_argument(
+            "--required-power-feeds", type=int, choices=(1, 2), default=1
+        )
+        recommend_placement.add_argument("--preferred-face", choices=("front", "rear"))
+        recommend_placement.add_argument("--zone")
+        recommend_placement.add_argument("--limit", type=int, default=10)
+        recommend_placement.set_defaults(handler=self._handle_dcim_recommend_placement)
+
         digital_twin = dcim_subparsers.add_parser(
             "digital-twin",
             help="render the initial room digital twin across racks, cabling and capacity",
@@ -10122,6 +10148,27 @@ class OpenInfraCLI:
             )
         )
         print(json.dumps(report.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_dcim_recommend_placement(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        recommendation = application.dcim_environment_service.recommend_equipment_placement(
+            RecommendEquipmentPlacementCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                site=args.site,
+                building=args.building,
+                room=args.room,
+                u_height=args.u_height,
+                required_power_watts=args.required_power_watts,
+                required_cooling_watts=args.required_cooling_watts,
+                required_power_feeds=args.required_power_feeds,
+                preferred_face=args.preferred_face,
+                zone=args.zone,
+                limit=args.limit,
+            )
+        )
+        print(json.dumps(recommendation.as_dict(), sort_keys=True))
         return 0
 
     def _handle_dcim_digital_twin(self, args: argparse.Namespace) -> int:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass
 from typing import Any
 
@@ -25,16 +26,21 @@ from openinfra.domain.dcim import (
     Equipment,
     EquipmentLocation,
     EquipmentLocatorSheet,
+    EquipmentPlacementRecommendation,
     EquipmentScanProof,
     Floor,
     FloorNomenclature,
     PatchPanel,
     PowerCircuit,
     PowerDevice,
+    PowerFeedSide,
     Rack,
     RackCapacityReport,
     RackElevation,
     RackEnergyCoolingReport,
+    RackFace,
+    RackPlacementCandidate,
+    RackPlacementRequirements,
     RackPowerReservation,
     Room,
     RoomPlan2D,
@@ -558,6 +564,22 @@ class RackEnergyCoolingCapacityCommand:
     building: str
     room: str
     rack: str
+
+
+@dataclass(frozen=True, slots=True)
+class RecommendEquipmentPlacementCommand:
+    tenant_id: str
+    actor: str
+    site: str
+    building: str
+    room: str
+    u_height: int
+    required_power_watts: int
+    required_cooling_watts: int | None = None
+    required_power_feeds: int = 1
+    preferred_face: str | None = None
+    zone: str | None = None
+    limit: int = 10
 
 
 @dataclass(frozen=True, slots=True)
@@ -2498,6 +2520,247 @@ class DcimEnvironmentService:
             )
             unit_of_work.commit()
         return report
+
+    def recommend_equipment_placement(
+        self,
+        command: RecommendEquipmentPlacementCommand,
+    ) -> EquipmentPlacementRecommendation:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        room = self._dcim_repository.find_room(
+            tenant_id, command.site, command.building, command.room
+        )
+        if room is None:
+            raise NotFoundError("room does not exist")
+        requirements = RackPlacementRequirements.create(
+            u_height=command.u_height,
+            required_power_watts=command.required_power_watts,
+            required_cooling_watts=command.required_cooling_watts,
+            required_power_feeds=command.required_power_feeds,
+            preferred_face=command.preferred_face,
+            zone=command.zone,
+            limit=command.limit,
+        )
+        racks = self._dcim_repository.list_racks_in_room(
+            tenant_id, command.site, command.building, command.room, include_retired=True
+        )
+        rejected: Counter[str] = Counter()
+        candidates: list[RackPlacementCandidate] = []
+        for rack in racks:
+            if not rack.selectable():
+                rejected["rack_not_active"] += 1
+                continue
+            if requirements.zone_code is not None and rack.zone_code != requirements.zone_code:
+                rejected["zone_mismatch"] += 1
+                continue
+            free_blocks = self._placement_free_blocks(tenant_id, rack, requirements)
+            if not free_blocks:
+                rejected["insufficient_contiguous_u"] += 1
+                continue
+            energy = self._placement_energy_capacity(tenant_id, rack, requirements)
+            if isinstance(energy, str):
+                rejected[energy] += 1
+                continue
+            selected_circuits, remaining_watts, rack_remaining, cooling_zone, cooling_remaining = (
+                energy
+            )
+            candidates.extend(
+                RackPlacementCandidate(
+                    rack=rack,
+                    rack_face=face,
+                    start_u=start_u,
+                    block_units=block_units,
+                    selected_circuits=selected_circuits,
+                    circuit_remaining_watts=remaining_watts,
+                    rack_remaining_watts=rack_remaining,
+                    cooling_zone=cooling_zone,
+                    cooling_remaining_watts=cooling_remaining,
+                )
+                for face, start_u, block_units in free_blocks
+            )
+        recommendation = EquipmentPlacementRecommendation(
+            tenant_id=tenant_id,
+            site_code=room.site_code,
+            building_code=room.building_code,
+            room_code=room.code,
+            requirements=requirements,
+            evaluated_racks=len(racks),
+            rejected_by_reason=tuple(sorted(rejected.items())),
+            candidates=tuple(candidates),
+        )
+        with self._transaction_manager.begin() as unit_of_work:
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=tenant_id,
+                    actor=command.actor,
+                    action="dcim.placement.recommended",
+                    target_type="room",
+                    target_id=room.code.value,
+                    metadata={
+                        "requirements": requirements.as_dict(),
+                        "evaluated_racks": len(racks),
+                        "compatible_racks": recommendation.compatible_rack_count,
+                        "compatible_candidates": len(candidates),
+                        "rejected_by_reason": dict(recommendation.rejected_by_reason),
+                    },
+                )
+            )
+            unit_of_work.commit()
+        return recommendation
+
+    def _placement_free_blocks(
+        self,
+        tenant_id: TenantId,
+        rack: Rack,
+        requirements: RackPlacementRequirements,
+    ) -> tuple[tuple[RackFace, int, int], ...]:
+        occupied_by_face: dict[RackFace, set[int]] = {face: set() for face in rack.usable_faces}
+        for equipment in self._dcim_repository.list_equipment_in_rack(
+            tenant_id,
+            rack.site_code.value,
+            rack.building_code.value,
+            rack.room_code.value,
+            rack.code.value,
+        ):
+            face = equipment.location.effective_rack_face()
+            if face in occupied_by_face:
+                occupied_by_face[face].update(equipment.location.occupied_units())
+        for panel in self._dcim_repository.list_patch_panels_in_rack(
+            tenant_id,
+            rack.site_code.value,
+            rack.building_code.value,
+            rack.room_code.value,
+            rack.code.value,
+        ):
+            if panel.rack_face in occupied_by_face:
+                occupied_by_face[panel.rack_face].update(panel.occupied_units())
+        eligible_faces = rack.usable_faces
+        if requirements.preferred_face is not None:
+            eligible_faces = tuple(
+                face for face in rack.usable_faces if face == requirements.preferred_face
+            )
+        results: list[tuple[RackFace, int, int]] = []
+        for face in eligible_faces:
+            segments = self._contiguous_free_segments(rack.units, occupied_by_face.get(face, set()))
+            fitting = tuple(segment for segment in segments if segment[1] >= requirements.u_height)
+            if not fitting:
+                continue
+            start_u, block_units = min(fitting, key=lambda item: (item[1], item[0]))
+            results.append((face, start_u, block_units))
+        return tuple(results)
+
+    @staticmethod
+    def _contiguous_free_segments(
+        rack_units: int, occupied_units: set[int]
+    ) -> tuple[tuple[int, int], ...]:
+        segments: list[tuple[int, int]] = []
+        start: int | None = None
+        for unit in range(1, rack_units + 2):
+            is_free = unit <= rack_units and unit not in occupied_units
+            if is_free and start is None:
+                start = unit
+            elif not is_free and start is not None:
+                segments.append((start, unit - start))
+                start = None
+        return tuple(segments)
+
+    def _placement_energy_capacity(
+        self,
+        tenant_id: TenantId,
+        rack: Rack,
+        requirements: RackPlacementRequirements,
+    ) -> tuple[tuple[PowerCircuit, ...], tuple[int, ...], int | None, CoolingZone, int] | str:
+        reservations = self._dcim_repository.list_power_reservations_for_rack(
+            tenant_id,
+            rack.site_code.value,
+            rack.building_code.value,
+            rack.room_code.value,
+            rack.code.value,
+        )
+        rack_load = sum(item.expected_watts for item in reservations)
+        rack_remaining = (
+            None if rack.power_capacity_watts is None else rack.power_capacity_watts - rack_load
+        )
+        if rack_remaining is not None and rack_remaining < requirements.required_power_watts:
+            return "insufficient_rack_power"
+        circuits = self._dcim_repository.list_power_circuits_for_rack(
+            tenant_id,
+            rack.site_code.value,
+            rack.building_code.value,
+            rack.room_code.value,
+            rack.code.value,
+        )
+        circuit_remaining = {
+            circuit: circuit.capacity_watts
+            - sum(
+                item.expected_watts
+                for item in self._dcim_repository.list_power_reservations_for_circuit(
+                    tenant_id, circuit.circuit_id.value
+                )
+            )
+            for circuit in circuits
+        }
+        selected: tuple[PowerCircuit, ...]
+        if requirements.required_power_feeds == 1:
+            eligible = tuple(
+                circuit
+                for circuit in circuits
+                if circuit_remaining[circuit] >= requirements.required_power_watts
+            )
+            if not eligible:
+                return "insufficient_power_circuit"
+            selected = (
+                min(
+                    eligible,
+                    key=lambda circuit: (
+                        -circuit_remaining[circuit],
+                        circuit.circuit_id.value,
+                    ),
+                ),
+            )
+        else:
+            by_side: dict[PowerFeedSide, tuple[PowerCircuit, ...]] = {}
+            for side in PowerFeedSide:
+                by_side[side] = tuple(
+                    circuit
+                    for circuit in circuits
+                    if circuit.side == side
+                    and circuit_remaining[circuit] >= requirements.required_power_watts
+                )
+            if not by_side[PowerFeedSide.A] or not by_side[PowerFeedSide.B]:
+                return "insufficient_redundant_power"
+            selected = tuple(
+                min(
+                    by_side[side],
+                    key=lambda circuit: (
+                        -circuit_remaining[circuit],
+                        circuit.circuit_id.value,
+                    ),
+                )
+                for side in (PowerFeedSide.A, PowerFeedSide.B)
+            )
+        if rack.zone_code is None:
+            return "missing_cooling_zone_assignment"
+        cooling_zone = self._dcim_repository.find_cooling_zone(
+            tenant_id,
+            rack.site_code.value,
+            rack.building_code.value,
+            rack.room_code.value,
+            rack.zone_code.value,
+        )
+        if cooling_zone is None:
+            return "missing_cooling_capacity"
+        cooling_remaining = cooling_zone.cooling_capacity_watts - self._zone_power_load(
+            tenant_id, cooling_zone
+        )
+        if cooling_remaining < requirements.required_cooling_watts:
+            return "insufficient_cooling_capacity"
+        return (
+            selected,
+            tuple(circuit_remaining[circuit] for circuit in selected),
+            rack_remaining,
+            cooling_zone,
+            cooling_remaining,
+        )
 
     def _assert_power_capacity(
         self,

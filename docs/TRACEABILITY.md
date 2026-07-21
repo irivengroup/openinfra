@@ -1,3 +1,11 @@
+## v0.34.8 — Recommandation de placement DCIM
+
+| Exigence | Implémentation | Interfaces | Preuves |
+|---|---|---|---|
+| `TST-FUNC-0007` — placement compatible avec les contraintes physiques, électriques et thermiques | `RackPlacementRequirements`, `RackPlacementCandidate`, `EquipmentPlacementRecommendation` et `DcimEnvironmentService.recommend_equipment_placement` | CLI `dcim recommend-placement`, HTTP `GET /api/v1/dcim/placement-recommendations`, portail DCIM | `tests/integration/test_dcim_energy_cooling_services.py`, `web/tests/dcim-placement-recommendation.test.mjs`, registre GATE-14 |
+
+La recommandation est déterministe, auditée et sans réservation implicite. Aucun changement de schéma n’est requis.
+
 ## v0.34.7 — Complétude contractuelle et GATE-14
 
 | Domaine | Contrat | Preuves exécutables |

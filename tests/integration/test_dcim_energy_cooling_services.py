@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import threading
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -10,13 +11,16 @@ import pytest
 from openinfra.application.container import ApplicationFactory
 from openinfra.application.dcim_services import (
     DefineCoolingZoneCommand,
+    DefinePatchPanelCommand,
     DefinePhysicalRoomCommand,
     DefinePowerCircuitCommand,
     DefinePowerDeviceCommand,
     DefineRackCommand,
     LocateEquipmentCommand,
     RackEnergyCoolingCapacityCommand,
+    RecommendEquipmentPlacementCommand,
     ReserveEquipmentPowerCommand,
+    UpdateRackCommand,
 )
 from openinfra.application.security_services import BootstrapTokenCommand
 from openinfra.domain.common import ConflictError, NotFoundError, TenantId, ValidationError
@@ -27,6 +31,7 @@ from openinfra.domain.dcim import (
     PowerDevice,
     PowerDeviceKind,
     PowerFeedSide,
+    RackPlacementRequirements,
     RackPowerReservation,
 )
 from openinfra.interfaces.cli import OpenInfraCLI
@@ -186,6 +191,46 @@ class TestDcimEnergyCoolingServices:
             )
         )
 
+    def _configure_single_feed(
+        self,
+        app,
+        *,
+        rack: str = "R01",
+        device: str = "PDU-SINGLE",
+        circuit: str = "CIR-SINGLE",
+        capacity_watts: int = 2500,
+    ) -> None:
+        app.dcim_environment_service.define_power_device(
+            DefinePowerDeviceCommand(
+                tenant_id="default",
+                actor="pytest",
+                code=device,
+                kind="pdu",
+                site="PWR1",
+                building="BAT-P",
+                room="MMR-P",
+                rack=rack,
+                side="A",
+                capacity_watts=5000,
+                derating_percent=100,
+            )
+        )
+        app.dcim_environment_service.define_power_circuit(
+            DefinePowerCircuitCommand(
+                tenant_id="default",
+                actor="pytest",
+                circuit_id=circuit,
+                source_device=device,
+                site="PWR1",
+                building="BAT-P",
+                room="MMR-P",
+                rack=rack,
+                side="A",
+                capacity_watts=capacity_watts,
+                breaker_rating_amps=16,
+            )
+        )
+
     def test_power_cooling_capacity_roundtrip_and_report(self, tmp_path: Path) -> None:
         app = self._prepared_app(tmp_path)
         self._configure_capacity(app)
@@ -224,6 +269,296 @@ class TestDcimEnergyCoolingServices:
         assert report["sides"]["B"]["reserved_watts"] == 1200
         assert report["cooling"]["remaining_watts"] == 3600
         assert reloaded_report["reservations"][0]["asset_tag"] == "SRV-PWR-01"
+
+    def test_equipment_placement_recommendation_is_constraint_aware_and_deterministic(
+        self, tmp_path: Path
+    ) -> None:
+        app = self._prepared_app(tmp_path)
+        self._configure_capacity(app)
+
+        recommendation = app.dcim_environment_service.recommend_equipment_placement(
+            RecommendEquipmentPlacementCommand(
+                tenant_id="default",
+                actor="pytest",
+                site="PWR1",
+                building="BAT-P",
+                room="MMR-P",
+                u_height=4,
+                required_power_watts=1000,
+                required_cooling_watts=900,
+                required_power_feeds=2,
+                preferred_face="front",
+                zone="Z1",
+                limit=5,
+            )
+        ).as_dict()
+
+        assert recommendation["type"] == "equipment_placement_recommendation"
+        assert recommendation["evaluated_racks"] == 1
+        assert recommendation["compatible_rack_count"] == 1
+        assert recommendation["returned_candidate_count"] == 1
+        candidate = recommendation["recommendations"][0]
+        assert candidate["rack"] == "R01"
+        assert candidate["rack_face"] == "front"
+        assert candidate["start_u"] == 1
+        assert candidate["end_u"] == 4
+        assert [feed["side"] for feed in candidate["power_feeds"]] == ["A", "B"]
+        assert candidate["cooling"]["remaining_watts_after_placement"] == 5100
+
+        no_space = app.dcim_environment_service.recommend_equipment_placement(
+            RecommendEquipmentPlacementCommand(
+                "default", "pytest", "PWR1", "BAT-P", "MMR-P", 60, 100, zone="Z1"
+            )
+        ).as_dict()
+        assert no_space["recommendations"] == []
+        assert no_space["rejected_by_reason"] == {"insufficient_contiguous_u": 1}
+
+        wrong_zone = app.dcim_environment_service.recommend_equipment_placement(
+            RecommendEquipmentPlacementCommand(
+                "default", "pytest", "PWR1", "BAT-P", "MMR-P", 1, 100, zone="Z404"
+            )
+        ).as_dict()
+        assert wrong_zone["rejected_by_reason"] == {"zone_mismatch": 1}
+
+        with pytest.raises(NotFoundError):
+            app.dcim_environment_service.recommend_equipment_placement(
+                RecommendEquipmentPlacementCommand(
+                    "default", "pytest", "PWR1", "BAT-P", "R404", 1, 100
+                )
+            )
+
+    def test_placement_rejections_are_fail_closed_and_audited(self, tmp_path: Path) -> None:
+        app = self._prepared_app(tmp_path / "capacity")
+        self._configure_capacity(app)
+
+        rack_power = app.dcim_environment_service.recommend_equipment_placement(
+            RecommendEquipmentPlacementCommand(
+                "default", "pytest", "PWR1", "BAT-P", "MMR-P", 1, 11000
+            )
+        ).as_dict()
+        assert rack_power["rejected_by_reason"] == {"insufficient_rack_power": 1}
+
+        circuit_power = app.dcim_environment_service.recommend_equipment_placement(
+            RecommendEquipmentPlacementCommand(
+                "default", "pytest", "PWR1", "BAT-P", "MMR-P", 1, 5000
+            )
+        ).as_dict()
+        assert circuit_power["rejected_by_reason"] == {"insufficient_power_circuit": 1}
+
+        app.dcim_environment_service.reserve_equipment_power(
+            ReserveEquipmentPowerCommand(
+                "default", "pytest", "SRV-PWR-01", "CIR-B-01", 500, "existing load"
+            )
+        )
+        redundant = app.dcim_environment_service.recommend_equipment_placement(
+            RecommendEquipmentPlacementCommand(
+                "default",
+                "pytest",
+                "PWR1",
+                "BAT-P",
+                "MMR-P",
+                1,
+                3800,
+                required_power_feeds=2,
+            )
+        ).as_dict()
+        assert redundant["rejected_by_reason"] == {"insufficient_redundant_power": 1}
+
+        cooling = app.dcim_environment_service.recommend_equipment_placement(
+            RecommendEquipmentPlacementCommand(
+                "default",
+                "pytest",
+                "PWR1",
+                "BAT-P",
+                "MMR-P",
+                1,
+                100,
+                required_cooling_watts=5501,
+            )
+        ).as_dict()
+        assert cooling["rejected_by_reason"] == {"insufficient_cooling_capacity": 1}
+        assert any(
+            event.action == "dcim.placement.recommended"
+            for event in app.audit_repository.list_events()
+        )
+
+        missing_capacity_app = self._prepared_app(tmp_path / "missing-capacity")
+        self._configure_single_feed(missing_capacity_app)
+        missing_capacity = (
+            missing_capacity_app.dcim_environment_service.recommend_equipment_placement(
+                RecommendEquipmentPlacementCommand(
+                    "default", "pytest", "PWR1", "BAT-P", "MMR-P", 1, 100
+                )
+            ).as_dict()
+        )
+        assert missing_capacity["rejected_by_reason"] == {"missing_cooling_capacity": 1}
+
+        retired_app = self._prepared_app(tmp_path / "retired")
+        retired_app.dcim_rack_service.update_rack(
+            UpdateRackCommand(
+                "default", "pytest", "PWR1", "BAT-P", "MMR-P", "R01", status="retired"
+            )
+        )
+        retired = retired_app.dcim_environment_service.recommend_equipment_placement(
+            RecommendEquipmentPlacementCommand(
+                "default", "pytest", "PWR1", "BAT-P", "MMR-P", 1, 100
+            )
+        ).as_dict()
+        assert retired["rejected_by_reason"] == {"rack_not_active": 1}
+
+        no_zone_app = self._prepared_app(tmp_path / "no-zone")
+        no_zone_app.dcim_rack_service.define_rack(
+            DefineRackCommand(
+                "default",
+                "pytest",
+                "PWR1",
+                "BAT-P",
+                "MMR-P",
+                "R02",
+                "A",
+                "02",
+                12,
+                floor="L01",
+                zone=None,
+                power_capacity_watts=5000,
+            )
+        )
+        self._configure_single_feed(no_zone_app, rack="R02", device="PDU-R02", circuit="CIR-R02")
+        no_zone = no_zone_app.dcim_environment_service.recommend_equipment_placement(
+            RecommendEquipmentPlacementCommand(
+                "default", "pytest", "PWR1", "BAT-P", "MMR-P", 1, 100
+            )
+        ).as_dict()
+        assert no_zone["rejected_by_reason"] == {
+            "insufficient_power_circuit": 1,
+            "missing_cooling_zone_assignment": 1,
+        }
+
+        face_app = self._prepared_app(tmp_path / "face")
+        self._configure_capacity(face_app)
+        face_app.dcim_rack_service.update_rack(
+            UpdateRackCommand(
+                "default",
+                "pytest",
+                "PWR1",
+                "BAT-P",
+                "MMR-P",
+                "R01",
+                usable_faces=("front",),
+            )
+        )
+        wrong_face = face_app.dcim_environment_service.recommend_equipment_placement(
+            RecommendEquipmentPlacementCommand(
+                "default",
+                "pytest",
+                "PWR1",
+                "BAT-P",
+                "MMR-P",
+                1,
+                100,
+                preferred_face="rear",
+            )
+        ).as_dict()
+        assert wrong_face["rejected_by_reason"] == {"insufficient_contiguous_u": 1}
+
+    def test_placement_accounts_for_patch_panels_faces_limits_and_unbounded_racks(
+        self, tmp_path: Path
+    ) -> None:
+        app = self._prepared_app(tmp_path)
+        self._configure_capacity(app)
+        app.dcim_rack_service.update_rack(
+            UpdateRackCommand(
+                "default",
+                "pytest",
+                "PWR1",
+                "BAT-P",
+                "MMR-P",
+                "R01",
+                power_capacity_watts=14000,
+            )
+        )
+        app.dcim_cabling_service.define_patch_panel(
+            DefinePatchPanelCommand(
+                "default",
+                "pytest",
+                "PWR1",
+                "BAT-P",
+                "MMR-P",
+                "R01",
+                "PP-01",
+                "front",
+                1,
+                4,
+                8,
+                "lc",
+                "fiber",
+            )
+        )
+        self._configure_single_feed(
+            app,
+            rack="R01",
+            device="PDU-A0",
+            circuit="CIR-A-00",
+            capacity_watts=4000,
+        )
+
+        limited = app.dcim_environment_service.recommend_equipment_placement(
+            RecommendEquipmentPlacementCommand(
+                "default", "pytest", "PWR1", "BAT-P", "MMR-P", 4, 500, limit=1
+            )
+        ).as_dict()
+        assert limited["compatible_rack_count"] == 1
+        assert limited["returned_candidate_count"] == 1
+        assert limited["recommendations"][0]["rack_face"] == "front"
+        assert limited["recommendations"][0]["start_u"] == 5
+        assert limited["recommendations"][0]["power_feeds"][0]["circuit_id"] == "CIR-A-00"
+
+        rear = app.dcim_environment_service.recommend_equipment_placement(
+            RecommendEquipmentPlacementCommand(
+                "default",
+                "pytest",
+                "PWR1",
+                "BAT-P",
+                "MMR-P",
+                2,
+                500,
+                preferred_face="rear",
+            )
+        ).as_dict()
+        assert rear["recommendations"][0]["start_u"] == 1
+        assert rear["recommendations"][0]["rack_face"] == "rear"
+
+        app.dcim_rack_service.define_rack(
+            DefineRackCommand(
+                "default",
+                "pytest",
+                "PWR1",
+                "BAT-P",
+                "MMR-P",
+                "R02",
+                "A",
+                "02",
+                12,
+                floor="L01",
+                zone="Z1",
+                usable_faces=("front",),
+            )
+        )
+        self._configure_single_feed(app, rack="R02", device="PDU-R02", circuit="CIR-R02")
+        all_candidates = app.dcim_environment_service.recommend_equipment_placement(
+            RecommendEquipmentPlacementCommand(
+                "default", "pytest", "PWR1", "BAT-P", "MMR-P", 1, 100, limit=100
+            )
+        ).as_dict()
+        r02 = next(item for item in all_candidates["recommendations"] if item["rack"] == "R02")
+        assert r02["rack_remaining_watts_before_placement"] is None
+        assert r02["rack_remaining_watts_after_placement"] is None
+        assert all_candidates["compatible_rack_count"] == 2
+
+        assert app.dcim_environment_service._contiguous_free_segments(6, {1, 3, 6}) == (
+            (2, 1),
+            (4, 2),
+        )
 
     def test_power_and_cooling_conflicts_are_rejected(self, tmp_path: Path) -> None:
         app = self._prepared_app(tmp_path)
@@ -335,6 +670,21 @@ class TestDcimEnergyCoolingServices:
             CoolingZone.create(tenant, "S", "B", "R", "Z", "cold_aisle", 0, 18, 30)
         with pytest.raises(ValidationError):
             RackPowerReservation.create(tenant, "A", "C", "A", "S", "B", "R", "RK", 0)
+        requirements = RackPlacementRequirements.create(
+            u_height=2, required_power_watts=500, preferred_face="rear"
+        )
+        assert requirements.required_cooling_watts == 500
+        assert requirements.as_dict()["preferred_face"] == "rear"
+        for kwargs in (
+            {"u_height": 0, "required_power_watts": 1},
+            {"u_height": 1, "required_power_watts": 0},
+            {"u_height": 1, "required_power_watts": 1, "required_cooling_watts": 0},
+            {"u_height": 1, "required_power_watts": 1, "required_power_feeds": 3},
+            {"u_height": 1, "required_power_watts": 1, "preferred_face": "side"},
+            {"u_height": 1, "required_power_watts": 1, "limit": 0},
+        ):
+            with pytest.raises(ValidationError):
+                RackPlacementRequirements.create(**kwargs)
 
     def test_cli_energy_cooling_commands(self, tmp_path: Path, capsys: object) -> None:
         data = tmp_path / "state.json"
@@ -580,6 +930,34 @@ class TestDcimEnergyCoolingServices:
         report = json.loads(capsys.readouterr().out)
         assert report["sides"]["A"]["reserved_watts"] == 700
         assert report["cooling"]["remaining_watts"] == 2300
+        assert (
+            cli.run(
+                [
+                    "dcim",
+                    "recommend-placement",
+                    "--data",
+                    str(data),
+                    "--tenant",
+                    "default",
+                    "--site",
+                    "PWRCLI",
+                    "--building",
+                    "BAT",
+                    "--room",
+                    "MMR",
+                    "--u-height",
+                    "2",
+                    "--required-power-watts",
+                    "500",
+                    "--preferred-face",
+                    "front",
+                ]
+            )
+            == 0
+        )
+        placement = json.loads(capsys.readouterr().out)
+        assert placement["recommendations"][0]["rack"] == "R01"
+        assert placement["recommendations"][0]["start_u"] == 1
 
     def test_http_energy_cooling_endpoints(self, tmp_path: Path) -> None:
         app = self._prepared_app(tmp_path)
@@ -647,6 +1025,13 @@ class TestDcimEnergyCoolingServices:
             assert reservation["side"] == "A"
             assert report["sides"]["A"]["reserved_watts"] == 600
             assert report["cooling"]["status"] == "ok"
+            placement = self._get_json(
+                base_url + "/api/v1/dcim/placement-recommendations?tenant_id=default"
+                "&site=PWR1&building=BAT-P&room=MMR-P&u_height=2"
+                "&required_power_watts=500&preferred_face=front"
+            )
+            assert placement["compatible_rack_count"] == 1
+            assert placement["recommendations"][0]["rack"] == "R01"
         finally:
             server.shutdown()
             server.server_close()
@@ -999,6 +1384,29 @@ class TestDcimEnergyCoolingServices:
                 },
                 token=token,
             )
+            with pytest.raises(urllib.error.HTTPError) as unauthenticated:
+                self._get_json(
+                    base_url
+                    + "/api/v1/dcim/placement-recommendations?tenant_id=default"
+                    + "&site=PWR1&building=BAT-P&room=MMR-P&u_height=1"
+                    + "&required_power_watts=100"
+                )
+            assert unauthenticated.value.code == 401
+            with pytest.raises(urllib.error.HTTPError) as invalid_request:
+                self._get_json(
+                    base_url + "/api/v1/dcim/placement-recommendations?tenant_id=default",
+                    token=token,
+                )
+            assert invalid_request.value.code == 400
+            authorized = self._get_json(
+                base_url
+                + "/api/v1/dcim/placement-recommendations?tenant_id=default"
+                + "&site=PWR1&building=BAT-P&room=MMR-P&u_height=1"
+                + "&required_power_watts=500",
+                token=token,
+            )
+            assert authorized["recommendations"][0]["rack"] == "R01"
+
             for path in (
                 "/api/v1/dcim/power-devices",
                 "/api/v1/dcim/power-circuits",

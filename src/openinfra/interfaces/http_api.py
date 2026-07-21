@@ -97,6 +97,7 @@ from openinfra.application.dcim_services import (
     LocateEquipmentCommand,
     RackCapacityCommand,
     RackEnergyCoolingCapacityCommand,
+    RecommendEquipmentPlacementCommand,
     RenderDigitalTwinCommand,
     RenderRackElevationCommand,
     RenderRoomPlanCommand,
@@ -3843,6 +3844,45 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                     )
                 )
                 responder.send(HTTPStatus.OK, report.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/dcim/placement-recommendations":
+            try:
+                query = parse_qs(parsed.query)
+                tenant_id = self._first_query_value(query, "tenant_id")
+                actor = "api"
+                if self.server.auth_required:
+                    principal = self._authenticate(tenant_id, Permission.DCIM_LOCATE)
+                    actor = principal.subject
+                optional_cooling = self._optional_query_value(query, "required_cooling_watts")
+                recommendation = (
+                    self.server.application.dcim_environment_service.recommend_equipment_placement(
+                        RecommendEquipmentPlacementCommand(
+                            tenant_id=tenant_id,
+                            actor=actor,
+                            site=self._first_query_value(query, "site"),
+                            building=self._first_query_value(query, "building"),
+                            room=self._first_query_value(query, "room"),
+                            u_height=int(self._first_query_value(query, "u_height")),
+                            required_power_watts=int(
+                                self._first_query_value(query, "required_power_watts")
+                            ),
+                            required_cooling_watts=(
+                                None if optional_cooling is None else int(optional_cooling)
+                            ),
+                            required_power_feeds=int(
+                                self._first_query_value(query, "required_power_feeds", "1")
+                            ),
+                            preferred_face=self._optional_query_value(query, "preferred_face"),
+                            zone=self._optional_query_value(query, "zone"),
+                            limit=int(self._first_query_value(query, "limit", "10")),
+                        )
+                    )
+                )
+                responder.send(HTTPStatus.OK, recommendation.as_dict())
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
             except (ValueError, OpenInfraError) as exc:
@@ -9452,6 +9492,7 @@ class OpenInfraApiRuntime(BaseServer):
                     "cooling_zones": "/api/v1/dcim/cooling-zones",
                     "power_reservations": "/api/v1/dcim/power-reservations",
                     "energy_cooling_capacity": "/api/v1/dcim/energy-cooling-capacity",
+                    "placement_recommendations": "/api/v1/dcim/placement-recommendations",
                 },
                 "discovery": {
                     "collectors": "/api/v1/discovery/collectors",

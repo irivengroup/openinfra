@@ -1,11 +1,11 @@
-test_id,proof_level,pytest_selectors,evidence_files,qualification_scope,rationale
+﻿test_id,proof_level,pytest_selectors,evidence_files,qualification_scope,rationale
 TST-FUNC-0001,partial,,tests/unit/test_runtime_offline_licensing.py,,Preuve statique ou ciblée existante ; l’acceptation contractuelle complète reste distincte.
 TST-FUNC-0002,partial,,tests/integration/test_runtime_offline_licensing_interfaces.py,,Preuve statique ou ciblée existante ; l’acceptation contractuelle complète reste distincte.
 TST-FUNC-0003,partial,,tests/integration/test_autonomous_installers.py,,Preuve statique ou ciblée existante ; l’acceptation contractuelle complète reste distincte.
 TST-FUNC-0004,partial,,tests/integration/test_runtime_offline_licensing_migration.py,,Preuve statique ou ciblée existante ; l’acceptation contractuelle complète reste distincte.
 TST-FUNC-0005,partial,,tests/integration/test_runtime_offline_licensing_frontend.py,,Preuve statique ou ciblée existante ; l’acceptation contractuelle complète reste distincte.
 TST-FUNC-0006,external,,tests/unit/test_gate12_qualification.py,Infrastructure cible ou service tiers représentatif requis.,Qualification externe non exécutée localement ; aucun résultat production complet n’est revendiqué.
-TST-FUNC-0007,partial,,tests/integration/test_runtime_offline_licensing_specifications.py,,Preuve statique ou ciblée existante ; l’acceptation contractuelle complète reste distincte.
+TST-FUNC-0007,automated,tests/integration/test_dcim_energy_cooling_services.py::TestDcimEnergyCoolingServices::test_equipment_placement_recommendation_is_constraint_aware_and_deterministic,tests/integration/test_dcim_energy_cooling_services.py,,"Preuve bout-en-bout automatisée du classement de placement selon espace U, redondance électrique, capacité rack et refroidissement."
 TST-FUNC-0008,partial,,tests/integration/test_runtime_offline_licensing_postgresql_repository.py,,Preuve statique ou ciblée existante ; l’acceptation contractuelle complète reste distincte.
 TST-FUNC-0009,partial,,tests/integration/test_rsot_canonical_contract.py,,Preuve statique ou ciblée existante ; l’acceptation contractuelle complète reste distincte.
 TST-FUNC-0010,partial,,tests/unit/test_gate14_qualification.py,,Preuve statique ou ciblée existante ; l’acceptation contractuelle complète reste distincte.

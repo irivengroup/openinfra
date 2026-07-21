@@ -2319,6 +2319,194 @@ class RackEnergyCoolingReport:
 
 
 @dataclass(frozen=True, slots=True)
+class RackPlacementRequirements:
+    u_height: int
+    required_power_watts: int
+    required_cooling_watts: int
+    required_power_feeds: int
+    preferred_face: RackFace | None
+    zone_code: Code | None
+    limit: int
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        u_height: int,
+        required_power_watts: int,
+        required_cooling_watts: int | None = None,
+        required_power_feeds: int = 1,
+        preferred_face: str | None = None,
+        zone: str | None = None,
+        limit: int = 10,
+    ) -> Self:
+        normalized_height = int(u_height)
+        normalized_power = int(required_power_watts)
+        normalized_cooling = (
+            normalized_power if required_cooling_watts is None else int(required_cooling_watts)
+        )
+        normalized_feeds = int(required_power_feeds)
+        normalized_limit = int(limit)
+        if not 1 <= normalized_height <= 60:
+            raise ValidationError("placement U height must be between 1 and 60")
+        if not 1 <= normalized_power <= 1_000_000:
+            raise ValidationError("placement required power must be between 1 and 1000000 watts")
+        if not 1 <= normalized_cooling <= 10_000_000:
+            raise ValidationError("placement required cooling must be between 1 and 10000000 watts")
+        if normalized_feeds not in {1, 2}:
+            raise ValidationError("placement required power feeds must be 1 or 2")
+        if not 1 <= normalized_limit <= 100:
+            raise ValidationError("placement recommendation limit must be between 1 and 100")
+        return cls(
+            u_height=normalized_height,
+            required_power_watts=normalized_power,
+            required_cooling_watts=normalized_cooling,
+            required_power_feeds=normalized_feeds,
+            preferred_face=(
+                RackFace.from_value(preferred_face) if preferred_face is not None else None
+            ),
+            zone_code=Code.from_value(zone, "placement zone") if zone else None,
+            limit=normalized_limit,
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "u_height": self.u_height,
+            "required_power_watts": self.required_power_watts,
+            "required_cooling_watts": self.required_cooling_watts,
+            "required_power_feeds": self.required_power_feeds,
+            "preferred_face": self.preferred_face.value if self.preferred_face else None,
+            "zone": self.zone_code.value if self.zone_code else None,
+            "limit": self.limit,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class RackPlacementCandidate:
+    rack: Rack
+    rack_face: RackFace
+    start_u: int
+    block_units: int
+    selected_circuits: tuple[PowerCircuit, ...]
+    circuit_remaining_watts: tuple[int, ...]
+    rack_remaining_watts: int | None
+    cooling_zone: CoolingZone
+    cooling_remaining_watts: int
+
+    def sort_key(self, requirements: RackPlacementRequirements) -> tuple[object, ...]:
+        physical_waste = self.block_units - requirements.u_height
+        minimum_circuit_headroom = min(
+            remaining - requirements.required_power_watts
+            for remaining in self.circuit_remaining_watts
+        )
+        cooling_headroom = self.cooling_remaining_watts - requirements.required_cooling_watts
+        rack_headroom = (
+            -1
+            if self.rack_remaining_watts is None
+            else self.rack_remaining_watts - requirements.required_power_watts
+        )
+        return (
+            physical_waste,
+            -minimum_circuit_headroom,
+            -cooling_headroom,
+            -rack_headroom,
+            self.rack.code.value,
+            self.rack_face.value,
+            self.start_u,
+        )
+
+    def as_dict(
+        self,
+        *,
+        rank: int,
+        requirements: RackPlacementRequirements,
+    ) -> dict[str, object]:
+        selected = [
+            {
+                **circuit.as_dict(),
+                "remaining_watts_before_placement": remaining,
+                "remaining_watts_after_placement": (remaining - requirements.required_power_watts),
+            }
+            for circuit, remaining in zip(
+                self.selected_circuits,
+                self.circuit_remaining_watts,
+                strict=True,
+            )
+        ]
+        return {
+            "rank": rank,
+            "site": self.rack.site_code.value,
+            "building": self.rack.building_code.value,
+            "room": self.rack.room_code.value,
+            "zone": self.rack.zone_code.value if self.rack.zone_code else None,
+            "rack": self.rack.code.value,
+            "row": self.rack.row,
+            "column": self.rack.column,
+            "rack_face": self.rack_face.value,
+            "start_u": self.start_u,
+            "end_u": self.start_u + requirements.u_height - 1,
+            "u_height": requirements.u_height,
+            "available_block_units": self.block_units,
+            "remaining_block_units": self.block_units - requirements.u_height,
+            "power_feeds": selected,
+            "rack_remaining_watts_before_placement": self.rack_remaining_watts,
+            "rack_remaining_watts_after_placement": (
+                None
+                if self.rack_remaining_watts is None
+                else self.rack_remaining_watts - requirements.required_power_watts
+            ),
+            "cooling": {
+                **self.cooling_zone.as_dict(),
+                "remaining_watts_before_placement": self.cooling_remaining_watts,
+                "remaining_watts_after_placement": (
+                    self.cooling_remaining_watts - requirements.required_cooling_watts
+                ),
+            },
+            "compatible": True,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class EquipmentPlacementRecommendation:
+    tenant_id: TenantId
+    site_code: Code
+    building_code: Code
+    room_code: Code
+    requirements: RackPlacementRequirements
+    evaluated_racks: int
+    rejected_by_reason: tuple[tuple[str, int], ...]
+    candidates: tuple[RackPlacementCandidate, ...]
+
+    @property
+    def compatible_rack_count(self) -> int:
+        return len({candidate.rack.code for candidate in self.candidates})
+
+    def as_dict(self) -> dict[str, object]:
+        ranked = tuple(
+            sorted(
+                self.candidates,
+                key=lambda candidate: candidate.sort_key(self.requirements),
+            )[: self.requirements.limit]
+        )
+        return {
+            "type": "equipment_placement_recommendation",
+            "tenant_id": self.tenant_id.value,
+            "site": self.site_code.value,
+            "building": self.building_code.value,
+            "room": self.room_code.value,
+            "requirements": self.requirements.as_dict(),
+            "evaluated_racks": self.evaluated_racks,
+            "compatible_rack_count": self.compatible_rack_count,
+            "returned_candidate_count": len(ranked),
+            "rejected_by_reason": dict(self.rejected_by_reason),
+            "recommendations": [
+                candidate.as_dict(rank=index, requirements=self.requirements)
+                for index, candidate in enumerate(ranked, start=1)
+            ],
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class InterventionRouteStep:
     order: int
     title: str

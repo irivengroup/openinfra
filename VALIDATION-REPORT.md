@@ -1,12 +1,12 @@
-# Rapport de certification locale — OpenInfra Python POO v0.34.7
+# Rapport de certification locale — OpenInfra Python POO v0.34.8
 
 **Date de certification :** 21 juillet 2026
-**Candidat :** `openinfra-0.34.7-final-candidate`
+**Candidat :** `openinfra-0.34.8-final-candidate`
 **Référentiels actifs :** CDC `4.12.0`, roadmap `2.5.0`, phase `P25`, release `REL-15`, gate `GATE-14`
 
 ## Décision
 
-Le code source, le frontend et les distributions Python OpenInfra **0.34.7** sont **GO pour livraison comme candidat certifié localement**.
+Le code source, le frontend et les distributions Python OpenInfra **0.34.8** sont **GO pour livraison comme candidat certifié localement**.
 
 La promotion en production reste **NO-GO** jusqu'à production des preuves externes suivantes sur l'infrastructure cible :
 
@@ -18,16 +18,20 @@ La promotion en production reste **NO-GO** jusqu'à production des preuves exter
 
 L'audit Python distant n'a pas pu interroger PyPI en raison d'un échec de résolution DNS. Aucun résultat favorable n'est revendiqué pour ce contrôle.
 
-## Périmètre fonctionnel 0.34.7
+## Périmètre fonctionnel 0.34.8
 
-Cette version conserve les capacités certifiées jusqu'à 0.34.6 et ajoute la promotion de complétude contractuelle GATE-14 :
+Cette version conserve les capacités certifiées jusqu'à 0.34.7 et matérialise la recommandation de placement DCIM exigée par `TST-FUNC-0007` :
 
 - CDC actif `4.12.0` : 861 exigences, 667 tests contractuels, 861 lignes de traçabilité et 529 entités ;
 - roadmap active `2.5.0` : P25, REL-15, EPIC-2501 à EPIC-2504 et GATE-14 ;
+- recommandation déterministe de racks compatibles avec la hauteur U, la face, la puissance, la redondance A/B et le refroidissement demandés ;
+- prise en compte de l'occupation par équipements et panneaux de brassage, des racks retirés, des limites rack/circuit et des zones thermiques ;
+- exposition cohérente par service applicatif, CLI, HTTP, OpenAPI, portail React et runtime statique embarqué ;
+- opération strictement consultative : aucune réservation de capacité ni mutation d'infrastructure ;
 - registre exhaustif des 667 tests contractuels ;
-- classification explicite de 19 preuves automatisées, 600 preuves partielles et 48 qualifications externes ;
-- résolution statique de 27 sélecteurs pytest ;
-- contrôle de 54 fichiers de preuve ;
+- classification explicite de 20 preuves automatisées, 599 preuves partielles et 48 qualifications externes ;
+- résolution statique de 28 sélecteurs pytest ;
+- contrôle de 55 fichiers de preuve ;
 - zéro preuve manquante et zéro exigence N1 non classifiée ;
 - audit d'hygiène contextuel sans exclusion globale de l'arbre produit ;
 - détection des chemins obsolètes, clés privées embarquées et alias publics historiques ;
@@ -41,9 +45,9 @@ Les preuves `partial` et `external` ne sont pas assimilées à une validation fo
 | Contrôle | Résultat |
 |---|---:|
 | Fichiers de tests Python | **280/280 PASS** |
-| Suite Python complète | **1 613/1 613 PASS** |
-| Durée suite Python, 4 workers | **110,08 s** |
-| Couverture globale exacte | **48 763 instructions, 47 796 couvertes, 967 non couvertes, 98,01693907265755 % PASS** |
+| Suite Python complète | **1 616/1 616 PASS** |
+| Durée suite Python isolée, 4 workers | **251,10 s** |
+| Couverture globale exacte | **48 973 instructions, 48 005 couvertes, 968 non couvertes, 98,02340064933739 % PASS** |
 | Couverture module GATE-14 | **431 instructions, 423 couvertes, 8 non couvertes, 98,14 % PASS** |
 | Ruff format | **471 fichiers PASS** |
 | Ruff lint | **PASS** |
@@ -52,10 +56,10 @@ Les preuves `partial` et `external` ne sont pas assimilées à une validation fo
 | Bandit SAST, périmètre `src/openinfra` | **PASS** |
 | Security gate dépôt/CI | **PASS** |
 | Quality gate global | **code 0 / PASS** |
-| Frontend React | **79/79 PASS** |
+| Frontend React | **81/81 PASS** |
 | Accessibilité HTML et JSX | **PASS** |
 | Build Vite | **PASS** |
-| Shell JavaScript initial | **2 556 octets bruts / 1 265 octets gzip PASS** |
+| Shell JavaScript initial | **2 556 octets bruts / 1 263 octets gzip PASS** |
 | `npm audit --audit-level=high --omit=optional` | **0 vulnérabilité** |
 | Audit Python distant | **NON EXÉCUTABLE — résolution DNS PyPI indisponible** |
 | CDC 4.12.0 | **861 exigences, 667 tests, 861 traces, 529 entités** |
@@ -79,11 +83,11 @@ Les preuves `partial` et `external` ne sont pas assimilées à une validation fo
 
 ## Stratégie de tests et couverture
 
-Les 1 613 tests sont exécutés avec quatre workers `pytest-xdist` et distribution par fichier `--dist loadfile`. La couverture est produite par `pytest-cov`, exportée aux formats XML et JSON, puis contrôlée par un seuil strict de 98 %.
+Les 1 616 tests sont répartis sur quatre workers, mais chaque fichier est exécuté dans un processus Python indépendant avec un timeout borné. Les 280 fichiers de couverture parallèle ne sont fusionnés qu'après réussite complète de la campagne.
 
-Une première campagne isolée a démontré que la couverture initiale de GATE-14 restait insuffisante. Les branches fail-closed ont été couvertes dans les tests existants sans augmenter artificiellement le nombre de cas. La campagne complète a ensuite été rejouée depuis zéro et a terminé avec un code retour 0.
+Cette isolation a détecté puis corrigé une fuite d'état préexistante dans un test SAML qui remplaçait globalement `importlib.import_module`. Le test restauré est autonome et repasse seul comme dans la campagne complète.
 
-Aucune exclusion de couverture n'a été ajoutée pour GATE-14 et aucun résultat issu d'une exécution interrompue n'est utilisé.
+La couverture est exportée aux formats XML et JSON puis contrôlée par un seuil strict de 98 %. Aucune exclusion de couverture n'a été ajoutée et aucun résultat issu d'une exécution interrompue ou échouée n'est utilisé.
 
 ## Contrats CDC, roadmap et promotion
 
@@ -112,16 +116,17 @@ Aucune exclusion de couverture n'a été ajoutée pour GATE-14 et aucun résulta
 
 Les distributions vérifiées sont :
 
-- `openinfra-0.34.7-py3-none-any.whl` ;
-- `openinfra-0.34.7.tar.gz`.
+- `openinfra-0.34.8-py3-none-any.whl` ;
+- `openinfra-0.34.8.tar.gz`.
 
 Le smoke installé hors dépôt vérifie notamment :
 
-- la version 0.34.7 ;
+- la version 0.34.8 ;
 - les scripts console publics jusqu'à `openinfra-gate14` ;
 - la taxonomie OpenAPI ;
 - les 59 migrations PostgreSQL et Oracle ;
 - les politiques, registres et runbooks GATE-11 à GATE-14 ;
+- la route OpenAPI `/api/v1/dcim/placement-recommendations` et le runbook DCIM associé ;
 - l'absence de dépendance à l'arbre source.
 
 Les empreintes finales, le commit source et l'identité des deux constructions reproductibles sont portés par le manifeste du bundle final.
@@ -171,5 +176,5 @@ python scripts/verify_artifact.py dist/*
 
 ## Décision finale locale
 
-**GO local pour livraison comme candidat OpenInfra 0.34.7.**
+**GO local pour livraison comme candidat OpenInfra 0.34.8.**
 **NO-GO production jusqu'à fermeture des preuves externes listées ci-dessus.**

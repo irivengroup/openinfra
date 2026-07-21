@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.34.8 — 2026-07-21
+
+### Ajouté
+
+- recommandation DCIM de placement d’équipements fondée sur l’espace U contigu, la puissance rack, les circuits simples ou A/B redondants et la capacité thermique ;
+- commande `openinfra dcim recommend-placement` et endpoint `GET /api/v1/dcim/placement-recommendations` ;
+- opération de consultation dans les portails React et statique, sans modification de la charte graphique ;
+- classement déterministe, compteurs de rejet explicites et audit `dcim.placement.recommended` ;
+- runbook d’exploitation et contrat OpenAPI synchronisé avec le CDC 4.12.0.
+
+### Qualité et compatibilité
+
+- `TST-FUNC-0007` devient une preuve GATE-14 automatisée ; le registre contient désormais 20 preuves automatisées, 599 partielles et 48 externes ;
+- aucun changement de schéma ni migration ; compatibilité ascendante des API, CLI, données JSON, PostgreSQL et Oracle ;
+- Oracle reste réservé à l’édition Enterprise et le thème approuvé demeure inchangé.
+
 ## 0.34.7 — 2026-07-21
 
 ### Ajouté

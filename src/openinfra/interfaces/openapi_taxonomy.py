@@ -385,7 +385,7 @@ class OpenApiDocumentationTaxonomy:
                 return "DCIM", "Sites et bâtiments"
             if suffix.startswith(("room", "zone", "location", "locator-sheet")):
                 return "DCIM", "Espaces et implantation"
-            if suffix.startswith("rack"):
+            if suffix.startswith(("rack", "placement-recommendations")):
                 return "DCIM", "Racks et capacité"
             if suffix.startswith(("patch-panel", "ports", "cables", "cable-trace", "verify-scan")):
                 return "DCIM", "Câblage et connectivité"

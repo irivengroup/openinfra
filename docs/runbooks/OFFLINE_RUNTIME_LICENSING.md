@@ -198,7 +198,7 @@ Ne pas activer l’enforcement avant que l’identité, le trust bundle et l’e
 ```bash
 openinfra-gate12 \
   --project-root . \
-  --candidate-id openinfra-0.34.7-rc1 \
+  --candidate-id openinfra-0.34.8-rc1 \
   --source-commit "$(git rev-parse HEAD)" \
   --output artifacts/gate12/report.json \
   --enforce

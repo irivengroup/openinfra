@@ -38,7 +38,7 @@ def test_registry_automated_selectors_all_resolve() -> None:
         if proof.level is ProofLevel.AUTOMATED
         for selector in proof.pytest_selectors
     )
-    assert len(selectors) == 27
+    assert len(selectors) == 28
     assert PytestSelectorResolver.validate(ROOT, selectors) == ()
 
 

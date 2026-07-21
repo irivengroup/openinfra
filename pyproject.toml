@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "openinfra"
-version = "0.34.7"
+version = "0.34.8"
 description = "OpenInfra Python POO RSOT, DCIM and IPAM foundation"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -71,6 +71,7 @@ packages = ["src/openinfra"]
 "docs/runbooks/OFFLINE_RUNTIME_LICENSING.md" = "openinfra/docs/runbooks/OFFLINE_RUNTIME_LICENSING.md"
 "docs/runbooks/RSOT_CANONICAL_MIGRATION.md" = "openinfra/docs/runbooks/RSOT_CANONICAL_MIGRATION.md"
 "docs/runbooks/CONTRACT_COMPLETENESS_PROMOTION.md" = "openinfra/docs/runbooks/CONTRACT_COMPLETENESS_PROMOTION.md"
+"docs/runbooks/DCIM_PLACEMENT_RECOMMENDATIONS.md" = "openinfra/docs/runbooks/DCIM_PLACEMENT_RECOMMENDATIONS.md"
 "installers/systemd/openinfra-runtime-secrets.service" = "openinfra/systemd/openinfra-runtime-secrets.service"
 "installers/systemd/openinfra-migrate.service" = "openinfra/systemd/openinfra-migrate.service"
 "installers/systemd/openinfra-team-sync.service" = "openinfra/systemd/openinfra-team-sync.service"

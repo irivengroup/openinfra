@@ -163,6 +163,7 @@ class TestOpenInfraWeb:
                 bootstrap_css = self._get_text(web.base_url + "/assets/bootstrap.min.css")
                 static_css = self._get_text(web.base_url + "/assets/openinfra-web.css")
                 static_i18n = self._get_text(web.base_url + "/assets/openinfra-i18n.js")
+                source_i18n = Path("web/src/i18n.js").read_text(encoding="utf-8")
                 static_form_fields = self._get_text(
                     web.base_url + "/assets/openinfra-form-fields.js"
                 )
@@ -286,8 +287,8 @@ class TestOpenInfraWeb:
         assert "tenantOptions(organizationId" in static_js
         assert "filiale/subdivision implicite" in static_i18n
         assert 'id="openinfra-language"' in static_js + main_js
-        assert "SUPPORTED_LANGUAGES = Object.freeze(['en', 'fr'])" in static_i18n
-        assert "DEFAULT_LANGUAGE = 'en'" in static_i18n
+        assert "SUPPORTED_LANGUAGES = Object.freeze(['en', 'fr'])" in source_i18n
+        assert "DEFAULT_LANGUAGE = 'en'" in source_i18n
         assert '<html lang="en">' in index
         assert "Lister les organisations" in static_js + main_js
         assert "Créer une organisation" in static_js + main_js

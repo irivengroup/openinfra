@@ -62,6 +62,7 @@ from openinfra.application.ports import (
     KubernetesGitOpsStatePage,
     KubernetesTopologyRepository,
     KubernetesTopologySnapshotPage,
+    LicenseRepository,
     MeasurementSourcePage,
     MultisiteReportPage,
     MultisiteRepository,
@@ -247,6 +248,12 @@ from openinfra.domain.itam import (
 )
 from openinfra.domain.kubernetes_gitops import KubernetesGitOpsState
 from openinfra.domain.kubernetes_topology import KubernetesTopologySnapshot
+from openinfra.domain.licensing import (
+    InstallationIdentity,
+    LicenseEntitlement,
+    LicenseStateCorruptedError,
+    PersistedLicenseState,
+)
 from openinfra.domain.multisite import (
     DisasterRecoveryDrillStatus,
     MultisiteDisasterRecoveryDrill,
@@ -570,7 +577,65 @@ class JsonDocumentStore:
             "itam_tenants": {},
             "asset_support_profiles": {},
             "software_license_entitlements": {},
+            "runtime_license_state": None,
         }
+
+
+class JsonLicenseRepository(LicenseRepository):
+    def __init__(self, store: JsonDocumentStore) -> None:
+        self._store = store
+
+    def get_state(self) -> PersistedLicenseState | None:
+        with self._store.lock:
+            payload = self._store.data.get("runtime_license_state")
+            if payload is None:
+                return None
+            if not isinstance(payload, dict):
+                raise LicenseStateCorruptedError("runtime license state must be a JSON object")
+            try:
+                return PersistedLicenseState.from_dict(payload)
+            except (TypeError, ValueError, ValidationError) as exc:
+                raise LicenseStateCorruptedError("runtime license state is invalid") from exc
+
+    def lock_state(self, installation_id: str) -> None:
+        state = self.get_state()
+        if state is None or state.identity.installation_id != installation_id:
+            raise LicenseStateCorruptedError("runtime license installation identity is missing")
+
+    def save_identity(self, identity: InstallationIdentity) -> None:
+        with self._store.lock:
+            self._store.data["runtime_license_state"] = PersistedLicenseState(
+                identity=identity, entitlement=None, activated_at=None, last_seen_at=None
+            ).as_dict()
+            self._store.mark_dirty()
+
+    def save_activation(
+        self, entitlement: LicenseEntitlement, activated_at: datetime, last_seen_at: datetime
+    ) -> None:
+        with self._store.lock:
+            current = self.get_state()
+            if current is None:
+                raise LicenseStateCorruptedError("runtime license identity is missing")
+            self._store.data["runtime_license_state"] = PersistedLicenseState(
+                identity=current.identity,
+                entitlement=entitlement,
+                activated_at=activated_at,
+                last_seen_at=last_seen_at,
+            ).as_dict()
+            self._store.mark_dirty()
+
+    def update_last_seen(self, installation_id: str, last_seen_at: datetime) -> None:
+        with self._store.lock:
+            current = self.get_state()
+            if current is None or current.identity.installation_id != installation_id:
+                raise LicenseStateCorruptedError("runtime license identity is missing")
+            self._store.data["runtime_license_state"] = PersistedLicenseState(
+                identity=current.identity,
+                entitlement=current.entitlement,
+                activated_at=current.activated_at,
+                last_seen_at=last_seen_at,
+            ).as_dict()
+            self._store.mark_dirty()
 
 
 class JsonRuntimeUsageRepository(RuntimeUsageRepository):

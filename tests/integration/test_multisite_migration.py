@@ -33,7 +33,7 @@ def test_multisite_migrations_preserve_order_before_later_platform_migrations() 
         "0055_kubernetes_topology_inventory.sql",
         "0056_kubernetes_gitops_drift.sql",
     ]
-    assert len(migrations) == 58
+    assert len(migrations) == 59
     assert all(name in names for name in expected)
     assert [names.index(name) for name in expected] == sorted(
         names.index(name) for name in expected

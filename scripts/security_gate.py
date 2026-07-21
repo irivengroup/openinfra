@@ -349,6 +349,7 @@ class GitHubWorkflowSecurityGuard:
             "pip-audit",
             "pytest",
             "pytest-cov",
+            "pytest-xdist",
             "ruff",
         )
         forbidden_runtime = [

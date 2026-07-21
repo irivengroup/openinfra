@@ -57,6 +57,7 @@ from openinfra.application.it_resources_management_quality_services import (
 from openinfra.application.itam_services import ItamSupportService
 from openinfra.application.kubernetes_gitops_services import KubernetesGitOpsService
 from openinfra.application.kubernetes_topology_services import KubernetesTopologyService
+from openinfra.application.licensing_services import RuntimeLicenseService
 from openinfra.application.multisite_services import MultisiteService
 from openinfra.application.network_config_compliance_services import NetworkConfigComplianceService
 from openinfra.application.ports import (
@@ -78,6 +79,7 @@ from openinfra.application.ports import (
     ItamSupportRepository,
     KubernetesGitOpsRepository,
     KubernetesTopologyRepository,
+    LicenseRepository,
     MultisiteRepository,
     NetworkConfigComplianceRepository,
     RagRepository,
@@ -138,6 +140,7 @@ from openinfra.infrastructure.json_store import (
     JsonItamSupportRepository,
     JsonKubernetesGitOpsRepository,
     JsonKubernetesTopologyRepository,
+    JsonLicenseRepository,
     JsonMultisiteRepository,
     JsonNetworkConfigComplianceRepository,
     JsonRagRepository,
@@ -152,6 +155,7 @@ from openinfra.infrastructure.json_store import (
     JsonTransactionManager,
     SeedDataFactory,
 )
+from openinfra.infrastructure.licensing import Ed25519LicenseCryptography
 from openinfra.infrastructure.multisite_observability import MultisiteOperationalMetricsProvider
 from openinfra.infrastructure.observability import OpenInfraTelemetry
 from openinfra.infrastructure.oracle import (
@@ -183,6 +187,7 @@ from openinfra.infrastructure.postgresql import (
     PostgreSQLItamSupportRepository,
     PostgreSQLKubernetesGitOpsRepository,
     PostgreSQLKubernetesTopologyRepository,
+    PostgreSQLLicenseRepository,
     PostgreSQLMigrationCatalog,
     PostgreSQLMigrationExecutor,
     PostgreSQLMultisiteRepository,
@@ -287,6 +292,8 @@ class OpenInfraApplication:
     edition_guard: EditionRuntimeGuard
     edition_query_service: EditionQueryService
     runtime_usage_repository: RuntimeUsageRepository
+    license_repository: LicenseRepository
+    license_service: RuntimeLicenseService
 
     @property
     def it_resources_management_service(self) -> SourceOfTruthService:
@@ -333,6 +340,7 @@ class ApplicationFactory:
         readiness_probe = JsonReadinessProbe(store)
         schema_status_provider = JsonSchemaStatusProvider()
         runtime_usage_repository = JsonRuntimeUsageRepository(store)
+        license_repository = JsonLicenseRepository(store)
         async_processing_repository = JsonAsyncProcessingRepository(store)
         multisite_metrics_provider = MultisiteOperationalMetricsProvider.from_environment(
             multisite_repository,
@@ -387,6 +395,7 @@ class ApplicationFactory:
             readiness_probe=readiness_probe,
             schema_status_provider=schema_status_provider,
             runtime_usage_repository=runtime_usage_repository,
+            license_repository=license_repository,
             async_processing_repository=async_processing_repository,
             artifact_store=artifact_store,
             telemetry=telemetry,
@@ -464,6 +473,7 @@ class ApplicationFactory:
         readiness_probe = PostgreSQLReadinessProbe(registry, migration_catalog)
         schema_status_provider = PostgreSQLMigrationExecutor(registry, migration_catalog)
         runtime_usage_repository = PostgreSQLRuntimeUsageRepository(registry, cursor_codec)
+        license_repository = PostgreSQLLicenseRepository(registry, cursor_codec)
         async_processing_repository = PostgreSQLAsyncProcessingRepository(registry, cursor_codec)
 
         def queue_metrics_provider() -> dict[str, object]:
@@ -524,6 +534,7 @@ class ApplicationFactory:
             readiness_probe=readiness_probe,
             schema_status_provider=schema_status_provider,
             runtime_usage_repository=runtime_usage_repository,
+            license_repository=license_repository,
             async_processing_repository=async_processing_repository,
             artifact_store=artifact_store,
             telemetry=telemetry,
@@ -564,6 +575,7 @@ class ApplicationFactory:
         discovery_repository = JsonDiscoveryRepository(store)
         itam_support_repository = JsonItamSupportRepository(store)
         runtime_usage_repository = JsonRuntimeUsageRepository(store)
+        license_repository = JsonLicenseRepository(store)
         async_processing_repository = JsonAsyncProcessingRepository(store)
         migration_catalog = OracleMigrationCatalog.from_project_root()
         readiness_probe = OracleReadinessProbe(store, migration_catalog)
@@ -614,11 +626,34 @@ class ApplicationFactory:
             readiness_probe=readiness_probe,
             schema_status_provider=schema_status_provider,
             runtime_usage_repository=runtime_usage_repository,
+            license_repository=license_repository,
             async_processing_repository=async_processing_repository,
             artifact_store=artifact_store,
             telemetry=telemetry,
             edition=edition,
         )
+
+    @staticmethod
+    def _license_enforcement_enabled() -> bool:
+        value = os.environ.get("OPENINFRA_LICENSE_ENFORCEMENT", "false").strip().lower()
+        if value not in {"true", "false"}:
+            raise ValueError("OPENINFRA_LICENSE_ENFORCEMENT must be true or false")
+        return value == "true"
+
+    @staticmethod
+    def _load_license_trust_bundle() -> bytes:
+        explicit = os.environ.get("OPENINFRA_LICENSE_TRUST_BUNDLE", "").strip()
+        if explicit:
+            path = Path(explicit)
+            try:
+                return path.read_bytes()
+            except OSError as exc:
+                raise ValueError(f"runtime license trust bundle is unreadable: {path}") from exc
+        default_path = Path("/opt/openinfra/config/licensing/authority-public.pem")
+        try:
+            return default_path.read_bytes() if default_path.is_file() else b""
+        except OSError as exc:
+            raise ValueError(f"runtime license trust bundle is unreadable: {default_path}") from exc
 
     @staticmethod
     def _create_artifact_store(default_root: Path) -> ArtifactStore:
@@ -671,6 +706,7 @@ class ApplicationFactory:
         readiness_probe: ReadinessProbe,
         schema_status_provider: SchemaStatusProvider,
         runtime_usage_repository: RuntimeUsageRepository | None = None,
+        license_repository: LicenseRepository | None = None,
         async_processing_repository: AsyncProcessingRepository | None = None,
         artifact_store: ArtifactStore | None = None,
         telemetry: RuntimeTelemetry | None = None,
@@ -791,6 +827,11 @@ class ApplicationFactory:
                 runtime_usage_repository = JsonRuntimeUsageRepository(store)
             else:
                 runtime_usage_repository = PostgreSQLRuntimeUsageRepository(store)
+        if license_repository is None:
+            if hasattr(store, "data"):
+                license_repository = JsonLicenseRepository(store)
+            else:
+                license_repository = PostgreSQLLicenseRepository(store)
         if async_processing_repository is None:
             if hasattr(store, "data"):
                 async_processing_repository = JsonAsyncProcessingRepository(store)
@@ -800,6 +841,16 @@ class ApplicationFactory:
             artifact_store = self._create_artifact_store(
                 Path(os.environ.get("OPENINFRA_ARTIFACT_ROOT", "/data/openinfra/artifacts"))
             )
+        license_service = RuntimeLicenseService(
+            edition=edition,
+            repository=license_repository,
+            runtime_usage_repository=runtime_usage_repository,
+            audit_repository=audit_repository,
+            transaction_manager=transaction_manager,
+            cryptography=Ed25519LicenseCryptography(),
+            trust_bundle_pem=self._load_license_trust_bundle(),
+            enforcement_enabled=self._license_enforcement_enabled(),
+        )
         security_service = SecurityService(
             security_repository,
             audit_repository,
@@ -1041,6 +1092,7 @@ class ApplicationFactory:
                 audit_repository,
                 transaction_manager,
                 edition_guard,
+                license_service,
             ),
             dcim_topology_service=DcimTopologyService(
                 dcim_repository,
@@ -1164,4 +1216,6 @@ class ApplicationFactory:
             edition_guard=edition_guard,
             edition_query_service=edition_query_service,
             runtime_usage_repository=runtime_usage_repository,
+            license_repository=license_repository,
+            license_service=license_service,
         )

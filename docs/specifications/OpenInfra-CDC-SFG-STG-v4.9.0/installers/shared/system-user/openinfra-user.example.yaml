@@ -1,6 +1,0 @@
-# Résolution interne du compte de service applicatif.
-# Ces champs ne sont pas exposés dans install.ini.
-system_user_policy:
-  application_service_account: openinfra
-  interactive_login: false
-  managed_by_installer: true

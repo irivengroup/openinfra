@@ -311,4 +311,7 @@ def test_null_telemetry_and_idempotent_asgi_finish() -> None:
     sender.finish(1)
 
     assert downstream_messages == [{"type": "http.response.body", "body": b"metrics"}]
-    assert OpenApiDocumentationTaxonomy.contexts()[1].context == "Observabilité et capacité"
+    assert any(
+        context.context == "Observabilité et capacité"
+        for context in OpenApiDocumentationTaxonomy.contexts()
+    )

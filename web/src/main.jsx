@@ -520,6 +520,20 @@ function ManagementWorkspace({ resource, config, tenant, i18n, language, announc
   return <section className="card openinfra-operation-card openinfra-management-card" aria-labelledby="openinfra-management-title"><div className="card-body"><div className="openinfra-management-heading"><div><p className="openinfra-management-kicker">{i18n.t('managementWorkspace')}</p><h2 id="openinfra-management-title" className="h4">{label}</h2><p className="text-muted mb-0">{i18n.t('managementDescription', { resource: localizedManagementLabel(resource, language, 'plural') })}</p></div><button type="button" className="btn btn-primary" onClick={() => void openAction('create')}>+ {i18n.t('newItem')}</button></div>{notice && <div className="alert alert-success mt-3" role="status">{notice}</div>}{error && <div className="alert alert-danger mt-3" role="alert">{error}</div>}<form className="openinfra-management-filter-panel mt-3" role="search" aria-labelledby={`management-filter-title-${resource.id}`} onSubmit={(event) => { event.preventDefault(); setPage(1); }}><div className="openinfra-management-filter-header"><div><p className="openinfra-management-filter-kicker">{i18n.t('managementFilters')}</p><h3 id={`management-filter-title-${resource.id}`} className="h5 mb-1">{i18n.t('managementFilterTitle')}</h3><p className="text-muted mb-0">{i18n.t('managementFilterDescription')}</p></div></div><div className="openinfra-management-search-block"><label className="form-label" htmlFor={`management-search-${resource.id}`}>{i18n.t('search')}</label><input id={`management-search-${resource.id}`} type="search" className="form-control" value={query} placeholder={i18n.t('managementSearchPlaceholder')} onChange={(event) => { setQuery(event.target.value); setPage(1); }} /></div>{filterGroups.context.length > 0 && <fieldset className="openinfra-management-filter-section"><legend>{i18n.t('managementContextFilters')}</legend><div className="openinfra-management-filter-grid">{filterGroups.context.map(renderManagementFilter)}</div></fieldset>}{filterGroups.business.length > 0 && <fieldset className="openinfra-management-filter-section"><legend>{i18n.t('managementBusinessFilters')}</legend><div className="openinfra-management-filter-grid">{filterGroups.business.map(renderManagementFilter)}</div></fieldset>}<div className="openinfra-management-filter-actions"><div className="form-check openinfra-management-retired"><input id={`management-retired-${resource.id}`} className="form-check-input" type="checkbox" checked={includeRetired} onChange={(event) => setIncludeRetired(event.target.checked)} /><label className="form-check-label" htmlFor={`management-retired-${resource.id}`}>{i18n.t('includeRetired')}</label></div><div className="openinfra-management-filter-buttons"><button type="submit" className="btn btn-primary">{i18n.t('applyFilters')}</button><button type="button" className="btn btn-light" onClick={() => { setQuery(''); setFilters({}); setPage(1); }}>{i18n.t('resetFilters')}</button></div></div></form><div className="openinfra-management-table-summary"><span>{i18n.t('managementResults', { count: filteredItems.length })}</span><label>{i18n.t('rowsPerPage')} <select className="form-select form-select-sm" value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }}>{[25, 50, 100].map((size) => <option value={size} key={size}>{size}</option>)}</select></label></div>{loading ? <p role="status">{i18n.t('loadingManagementData')}</p> : <div className="openinfra-management-table-wrapper"><table className="table align-middle openinfra-management-table"><caption className="visually-hidden">{label}</caption><thead><tr>{resource.columns.map((column) => <th scope="col" key={column.key}><button type="button" className="openinfra-management-sort" onClick={() => setSort((current) => ({ key: column.key, direction: current.key === column.key && current.direction === 'asc' ? 'desc' : 'asc' }))}>{column.label}{sort.key === column.key ? (sort.direction === 'asc' ? ' ↑' : ' ↓') : ''}</button></th>)}<th scope="col">{i18n.t('actions')}</th></tr></thead><tbody>{pageItems.length === 0 ? <tr><td colSpan={resource.columns.length + 1}>{i18n.t('noManagementResults')}</td></tr> : pageItems.map((item) => { const key = JSON.stringify(managementIdentityPayload(resource, item)); return <tr key={key}>{resource.columns.map((column, index) => <td key={column.key}>{index === 0 ? <button type="button" className="openinfra-management-detail-link" onClick={() => setDetailItem(item)}>{managementFieldValue(item, column.key) || '—'}</button> : (managementFieldValue(item, column.key) || '—')}</td>)}<td><div className="openinfra-management-actions"><button type="button" className="btn btn-sm btn-light" onClick={() => void openAction('edit', item)}>{i18n.t('edit')}</button><button type="button" className="btn btn-sm btn-outline-danger" onClick={() => setDeleteItem(item)}>{i18n.t('delete')}</button></div></td></tr>; })}</tbody></table></div>}<div className="openinfra-management-pagination"><span>{i18n.t('pagination', { page: currentPage, pages: totalPages })}</span><div><button type="button" className="btn btn-sm btn-light" disabled={currentPage <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>{i18n.t('previous')}</button><button type="button" className="btn btn-sm btn-light" disabled={currentPage >= totalPages} onClick={() => setPage((current) => Math.min(totalPages, current + 1))}>{i18n.t('next')}</button></div></div>{detailItem && <div className="openinfra-management-modal" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setDetailItem(null); }}><section className="openinfra-management-dialog" role="dialog" aria-modal="true" aria-labelledby="openinfra-management-detail-title"><div className="openinfra-management-dialog-header"><h3 id="openinfra-management-detail-title" className="h5">{managementDisplayName(resource, detailItem)}</h3><button type="button" className="btn btn-light" aria-label={i18n.t('close')} onClick={() => setDetailItem(null)}>×</button></div><dl className="openinfra-management-detail-grid">{Object.entries(detailItem).sort(([left], [right]) => left.localeCompare(right)).map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{value && typeof value === 'object' ? JSON.stringify(value) : String(value ?? '—')}</dd></div>)}</dl></section></div>}{deleteItem && <div className="openinfra-management-modal" role="presentation"><section className="openinfra-management-dialog" role="dialog" aria-modal="true" aria-labelledby="openinfra-management-delete-title"><div className="openinfra-management-dialog-header"><h3 id="openinfra-management-delete-title" className="h5">{i18n.t('confirmDeletion')}</h3><button type="button" className="btn btn-light" aria-label={i18n.t('close')} onClick={() => setDeleteItem(null)}>×</button></div><p>{i18n.t('deleteManagementConfirmation', { item: managementDisplayName(resource, deleteItem) })}</p><p className="text-muted small">{i18n.t('deleteManagementLifecycleNotice')}</p><form onSubmit={submitDelete}><label className="form-label" htmlFor={`management-delete-actor-${resource.id}`}>{i18n.t('operator')}</label><input id={`management-delete-actor-${resource.id}`} name="actor" className="form-control" required ref={deleteActorRef} /><div className="openinfra-management-form-actions"><button type="submit" className="btn btn-danger" disabled={submitting}>{i18n.t('delete')}</button><button type="button" className="btn btn-light" onClick={() => setDeleteItem(null)}>{i18n.t('cancel')}</button></div></form></section></div>}</div></section>;
 }
 
+function RuntimeLicenseBanner({ report, failed, i18n }) {
+  if (!report && !failed) return null;
+  if (failed) {
+    return <div className="alert alert-warning openinfra-license-banner" role="alert" aria-live="assertive" aria-atomic="true"><strong>{i18n.t('runtimeLicense')}</strong><span className="ms-2">{i18n.t('licenseUnavailable')}</span></div>;
+  }
+  const level = String(report.notification_level || 'none');
+  if (level === 'none' && ['active', 'not_required'].includes(String(report.status || ''))) return null;
+  const alertClass = level === 'critical' ? 'alert-danger' : (level === 'warning' ? 'alert-warning' : 'alert-info');
+  const role = level === 'critical' ? 'alert' : 'status';
+  const statusKey = `licenseStatus_${String(report.status || 'invalid')}`;
+  const hosts = report.max_hosts == null ? String(report.current_hosts || 0) : `${report.current_hosts || 0} / ${report.max_hosts}`;
+  return <div className={`alert ${alertClass} openinfra-license-banner`} role={role} aria-live={level === 'critical' ? 'assertive' : 'polite'} aria-atomic="true"><div className="d-flex flex-wrap gap-3 align-items-baseline"><strong>{i18n.t('runtimeLicense')}</strong><span>{i18n.t('licenseStatus')} : <strong>{i18n.t(statusKey)}</strong></span>{report.company_name ? <span>{i18n.t('licenseCompany')} : <strong>{report.company_name}</strong></span> : null}<span>{i18n.t('licenseHosts')} : <strong>{hosts}</strong></span>{report.expires_at ? <span>{i18n.t('licenseExpires')} : <strong>{new Date(report.expires_at).toLocaleDateString()}</strong></span> : null}{report.grace_until && report.status === 'grace' ? <span>{i18n.t('licenseGraceUntil')} : <strong>{new Date(report.grace_until).toLocaleDateString()}</strong></span> : null}</div><p className="mb-0 mt-1 small">{report.reason}</p></div>;
+}
+
 function Dashboard() {
   const [i18n] = useState(() => new OpenInfraI18n());
   const [language, setLanguage] = useState(i18n.language);
@@ -534,6 +548,8 @@ function Dashboard() {
   const [config, setConfig] = useState({ apiBaseUrl: '/api', apiDocumentation: { swaggerUrl: '/docs', redocUrl: '/redoc', openapiUrl: '/openapi.yaml' }, version: i18n.t('unavailable'), webBackendTrust: 'server-side' });
   const [ready, setReady] = useState(null);
   const [bffStatus, setBffStatus] = useState(null);
+  const [licenseReport, setLicenseReport] = useState(null);
+  const [licenseStatusFailed, setLicenseStatusFailed] = useState(false);
   const [version, setVersion] = useState(null);
   const [selected, setSelected] = useState(MODULES[0].operations[0]);
   const [activeModuleId, setActiveModuleId] = useState('overview');
@@ -685,6 +701,27 @@ function Dashboard() {
     }, { ttlMs: 5_000, force: true, scope: 'readiness' }).then(setReady).catch(() => setReady({ ready: false }));
     return () => { cache.abort('bootstrap'); cache.abort('readiness'); };
   }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const apiBase = String(config.apiBaseUrl || '/api').replace(/\/$/u, '');
+    const refreshLicenseStatus = async () => {
+      try {
+        const response = await fetch(`${apiBase}/v1/license/status`, { credentials: 'same-origin', headers: { Accept: 'application/json' }, signal: controller.signal });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        setLicenseReport(await response.json());
+        setLicenseStatusFailed(false);
+      } catch (error) {
+        if (error?.name !== 'AbortError') {
+          setLicenseReport(null);
+          setLicenseStatusFailed(true);
+        }
+      }
+    };
+    void refreshLicenseStatus();
+    const interval = window.setInterval(() => void refreshLicenseStatus(), 3_600_000);
+    return () => { controller.abort(); window.clearInterval(interval); };
+  }, [config.apiBaseUrl]);
 
   function chooseOperation(module, operation, focusMain = false) {
     const mappedManagement = managementResourceForOperation(operation.id);
@@ -967,6 +1004,7 @@ function Dashboard() {
           {runtimeStatus}
         </nav>
         <main id="openinfra-main-content" ref={mainContentRef} tabIndex={-1} className="col-xl-10 ms-sm-auto openinfra-main">
+          <RuntimeLicenseBanner report={licenseReport} failed={licenseStatusFailed} i18n={i18n} />
           <div className="pb-2 mb-3 openinfra-titlebar"><h1 className="h2">{pageTitle}</h1><p className="text-muted mb-0">{pageSubtitle}</p></div>
           {submissionCompleted && activeModuleId !== 'overview' && <div className="alert alert-success" role="status">{i18n.t('success')}</div>}
           {activeModuleId === 'overview' && <div className="row g-3 mb-4 openinfra-dashboard-metrics" aria-label={i18n.t('componentStatistics')}><Metric title={i18n.t('version')} value={displayedVersion} /><Metric title="API" value={config.apiBaseUrl || '/api'} /><Metric title={i18n.t('trust')} value={config.webBackendTrust || 'server-side'} /><Metric title={i18n.t('forms')} value={protectedForms} /><Metric title={i18n.t('modules')} value={`${operationsCount} ${i18n.t('operations')}`} /></div>}

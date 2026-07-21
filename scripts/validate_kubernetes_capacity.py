@@ -22,8 +22,8 @@ class KubernetesCapacityProjectValidator:
         "docs/api/openapi.yaml",
         "docs/architecture/kubernetes-capacity.md",
         "docs/operations/kubernetes-capacity.md",
-        "docs/specifications/OpenInfra-Roadmap-Developpement-v2.2/04-roadmap-epics.csv",
-        "docs/specifications/OpenInfra-Roadmap-Developpement-v2.2/09-roadmap-tests-validation.csv",
+        "docs/specifications/OpenInfra-Roadmap-Developpement-v2.3/04-roadmap-epics.csv",
+        "docs/specifications/OpenInfra-Roadmap-Developpement-v2.3/09-roadmap-tests-validation.csv",
         "tests/unit/test_kubernetes_capacity.py",
         "tests/integration/test_kubernetes_capacity_services.py",
         "tests/integration/test_kubernetes_capacity_http_api.py",
@@ -96,18 +96,18 @@ class KubernetesCapacityProjectValidator:
                 ),
             )
         self._assert_fragments(
-            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.2/04-roadmap-epics.csv",
+            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.3/04-roadmap-epics.csv",
             ("EPIC-2105", "Capacité cluster et namespace"),
         )
         self._assert_fragments(
-            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.2/09-roadmap-tests-validation.csv",
+            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.3/09-roadmap-tests-validation.csv",
             ("TST-P21-K8S-SCALE-GATE", "Qualification REL-11"),
         )
         migrations = sorted((self._root / "installers/migrations/postgresql").glob("*.sql"))
-        if len(migrations) != 58 or migrations[-1].name != "0058_oracle_document_shards.sql":
+        if len(migrations) != 59 or migrations[-1].name != "0059_runtime_offline_licensing.sql":
             raise KubernetesCapacityProjectError(
-                "EPIC-2105 must reuse the 56-migration chain ending with "
-                "0056_kubernetes_gitops_drift.sql"
+                "EPIC-2105 must reuse the 59-migration chain ending with "
+                "0059_runtime_offline_licensing.sql"
             )
         return {
             "schema_version": 1,
@@ -118,7 +118,7 @@ class KubernetesCapacityProjectValidator:
             "phase": "P21",
             "epic": "EPIC-2105",
             "release": "REL-11",
-            "roadmap_version": "2.2.0",
+            "roadmap_version": "2.3.0",
             "cluster_capacity": True,
             "namespace_capacity": True,
             "bounded_trends": True,
@@ -127,7 +127,7 @@ class KubernetesCapacityProjectValidator:
             "max_trend_snapshots": 96,
             "max_trend_resources": 1_000_000,
             "api_cli_web_parity": True,
-            "migration_count": 58,
+            "migration_count": 59,
         }
 
     def _assert_fragments(self, relative: str, fragments: tuple[str, ...]) -> None:

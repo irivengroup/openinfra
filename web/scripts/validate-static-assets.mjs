@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { buildRuntimeI18n } from './runtime-i18n-build.mjs';
 
 const webRoot = resolve(import.meta.dirname, '..');
 const projectRoot = resolve(webRoot, '..');
@@ -83,7 +84,12 @@ assert.doesNotMatch(runtimeShell, /"id": "discovery-evidence-submit"/);
 assert.doesNotMatch(sourceShell, /localStorage|sessionStorage|indexedDB/);
 assert.doesNotMatch(runtimeShell, /localStorage|sessionStorage|indexedDB/);
 
-assert.equal(runtimeI18n, sourceI18n, 'React and packaged runtime must share the same i18n implementation');
+assert.equal(
+  runtimeI18n,
+  await buildRuntimeI18n(),
+  'packaged runtime i18n must be the reproducible minified build of the canonical source',
+);
+assert.ok(runtimeI18n.length < sourceI18n.length, 'packaged runtime i18n must remain minified');
 assert.match(sourceI18n, /SUPPORTED_LANGUAGES = Object\.freeze\(\['en', 'fr'\]\)/);
 assert.match(sourceI18n, /DEFAULT_LANGUAGE = 'en'/);
 assert.match(sourceI18n, /navigatorObject\.languages/);

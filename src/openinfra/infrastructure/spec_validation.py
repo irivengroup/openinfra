@@ -73,7 +73,7 @@ class ContractualSpecValidator:
         if not version_file.is_file():
             return "unknown"
         version = version_file.read_text(encoding="utf-8").strip()
-        if version not in {"4.0.0", "4.8.1", "4.9.0"}:
+        if version not in {"4.0.0", "4.8.1", "4.9.0", "4.10.0"}:
             errors.append(f"unsupported specification version: {version}")
         return version
 

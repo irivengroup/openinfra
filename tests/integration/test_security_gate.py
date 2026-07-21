@@ -56,6 +56,7 @@ class TestSecurityGate:
                     "hatchling>=1.25",
                     "pytest>=8.0",
                     "pytest-cov>=5.0",
+                    "pytest-xdist>=3.6",
                     "ruff>=0.5",
                     "mypy>=1.10",
                     "bandit>=1.7",

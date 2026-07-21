@@ -30,7 +30,7 @@ from openinfra.quality.advanced_identity_oracle_promotion import (
     Gate11TeamSyncQualification,
 )
 
-CANDIDATE = "openinfra-0.34.4-rc1"
+CANDIDATE = "openinfra-0.34.5-rc1"
 COMMIT = "a" * 40
 ENVIRONMENT = "qualification-lab-01"
 
@@ -592,8 +592,8 @@ class TestGate11PromotionEvidence:
             source_commit=COMMIT,
             environment_id=ENVIRONMENT,
         )
-        assert report["details"]["postgresql_migration_count"] == 58
-        assert report["details"]["oracle_migration_count"] == 58
+        assert report["details"]["postgresql_migration_count"] == 59
+        assert report["details"]["oracle_migration_count"] == 59
         assert report["checks"]["migration_filenames_match"] is True
         assert report["checks"]["gate11_entrypoint_present"] is True
         assert report["checks"]["promotion_policy_requires_enterprise"] is True

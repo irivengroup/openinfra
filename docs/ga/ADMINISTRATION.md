@@ -1,6 +1,6 @@
 # Guide administrateur
 
-Version cible : `0.34.4`
+Version cible : `0.34.5`
 
 ## Authentification et jetons
 

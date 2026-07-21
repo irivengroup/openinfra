@@ -1,10 +1,25 @@
-# OpenInfra v0.34.4
+# OpenInfra v0.34.5
 
-OpenInfra 0.34.4 réserve strictement le **backend de base de données Oracle 19c** à l’édition **Enterprise** et segmente l’état documentaire Oracle par domaine afin de supprimer le verrou transactionnel du document global entre processus. Les **58 migrations PostgreSQL** disposent de **58 migrations Oracle correspondantes**, générées de manière déterministe et vérifiées par empreintes SHA-256. PostgreSQL reste le backend par défaut de toutes les éditions.
+OpenInfra 0.34.5 ajoute un **licensing runtime offline** pour les éditions Pro et Enterprise, lié cryptographiquement à l’installation, à l’entreprise, à l’édition et au quota d’hôtes. La validation repose sur Ed25519, fonctionne sans accès Internet, applique une période de grâce fixe de 30 jours après expiration et devient fail-closed lorsque l’enforcement commercial est activé. PostgreSQL reste le backend par défaut de toutes les éditions et Oracle 19c demeure réservé à Enterprise.
+
+## Licence runtime offline — GATE-12
+
+- identité d’installation Ed25519 et demande d’activation signée ;
+- entitlement signé hors ligne par une autorité dont seule la clé publique est déployée ;
+- liaison stricte UUID de licence, UUID d’installation, entreprise, édition, quota d’hôtes et échéances ;
+- persistance transactionnelle JSON, PostgreSQL et Oracle avec migration `0059_runtime_offline_licensing.sql` ;
+- contrôle du quota d’hôtes dans la même unité de travail que la création d’équipement ;
+- statuts `missing`, `active`, `grace`, `expired` et `invalid`, avec détection du recul d’horloge ;
+- blocage CLI et HTTP 402 lorsque `OPENINFRA_LICENSE_ENFORCEMENT=true` ;
+- bootstrap installateur Pro/Enterprise avec permissions Unix strictes et demande offline générée localement ;
+- notifications accessibles dans les portails React et statique, sans exposition de matériel secret ;
+- qualification bloquante GATE-12 sur sept contrôles et exclusion de toute clé privée d’autorité de l’arbre produit.
+
+Voir `docs/runbooks/OFFLINE_RUNTIME_LICENSING.md`.
 
 ## Parité PostgreSQL / Oracle — P22 / GATE-11
 
-- catalogue Oracle complet `0001` à `0058`, aligné sur les noms, versions et fonctionnalités du catalogue PostgreSQL ;
+- catalogue Oracle complet `0001` à `0059`, aligné sur les noms, versions et fonctionnalités du catalogue PostgreSQL ;
 - convertisseur déterministe PostgreSQL → Oracle 19c, limité aux constructions réellement utilisées par OpenInfra et bloquant toute syntaxe PostgreSQL résiduelle ;
 - manifeste `installers/migrations/oracle/manifest.json` avec empreintes SHA-256 source/cible et nombre d’instructions ;
 - adaptation des types, UUID, JSON, CLOB/BLOB, identités, contraintes, index fonctionnels, partitionnement hash, `MERGE`, DML et blocs PL/SQL ;
@@ -14,7 +29,7 @@ OpenInfra 0.34.4 réserve strictement le **backend de base de données Oracle 19
 - migration `0058_oracle_document_shards.sql` et persistance Oracle segmentée par collection métier, avec reprise transparente depuis l’ancien document global ;
 - contrôle optimiste par segment : une collision sur un domaine est refusée sans bloquer les écritures d’un autre domaine dans les autres processus ;
 - garde d’édition centralisée : toute sélection Oracle en Lite ou Pro échoue avant chargement du pilote, connexion ou migration ;
-- readiness Oracle exigeant les shards et l’application cohérente des 58 migrations ;
+- readiness Oracle exigeant les shards et l’application cohérente des 59 migrations ;
 - GATE-11 bloquant dans les workflows CI avant lint, typage, sécurité, build et promotion ;
 - packaging du catalogue PostgreSQL, du catalogue Oracle et du manifeste dans le wheel et le sdist ;
 - aucune modification du thème, d’une route API, d’une commande CLI métier ou d’une permission RBAC.

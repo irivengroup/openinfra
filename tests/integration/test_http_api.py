@@ -60,6 +60,9 @@ class TestHttpApi:
                 "version_url": "/api/v1/version",
                 "schema_url": "/api/v1/database/schema",
                 "routing_url": "/api/v1/database/routing",
+                "license_status_url": "/api/v1/license/status",
+                "license_activate_url": "/api/v1/license/activate",
+                "license_renew_url": "/api/v1/license/renew",
                 "openapi_url": "/openapi.yaml",
             }
             assert root["documentation"] == {
@@ -91,6 +94,11 @@ class TestHttpApi:
                 "security": {
                     "saml_acs": "/api/v1/auth/saml/acs",
                     "team_sync": "/api/v1/identity/team-sync",
+                },
+                "license": {
+                    "status": "/api/v1/license/status",
+                    "activate": "/api/v1/license/activate",
+                    "renew": "/api/v1/license/renew",
                 },
                 "editions": {
                     "policies": "/api/v1/editions/policies",

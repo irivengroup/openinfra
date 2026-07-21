@@ -498,10 +498,23 @@ class FrontendContractValidator:
         source_management_hierarchy = (
             self._project_root / "web/src/management/context-hierarchy.js"
         ).read_text(encoding="utf-8")
-        if runtime_i18n != source_i18n:
+        generated_header = "// Generated from web/src/i18n.js by Rolldown. Do not edit.\n"
+        if not runtime_i18n.startswith(generated_header):
             raise FrontendValidationError(
-                "React and packaged runtime must share the exact same i18n implementation"
+                "packaged runtime i18n must be the generated Rolldown artifact"
             )
+        if len(runtime_i18n.encode("utf-8")) >= len(source_i18n.encode("utf-8")):
+            raise FrontendValidationError("packaged runtime i18n must remain minified")
+        for export_name in (
+            "SUPPORTED_LANGUAGES",
+            "DEFAULT_LANGUAGE",
+            "OpenInfraI18n",
+            "localizeOpenInfraCatalog",
+        ):
+            if export_name not in runtime_i18n:
+                raise FrontendValidationError(
+                    f"packaged runtime i18n is missing export {export_name}"
+                )
         if runtime_form_fields != source_form_fields:
             raise FrontendValidationError(
                 "React and packaged runtime must share the exact same "
@@ -521,7 +534,7 @@ class FrontendContractValidator:
             raise FrontendValidationError(
                 "legacy CRUD management asset must remain a compatibility facade"
             )
-        self._validate_i18n_contract(runtime_js, runtime_i18n)
+        self._validate_i18n_contract(runtime_js, source_i18n)
         runtime_manifest = assets_by_name["assets/openinfra-domain-manifest.js"]
         runtime_catalog = "\n".join(
             assets_by_name[name] for name in required if name.startswith("assets/domains/")

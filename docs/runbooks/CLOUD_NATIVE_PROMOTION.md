@@ -64,7 +64,7 @@ La certification est rejetée si :
 - le benchmark n’atteint pas trois clusters ou 50 000 ressources ;
 - un secret peut être ingéré, une référence inter-namespace est acceptée ou un mapping physique orphelin est accepté ;
 - la remédiation GitOps automatique est activée ;
-- la chaîne PostgreSQL ne contient plus exactement 58 migrations terminant par `0058_oracle_document_shards.sql`, après la preuve historique `0056_kubernetes_gitops_drift.sql`.
+- la chaîne PostgreSQL ne contient plus exactement 59 migrations terminant par `0059_runtime_offline_licensing.sql`, après la preuve historique `0056_kubernetes_gitops_drift.sql`.
 
 ## Exploitation et rollback
 

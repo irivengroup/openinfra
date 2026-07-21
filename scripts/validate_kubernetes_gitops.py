@@ -23,8 +23,8 @@ class KubernetesGitOpsProjectValidator:
         "docs/api/openapi.yaml",
         "docs/architecture/kubernetes-gitops-drift.md",
         "docs/operations/kubernetes-gitops-drift.md",
-        "docs/specifications/OpenInfra-Roadmap-Developpement-v2.2/04-roadmap-epics.csv",
-        "docs/specifications/OpenInfra-Roadmap-Developpement-v2.2/09-roadmap-tests-validation.csv",
+        "docs/specifications/OpenInfra-Roadmap-Developpement-v2.3/04-roadmap-epics.csv",
+        "docs/specifications/OpenInfra-Roadmap-Developpement-v2.3/09-roadmap-tests-validation.csv",
         "tests/unit/test_kubernetes_gitops.py",
         "tests/integration/test_kubernetes_gitops_services.py",
         "tests/integration/test_kubernetes_gitops_http_api.py",
@@ -118,18 +118,18 @@ class KubernetesGitOpsProjectValidator:
                 ),
             )
         self._assert_fragments(
-            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.2/04-roadmap-epics.csv",
+            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.3/04-roadmap-epics.csv",
             ("EPIC-2104", "Conformité GitOps et dérive observée"),
         )
         self._assert_fragments(
-            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.2/09-roadmap-tests-validation.csv",
+            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.3/09-roadmap-tests-validation.csv",
             ("TST-P21-K8S-GITOPS-DRIFT", "GitOps drift"),
         )
         migrations = sorted((self._root / "installers/migrations/postgresql").glob("*.sql"))
-        if len(migrations) != 58 or migrations[-1].name != "0058_oracle_document_shards.sql":
+        if len(migrations) != 59 or migrations[-1].name != "0059_runtime_offline_licensing.sql":
             raise KubernetesGitOpsProjectError(
-                "EPIC-2104 requires the 56-migration chain ending with "
-                "0056_kubernetes_gitops_drift.sql"
+                "EPIC-2104 requires the 59-migration chain ending with "
+                "0059_runtime_offline_licensing.sql"
             )
         return {
             "schema_version": 1,
@@ -140,7 +140,7 @@ class KubernetesGitOpsProjectValidator:
             "phase": "P21",
             "epic": "EPIC-2104",
             "release": "REL-11",
-            "roadmap_version": "2.2.0",
+            "roadmap_version": "2.3.0",
             "immutable_expected_state": True,
             "immutable_observed_state": True,
             "deterministic_drift": True,
@@ -148,7 +148,7 @@ class KubernetesGitOpsProjectValidator:
             "transactional_outbox": True,
             "automatic_remediation": False,
             "api_cli_web_parity": True,
-            "migration_count": 58,
+            "migration_count": 59,
         }
 
     def _assert_fragments(self, relative: str, fragments: tuple[str, ...]) -> None:

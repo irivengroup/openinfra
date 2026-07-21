@@ -335,6 +335,7 @@ from openinfra.application.kubernetes_topology_services import (
     ImportKubernetesTopologyCommand,
     ListKubernetesTopologiesCommand,
 )
+from openinfra.application.licensing_services import ActivateRuntimeLicenseCommand
 from openinfra.application.multisite_services import (
     ConfigureDisasterRecoveryPlanCommand,
     ConfigureRegionalDiscoveryRouteCommand,
@@ -424,6 +425,7 @@ from openinfra.domain.common import AccessDeniedError, OpenInfraError, Validatio
 from openinfra.domain.countries import CountryCatalog
 from openinfra.domain.editions import EditionDatabasePolicy
 from openinfra.domain.federated_identity import FederatedProvider
+from openinfra.domain.licensing import LicenseAccessDeniedError, LicenseEntitlement
 from openinfra.domain.security import AuthenticatedPrincipal, Permission
 from openinfra.infrastructure.advanced_identity import (
     AuthProxyTeamSyncSource,
@@ -584,6 +586,34 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
     def log_message(self, _format: str, *args: object) -> None:
         return None
 
+    _LICENSE_EXEMPT_ROUTES = frozenset(
+        {
+            "/api/v1/version",
+            "/api/v1/license/status",
+            "/api/v1/license/activate",
+            "/api/v1/license/renew",
+            "/api/v1/database/schema",
+            "/api/v1/database/routing",
+            "/api/v1/openapi.yaml",
+        }
+    )
+
+    def _runtime_license_blocks(self, route: str, responder: JsonHttpResponder) -> bool:
+        if not route.startswith("/api/v1/") or route in self._LICENSE_EXEMPT_ROUTES:
+            return False
+        try:
+            self.server.application.license_service.require_runtime_access()
+            return False
+        except LicenseAccessDeniedError as exc:
+            responder.send(
+                HTTPStatus.PAYMENT_REQUIRED,
+                {
+                    "error": "runtime_license_required",
+                    "license": exc.report.as_dict(),
+                },
+            )
+            return True
+
     def do_GET(self) -> None:
         responder = JsonHttpResponder(self)
         text_responder = TextHttpResponder(self)
@@ -594,6 +624,8 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
         report: Any
         result: Any
         route = self._canonical_route(parsed.path)
+        if self._runtime_license_blocks(route, responder):
+            return
         if route in ("/", "/api/v1"):
             responder.send(HTTPStatus.OK, self.server.discovery_document())
             return
@@ -631,6 +663,11 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             return
         if route == "/api/v1/version":
             responder.send(HTTPStatus.OK, {"version": __version__})
+            return
+        if route == "/api/v1/license/status":
+            responder.send(
+                HTTPStatus.OK, self.server.application.license_service.status().as_dict()
+            )
             return
         if route == "/api/v1/reference/countries":
             responder.send(HTTPStatus.OK, CountryCatalog.groups_as_dict())
@@ -4057,6 +4094,35 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
         result: Any
         rule: Any
 
+        if self._runtime_license_blocks(route, responder):
+            return
+        if route in {"/api/v1/license/activate", "/api/v1/license/renew"}:
+            try:
+                payload = self._read_json_body()
+                allowed = {"entitlement", "actor"}
+                unexpected = set(payload) - allowed
+                if unexpected:
+                    raise ValidationError(
+                        "runtime license request accepts only entitlement and actor"
+                    )
+                entitlement_payload = payload.get("entitlement")
+                if not isinstance(entitlement_payload, dict):
+                    raise ValidationError("entitlement must be a JSON object")
+                command = ActivateRuntimeLicenseCommand(
+                    entitlement=LicenseEntitlement.from_dict(entitlement_payload),
+                    actor=str(payload.get("actor", "api")),
+                )
+                license_service = self.server.application.license_service
+                report = (
+                    license_service.renew(command)
+                    if route.endswith("/renew")
+                    else license_service.activate(command)
+                )
+                responder.send(HTTPStatus.OK, report.as_dict())
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
         if route == "/api/v1/auth/saml/acs":
             try:
                 form = self._read_form_or_json_body()
@@ -5812,8 +5878,8 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 tenant_id = self._required_payload_value(payload, "tenant_id")
                 if self.server.auth_required:
                     self._authenticate(tenant_id, Permission.SECURITY_ADMIN)
-                service = self.server.application.external_itsm_service
-                profile = service.validate_servicenow_connector(
+                itsm_service = self.server.application.external_itsm_service
+                profile = itsm_service.validate_servicenow_connector(
                     ValidateServiceNowConnectorCommand(
                         tenant_id=tenant_id,
                         instance_url=self._required_payload_value(payload, "instance_url"),
@@ -5843,8 +5909,8 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                     if isinstance(raw_mapping, dict)
                     else None
                 )
-                service = self.server.application.external_itsm_service
-                servicenow_ci_sync_plan = service.build_servicenow_ci_sync_plan(
+                itsm_service = self.server.application.external_itsm_service
+                servicenow_ci_sync_plan = itsm_service.build_servicenow_ci_sync_plan(
                     BuildServiceNowCiSyncPlanCommand(
                         tenant_id=tenant_id,
                         resource_key=self._required_payload_value(payload, "resource_key"),
@@ -5866,8 +5932,8 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 tenant_id = self._required_payload_value(payload, "tenant_id")
                 if self.server.auth_required:
                     self._authenticate(tenant_id, Permission.SECURITY_ADMIN)
-                service = self.server.application.external_itsm_service
-                profile = service.validate_jira_service_management_connector(
+                itsm_service = self.server.application.external_itsm_service
+                profile = itsm_service.validate_jira_service_management_connector(
                     ValidateJiraServiceManagementConnectorCommand(
                         tenant_id=tenant_id,
                         instance_url=self._required_payload_value(payload, "instance_url"),
@@ -5897,8 +5963,8 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                     if isinstance(raw_mapping, dict)
                     else None
                 )
-                service = self.server.application.external_itsm_service
-                plan = service.build_jira_service_management_asset_sync_plan(
+                itsm_service = self.server.application.external_itsm_service
+                plan = itsm_service.build_jira_service_management_asset_sync_plan(
                     BuildJiraServiceManagementAssetSyncPlanCommand(
                         tenant_id=tenant_id,
                         resource_key=self._required_payload_value(payload, "resource_key"),
@@ -5920,8 +5986,8 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 tenant_id = self._required_payload_value(payload, "tenant_id")
                 if self.server.auth_required:
                     self._authenticate(tenant_id, Permission.SECURITY_ADMIN)
-                service = self.server.application.external_itsm_service
-                profile = service.validate_glpi_connector(
+                itsm_service = self.server.application.external_itsm_service
+                profile = itsm_service.validate_glpi_connector(
                     ValidateGlpiConnectorCommand(
                         tenant_id=tenant_id,
                         instance_url=self._required_payload_value(payload, "instance_url"),
@@ -5951,8 +6017,8 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                     if isinstance(raw_mapping, dict)
                     else None
                 )
-                service = self.server.application.external_itsm_service
-                plan = service.build_glpi_asset_sync_plan(
+                itsm_service = self.server.application.external_itsm_service
+                plan = itsm_service.build_glpi_asset_sync_plan(
                     BuildGlpiAssetSyncPlanCommand(
                         tenant_id=tenant_id,
                         resource_key=self._required_payload_value(payload, "resource_key"),
@@ -5974,8 +6040,8 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 tenant_id = self._required_payload_value(payload, "tenant_id")
                 if self.server.auth_required:
                     self._authenticate(tenant_id, Permission.SECURITY_ADMIN)
-                service = self.server.application.external_itsm_service
-                profile = service.validate_freshservice_connector(
+                itsm_service = self.server.application.external_itsm_service
+                profile = itsm_service.validate_freshservice_connector(
                     ValidateFreshserviceConnectorCommand(
                         tenant_id=tenant_id,
                         instance_url=self._required_payload_value(payload, "instance_url"),
@@ -6005,8 +6071,8 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                     if isinstance(raw_mapping, dict)
                     else None
                 )
-                service = self.server.application.external_itsm_service
-                plan = service.build_freshservice_asset_sync_plan(
+                itsm_service = self.server.application.external_itsm_service
+                plan = itsm_service.build_freshservice_asset_sync_plan(
                     BuildFreshserviceAssetSyncPlanCommand(
                         tenant_id=tenant_id,
                         resource_key=self._required_payload_value(payload, "resource_key"),
@@ -6028,8 +6094,8 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 tenant_id = self._required_payload_value(payload, "tenant_id")
                 if self.server.auth_required:
                     self._authenticate(tenant_id, Permission.SECURITY_ADMIN)
-                service = self.server.application.external_itsm_service
-                profile = service.validate_openservice_connector(
+                itsm_service = self.server.application.external_itsm_service
+                profile = itsm_service.validate_openservice_connector(
                     ValidateOpenServiceConnectorCommand(
                         tenant_id=tenant_id,
                         instance_url=self._required_payload_value(payload, "instance_url"),
@@ -6059,8 +6125,8 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                     if isinstance(raw_mapping, dict)
                     else None
                 )
-                service = self.server.application.external_itsm_service
-                plan = service.build_openservice_cmdb_sync_plan(
+                itsm_service = self.server.application.external_itsm_service
+                plan = itsm_service.build_openservice_cmdb_sync_plan(
                     BuildOpenServiceCmdbSyncPlanCommand(
                         tenant_id=tenant_id,
                         resource_key=self._required_payload_value(payload, "resource_key"),
@@ -9047,6 +9113,9 @@ class OpenInfraApiRuntime(BaseServer):
                 "version_url": "/api/v1/version",
                 "schema_url": "/api/v1/database/schema",
                 "routing_url": "/api/v1/database/routing",
+                "license_status_url": "/api/v1/license/status",
+                "license_activate_url": "/api/v1/license/activate",
+                "license_renew_url": "/api/v1/license/renew",
                 "openapi_url": "/openapi.yaml",
             },
             "documentation": {
@@ -9075,6 +9144,11 @@ class OpenInfraApiRuntime(BaseServer):
                     "migration_report": "/api/v1/imports/migration-report",
                 },
                 "search": {"global": "/api/v1/search/global"},
+                "license": {
+                    "status": "/api/v1/license/status",
+                    "activate": "/api/v1/license/activate",
+                    "renew": "/api/v1/license/renew",
+                },
                 "editions": {
                     "policies": "/api/v1/editions/policies",
                     "feature_check": "/api/v1/editions/feature-check",

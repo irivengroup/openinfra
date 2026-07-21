@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from tests.frontend_contract_sources import REACT_PORTAL, RUNTIME_PORTAL
+from tests.runtime_i18n_contract import assert_runtime_i18n_contract
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 STATIC_JS = RUNTIME_PORTAL
@@ -49,10 +50,9 @@ def test_simulation_forms_are_typed_and_execute_against_backend() -> None:
     assert "selected.id.startsWith('simulation-')" in react
 
 
-def test_simulation_web_catalog_is_bilingual_and_i18n_is_identical() -> None:
-    source_i18n = SOURCE_I18N.read_text(encoding="utf-8")
-    runtime_i18n = RUNTIME_I18N.read_text(encoding="utf-8")
-    assert runtime_i18n == source_i18n
-    assert "Create change scenario" in source_i18n
-    assert "Calculate scenario impact" in source_i18n
-    assert "Compare two reports" in source_i18n
+def test_simulation_web_catalog_is_bilingual_and_runtime_i18n_is_generated() -> None:
+    assert_runtime_i18n_contract(
+        "Create change scenario",
+        "Calculate scenario impact",
+        "Compare two reports",
+    )

@@ -1,5 +1,5 @@
 {
-  "count": 58,
+  "count": 59,
   "migrations": [
     {
       "filename": "0001_bootstrap.sql",
@@ -406,6 +406,13 @@
       "source_sha256": "8ac0977a2b7f461a3b7e8eea304ae5cbdcd4b0b29b4c38711654b75a3a45a3d3",
       "statement_count": 3,
       "version": "0058"
+    },
+    {
+      "filename": "0059_runtime_offline_licensing.sql",
+      "oracle_sha256": "d22dffb0b9bd01416e2827daf0e749f74dee669f5c396c487ea022c6fbea4dbc",
+      "source_sha256": "7dd9409851b05d43b845f3c27c3a8154ecbce85994aeced47643d7fa54bb2745",
+      "statement_count": 3,
+      "version": "0059"
     }
   ],
   "schema": "openinfra.oracle-migration-catalog/v1",

@@ -1,4 +1,4 @@
-import { OpenInfraI18n, localizeOpenInfraCatalog } from "./openinfra-i18n.js?v=0.34.4";
+import { OpenInfraI18n, localizeOpenInfraCatalog } from "./openinfra-i18n.js?v=0.34.5";
 let managementRegistryPromise = null;
 let collapseManagementOperations = (_moduleId, operations, operationIds) => {
   const byId = new Map(operations.map((operation) => [operation.id, operation]));
@@ -25,7 +25,7 @@ let managementResourcesForModule = () => [];
 
 async function ensureManagementRegistryLoaded() {
   if (!managementRegistryPromise) {
-    managementRegistryPromise = import("./management/resources.js?v=0.34.4").then((loaded) => {
+    managementRegistryPromise = import("./management/resources.js?v=0.34.5").then((loaded) => {
       collapseManagementOperations = loaded.collapseManagementOperations;
       flattenManagementCollection = loaded.flattenManagementCollection;
       localizedManagementLabel = loaded.localizedManagementLabel;
@@ -59,11 +59,11 @@ import {
   normalizeFieldDefinition,
   normalizeFieldValue,
   validateControl
-} from "./openinfra-form-fields.js?v=0.34.4";
-import { OPENINFRA_DOMAIN_LOADERS, OPENINFRA_MODULES, OPENINFRA_SIDEBAR_CONTEXTS } from "./openinfra-domain-manifest.js?v=0.34.4";
-import { OpenInfraQueryCache } from "./openinfra-query-cache.js?v=0.34.4";
-import { OpenInfraVirtualList } from "./openinfra-virtual-list.js?v=0.34.4";
-import { installOpenInfraWebVitals } from "./openinfra-web-vitals.js?v=0.34.4";
+} from "./openinfra-form-fields.js?v=0.34.5";
+import { OPENINFRA_DOMAIN_LOADERS, OPENINFRA_MODULES, OPENINFRA_SIDEBAR_CONTEXTS } from "./openinfra-domain-manifest.js?v=0.34.5";
+import { OpenInfraQueryCache } from "./openinfra-query-cache.js?v=0.34.5";
+import { OpenInfraVirtualList } from "./openinfra-virtual-list.js?v=0.34.5";
+import { installOpenInfraWebVitals } from "./openinfra-web-vitals.js?v=0.34.5";
 
 
 class OpenInfraApiClient {
@@ -347,6 +347,8 @@ class OpenInfraDashboard {
       ready: null,
       status: null,
       version: null,
+      licenseReport: null,
+      licenseStatusFailed: false,
       result: null,
       error: null,
       globalSearchQuery: "",
@@ -385,6 +387,7 @@ class OpenInfraDashboard {
     this.resourceCategories = [];
     this.virtualLists = [];
     this.disposeVitals = null;
+    this.licenseRefreshTimer = null;
     this.handleResize = () => {
       this.syncFixedHeaderOffset();
       if (!this.isMegamenuViewport() && this.state.megaMenuModuleId !== null) {
@@ -434,8 +437,12 @@ class OpenInfraDashboard {
     this.disposeVitals = installOpenInfraWebVitals({ target: window });
     this.render();
     await this.refreshRuntime();
+    await this.refreshLicenseStatus();
     this.render();
     void this.refreshReadiness();
+    this.licenseRefreshTimer = window.setInterval(() => {
+      void this.refreshLicenseStatus().then(() => this.updateLicenseBanner());
+    }, 3_600_000);
   }
 
   async ensureModuleLoaded(moduleId) {
@@ -470,7 +477,7 @@ class OpenInfraDashboard {
 
   async loadSearchIndex() {
     if (this.searchIndex) return this.searchIndex;
-    const loaded = await import("./openinfra-search-index.js?v=0.34.4");
+    const loaded = await import("./openinfra-search-index.js?v=0.34.5");
     const syntheticModules = OPENINFRA_MODULES.map((module) => ({
       ...module,
       operations: loaded.default.filter((entry) => entry.moduleId === module.id).map((entry) => ({ ...entry }))
@@ -497,6 +504,43 @@ class OpenInfraDashboard {
     } catch (error) {
       this.state = { ...this.state, error };
     }
+  }
+
+  async refreshLicenseStatus() {
+    const apiBase = String(this.state.config?.apiBaseUrl || "/api").replace(/\/$/, "");
+    try {
+      const response = await fetch(`${apiBase}/v1/license/status`, {
+        credentials: "same-origin",
+        headers: { Accept: "application/json" }
+      });
+      if (!response.ok) throw new Error(`License status unavailable: ${response.status}`);
+      this.state = { ...this.state, licenseReport: await response.json(), licenseStatusFailed: false };
+    } catch (_error) {
+      this.state = { ...this.state, licenseReport: null, licenseStatusFailed: true };
+    }
+  }
+
+  updateLicenseBanner() {
+    const slot = document.getElementById("openinfra-license-banner-slot");
+    if (slot) slot.innerHTML = this.renderLicenseBanner();
+  }
+
+  renderLicenseBanner() {
+    const report = this.state.licenseReport;
+    if (!report && !this.state.licenseStatusFailed) return "";
+    if (this.state.licenseStatusFailed) {
+      return `<div class="alert alert-warning openinfra-license-banner" role="alert" aria-live="assertive" aria-atomic="true"><strong>${this.escape(this.i18n.t("runtimeLicense"))}</strong><span class="ms-2">${this.escape(this.i18n.t("licenseUnavailable"))}</span></div>`;
+    }
+    const level = String(report.notification_level || "none");
+    const status = String(report.status || "invalid");
+    if (level === "none" && ["active", "not_required"].includes(status)) return "";
+    const alertClass = level === "critical" ? "alert-danger" : level === "warning" ? "alert-warning" : "alert-info";
+    const role = level === "critical" ? "alert" : "status";
+    const live = level === "critical" ? "assertive" : "polite";
+    const hosts = report.max_hosts == null ? String(report.current_hosts || 0) : `${report.current_hosts || 0} / ${report.max_hosts}`;
+    const expires = report.expires_at ? new Date(report.expires_at).toLocaleDateString(this.i18n.language) : "";
+    const grace = report.grace_until && status === "grace" ? new Date(report.grace_until).toLocaleDateString(this.i18n.language) : "";
+    return `<div class="alert ${alertClass} openinfra-license-banner" role="${role}" aria-live="${live}" aria-atomic="true"><div class="d-flex flex-wrap gap-3 align-items-baseline"><strong>${this.escape(this.i18n.t("runtimeLicense"))}</strong><span>${this.escape(this.i18n.t("licenseStatus"))} : <strong>${this.escape(this.i18n.t(`licenseStatus_${status}`))}</strong></span>${report.company_name ? `<span>${this.escape(this.i18n.t("licenseCompany"))} : <strong>${this.escape(report.company_name)}</strong></span>` : ""}<span>${this.escape(this.i18n.t("licenseHosts"))} : <strong>${this.escape(hosts)}</strong></span>${expires ? `<span>${this.escape(this.i18n.t("licenseExpires"))} : <strong>${this.escape(expires)}</strong></span>` : ""}${grace ? `<span>${this.escape(this.i18n.t("licenseGraceUntil"))} : <strong>${this.escape(grace)}</strong></span>` : ""}</div><p class="mb-0 mt-1 small">${this.escape(report.reason || "")}</p></div>`;
   }
 
   async refreshReadiness() {

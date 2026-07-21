@@ -64,7 +64,7 @@ Saisir le mot de passe dans l’entrée standard sans l’inscrire dans l’hist
 
 ### Catalogue et application des migrations Oracle
 
-OpenInfra livre un catalogue Oracle 19c complet de `0001_bootstrap.sql` à `0058_oracle_document_shards.sql`. Chaque migration conserve le numéro et le nom fonctionnel de sa source PostgreSQL. Le manifeste `manifest.json` contient les empreintes SHA-256 PostgreSQL/Oracle et le nombre d’instructions attendues.
+OpenInfra livre un catalogue Oracle 19c complet de `0001_bootstrap.sql` à `0059_runtime_offline_licensing.sql`. Chaque migration conserve le numéro et le nom fonctionnel de sa source PostgreSQL. Le manifeste `manifest.json` contient les empreintes SHA-256 PostgreSQL/Oracle et le nombre d’instructions attendues.
 
 Avant promotion d’une release depuis les sources :
 
@@ -93,7 +93,7 @@ sudo -u openinfra /opt/openinfra/venv/bin/openinfra database status \
   --root /opt/openinfra/share/migrations/oracle
 ```
 
-L’état final doit indiquer `expected_count=58`, `applied_count=58`, `current=true` et une liste `drift` vide. Le journal `openinfra_schema_migrations` conserve les états `applying`, `applied` ou `failed`, l’empreinte Oracle, l’empreinte PostgreSQL source et le message d’erreur borné. Une ancienne installation ne contenant que `0001_document_state.sql` est reprise de manière compatible.
+L’état final doit indiquer `expected_count=59`, `applied_count=59`, `current=true` et une liste `drift` vide. Le journal `openinfra_schema_migrations` conserve les états `applying`, `applied` ou `failed`, l’empreinte Oracle, l’empreinte PostgreSQL source et le message d’erreur borné. Une ancienne installation ne contenant que `0001_document_state.sql` est reprise de manière compatible.
 
 Oracle valide implicitement de nombreuses instructions DDL. OpenInfra ne revendique donc pas un rollback transactionnel global du DDL : les opérations DML sont annulées lorsque le pilote le permet, l’échec est persisté, et la reprise DDL est limitée aux erreurs idempotentes explicitement reconnues. Une sauvegarde/restauration Oracle testée reste obligatoire avant toute montée de version de production.
 
@@ -193,7 +193,7 @@ Le snapshot doit être un fichier normal, non symbolique, avec signature HMAC va
 ## Installation et unités systemd
 
 ```bash
-sudo /opt/openinfra/venv/bin/python -m pip install '/opt/openinfra/openinfra-0.34.4-py3-none-any.whl[postgresql,advanced-identity]'
+sudo /opt/openinfra/venv/bin/python -m pip install '/opt/openinfra/openinfra-0.34.5-py3-none-any.whl[postgresql,advanced-identity]'
 # Oracle : remplacer postgresql par oracle.
 sudo install -o root -g root -m 0644 installers/systemd/openinfra-runtime-secrets.service /etc/systemd/system/
 sudo install -o root -g root -m 0644 installers/systemd/openinfra-migrate.service /etc/systemd/system/
@@ -239,7 +239,7 @@ La promotion REL-12 exige cinq preuves JSON produites sur le même commit, pour 
 Préparer un identifiant de candidat, le SHA-1 Git complet et un identifiant stable de l'environnement :
 
 ```bash
-export GATE11_CANDIDATE_ID="openinfra-0.34.4-rc1"
+export GATE11_CANDIDATE_ID="openinfra-0.34.5-rc1"
 export GATE11_SOURCE_COMMIT="$(git rev-parse HEAD)"
 export GATE11_ENVIRONMENT_ID="oracle19c-idp-prodlike-01"
 umask 077
@@ -260,7 +260,7 @@ openinfra-gate11 contracts \
 
 ### Oracle 19c réel
 
-La commande applique le catalogue avec le compte applicatif configuré côté serveur, puis exige `current=true`, les 58 migrations appliquées et une liste de dérive vide. Le mot de passe Oracle reste fourni par `OPENINFRA_ORACLE_PASSWORD_REF` ou par l'environnement protégé du service ; il n'est jamais transmis comme argument de processus.
+La commande applique le catalogue avec le compte applicatif configuré côté serveur, puis exige `current=true`, les 59 migrations appliquées et une liste de dérive vide. Le mot de passe Oracle reste fourni par `OPENINFRA_ORACLE_PASSWORD_REF` ou par l'environnement protégé du service ; il n'est jamais transmis comme argument de processus.
 
 ```bash
 openinfra-gate11 oracle \

@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from tests.frontend_contract_sources import REACT_PORTAL, RUNTIME_PORTAL
+from tests.runtime_i18n_contract import assert_runtime_i18n_contract
 
 ROOT = Path(__file__).resolve().parents[2]
 REACT = REACT_PORTAL
@@ -67,15 +68,21 @@ def test_finops_is_grouped_under_itam_with_complete_route_parity() -> None:
             assert route in source
 
 
-def test_finops_dates_use_calendars_and_i18n_is_identical() -> None:
+def test_finops_dates_use_calendars_and_runtime_i18n_is_generated() -> None:
     react = REACT.read_text(encoding="utf-8")
     static = STATIC.read_text(encoding="utf-8")
     for source in (react, static):
         assert source.count('"name": "period_start"') >= 3
         assert source.count('"type": "date"') >= 6
     source_i18n = SOURCE_I18N.read_text(encoding="utf-8")
-    runtime_i18n = RUNTIME_I18N.read_text(encoding="utf-8")
-    assert runtime_i18n == source_i18n
+    assert_runtime_i18n_contract(
+        "Network compliance",
+        "Allocation rules",
+        "Imports & costs",
+        "Budgets & periods",
+        "Forecasts & anomalies",
+        "Generate showback or chargeback",
+    )
     for text in (
         "Network compliance",
         "Allocation rules",

@@ -474,9 +474,9 @@ class TestOracleComplete:
 
         migrations = OracleMigrationCatalog(oracle_root, postgresql_root).migrations()
 
-        assert len(migrations) == 58
+        assert len(migrations) == 59
         assert migrations[0].version == "0001"
-        assert migrations[-1].version == "0058"
+        assert migrations[-1].version == "0059"
         assert all(migration.oracle_checksum for migration in migrations)
         assert all(migration.source_checksum for migration in migrations)
         manifest_only = OracleMigrationCatalog(oracle_root).migrations()
@@ -496,7 +496,7 @@ class TestOracleComplete:
 
         shutil.rmtree(copied_oracle)
         shutil.copytree(oracle_root, copied_oracle)
-        (copied_postgresql / "0058_oracle_document_shards.sql").unlink()
+        (copied_postgresql / "0059_runtime_offline_licensing.sql").unlink()
         with pytest.raises(OpenInfraError, match="filenames diverge"):
             OracleMigrationCatalog(copied_oracle, copied_postgresql).migrations()
 

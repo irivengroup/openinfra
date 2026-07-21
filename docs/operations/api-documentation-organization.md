@@ -32,7 +32,7 @@ PYTHONPATH=src:. pytest -q --no-cov \
 
 python scripts/validate_openapi.py \
   docs/api/openapi.yaml \
-  docs/specifications/OpenInfra-CDC-SFG-STG-v4.9.0/09-API/OpenAPI/openapi.yaml
+  docs/specifications/OpenInfra-CDC-SFG-STG-v4.10.0/09-API/OpenAPI/openapi.yaml
 ```
 
 Les tests vérifient que les deux contrats contiennent la même taxonomie, que tous les tags sont déclarés une seule fois et que les 300 opérations ou plus sont rattachées à un contexte unique.

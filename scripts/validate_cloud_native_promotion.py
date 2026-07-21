@@ -30,9 +30,9 @@ class CloudNativePromotionProjectValidator:
         "scripts/validate_kubernetes_capacity.py",
         "tests/unit/test_cloud_native_promotion.py",
         "tests/integration/test_cloud_native_promotion_tooling.py",
-        "docs/specifications/OpenInfra-Roadmap-Developpement-v2.2/04-roadmap-epics.csv",
-        "docs/specifications/OpenInfra-Roadmap-Developpement-v2.2/07-roadmap-go-nogo.csv",
-        "docs/specifications/OpenInfra-Roadmap-Developpement-v2.2/09-roadmap-tests-validation.csv",
+        "docs/specifications/OpenInfra-Roadmap-Developpement-v2.3/04-roadmap-epics.csv",
+        "docs/specifications/OpenInfra-Roadmap-Developpement-v2.3/07-roadmap-go-nogo.csv",
+        "docs/specifications/OpenInfra-Roadmap-Developpement-v2.3/09-roadmap-tests-validation.csv",
     )
 
     def __init__(self, project_root: Path) -> None:
@@ -74,22 +74,22 @@ class CloudNativePromotionProjectValidator:
             ),
         )
         self._assert_fragments(
-            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.2/04-roadmap-epics.csv",
+            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.3/04-roadmap-epics.csv",
             ("EPIC-2101", "EPIC-2106", "GATE-10"),
         )
         self._assert_fragments(
-            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.2/07-roadmap-go-nogo.csv",
+            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.3/07-roadmap-go-nogo.csv",
             ("GATE-10", "Go Kubernetes & Cloud-native"),
         )
         self._assert_fragments(
-            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.2/09-roadmap-tests-validation.csv",
+            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.3/09-roadmap-tests-validation.csv",
             ("TST-P21-K8S-SCALE-GATE", "50 000 ressources/snapshot"),
         )
         migrations = sorted((self._root / "installers/migrations/postgresql").glob("*.sql"))
-        if len(migrations) != 58 or migrations[-1].name != "0058_oracle_document_shards.sql":
+        if len(migrations) != 59 or migrations[-1].name != "0059_runtime_offline_licensing.sql":
             raise CloudNativePromotionProjectError(
-                "EPIC-2106 must preserve the 56-migration chain ending with "
-                "0056_kubernetes_gitops_drift.sql"
+                "EPIC-2106 must preserve the 59-migration chain ending with "
+                "0059_runtime_offline_licensing.sql"
             )
         return {
             "schema_version": 1,
@@ -113,7 +113,7 @@ class CloudNativePromotionProjectValidator:
             "required_evidence_count": 7,
             "max_resources_per_snapshot": 50_000,
             "minimum_cluster_count": 3,
-            "migration_count": 58,
+            "migration_count": 59,
         }
 
     def _assert_fragments(self, relative: str, fragments: tuple[str, ...]) -> None:

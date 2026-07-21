@@ -1,3 +1,19 @@
+## v0.34.5 — Licence runtime offline et GATE-12
+
+| Exigence | Implémentation | Vérification |
+|---|---|---|
+| Activation sans Internet | identité Ed25519, demande signée et entitlement signé par une autorité offline | tests cryptographiques et cycle CLI complet |
+| Liaison contractuelle | licence, installation, entreprise, édition, quota et dates validés strictement | tests de substitution, schéma, UUID, dates et signatures |
+| Expiration contrôlée | grâce fixe de 30 jours, notification et blocage fail-closed après échéance | tests actif/grâce/expiré, recul d’horloge et corruption |
+| Quota d’hôtes | vérification sérialisée dans l’unité de travail de création d’équipement | tests service, HTTP et repository PostgreSQL verrouillé |
+| Parité de stockage | repositories JSON/PostgreSQL et stockage documentaire Oracle, migration 0059 | tests unitaires/intégration et GATE-12 storage-parity |
+| Interfaces opérateur | CLI offline, routes HTTP 402, OpenAPI, installateurs et portails accessibles | tests interfaces, installateur, frontend et GATE-12 7/7 |
+
+- Lite reste exemptée de licence commerciale.
+- Pro et Enterprise exigent une licence valide lorsque l’enforcement runtime est activé.
+- Oracle reste exclusivement disponible en Enterprise.
+- La charte graphique approuvée n’est pas modifiée.
+
 ## v0.34.4 — Oracle Enterprise et segmentation transactionnelle
 
 | Exigence | Implémentation | Vérification |

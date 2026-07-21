@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from tests.runtime_i18n_contract import assert_runtime_i18n_contract
+
 ROOT = Path(__file__).resolve().parents[2]
 RUNTIME_ASSETS = ROOT / "src/openinfra/interfaces/rendering/static/assets"
 
@@ -33,9 +35,7 @@ def test_unified_crud_management_assets_are_packaged_and_synchronized() -> None:
     assert react_registry.count("id: 'dcim-") >= 5
     assert react_registry.count("id: 'itam-") >= 3
 
-    assert _read("web/src/i18n.js") == _read(
-        "src/openinfra/interfaces/rendering/static/assets/openinfra-i18n.js"
-    )
+    assert_runtime_i18n_contract()
     assert _read("web/src/openinfra-theme.css") == _read(
         "src/openinfra/interfaces/rendering/static/assets/openinfra-web.css"
     )

@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from tests.frontend_contract_sources import REACT_PORTAL, RUNTIME_PORTAL
+from tests.runtime_i18n_contract import assert_runtime_i18n_contract
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 STATIC_JS = RUNTIME_PORTAL
@@ -44,16 +45,14 @@ def test_certificate_pki_component_is_exposed_by_both_web_runtimes() -> None:
             assert route in source
 
 
-def test_certificate_pki_web_catalog_is_bilingual_and_runtime_i18n_is_identical() -> None:
-    source_i18n = SOURCE_I18N.read_text(encoding="utf-8")
-    runtime_i18n = RUNTIME_I18N.read_text(encoding="utf-8")
-
-    assert runtime_i18n == source_i18n
-    assert "Certificates and PKI" in source_i18n
-    assert "PKI inventory" in source_i18n
-    assert "TLS endpoints" in source_i18n
-    assert "PKI compliance" in source_i18n
-    assert "Import PEM certificate chain" in source_i18n
+def test_certificate_pki_web_catalog_is_bilingual_and_runtime_i18n_is_generated() -> None:
+    assert_runtime_i18n_contract(
+        "Certificates and PKI",
+        "PKI inventory",
+        "TLS endpoints",
+        "PKI compliance",
+        "Import PEM certificate chain",
+    )
 
 
 def test_pem_bundle_uses_multiline_accessible_control_in_packaged_runtime() -> None:

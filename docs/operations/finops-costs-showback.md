@@ -77,5 +77,5 @@ PYTHONPATH=src:. pytest -q --no-cov \
 
 PYTHONPATH=src:. python scripts/validate_openapi.py \
   docs/api/openapi.yaml \
-  docs/specifications/OpenInfra-CDC-SFG-STG-v4.9.0/09-API/OpenAPI/openapi.yaml
+  docs/specifications/OpenInfra-CDC-SFG-STG-v4.10.0/09-API/OpenAPI/openapi.yaml
 ```

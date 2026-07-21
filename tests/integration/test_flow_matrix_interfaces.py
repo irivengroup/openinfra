@@ -9,6 +9,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from tests.frontend_contract_sources import REACT_PORTAL, RUNTIME_PORTAL
+from tests.runtime_i18n_contract import assert_runtime_i18n_contract
 
 from openinfra.application.container import ApplicationFactory
 from openinfra.application.security_services import BootstrapTokenCommand
@@ -307,7 +308,7 @@ def test_openapi_and_web_assets_document_flow_matrix() -> None:
         assert operation in static
         assert operation in i18n
     assert "flows: ['Flow matrix', 'Flows']" in i18n
-    assert (
-        Path("web/src/i18n.js").read_bytes()
-        == Path("src/openinfra/interfaces/rendering/static/assets/openinfra-i18n.js").read_bytes()
+    assert_runtime_i18n_contract(
+        "Flow matrix",
+        "Flows",
     )

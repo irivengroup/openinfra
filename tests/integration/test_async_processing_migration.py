@@ -49,4 +49,4 @@ def test_async_processing_migration_precedes_later_catalog_entries() -> None:
         < names.index("0055_kubernetes_topology_inventory.sql")
         < names.index("0056_kubernetes_gitops_drift.sql")
     )
-    assert len(migrations) == 58
+    assert len(migrations) == 59

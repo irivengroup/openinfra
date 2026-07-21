@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from tests.frontend_contract_sources import REACT_PORTAL, RUNTIME_PORTAL
+from tests.runtime_i18n_contract import assert_runtime_i18n_contract
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 STATIC_JS = RUNTIME_PORTAL
@@ -53,12 +54,10 @@ def test_graph_visualization_styles_are_responsive_and_high_contrast_compatible(
         assert "@media (forced-colors: active)" in css
 
 
-def test_spof_web_catalog_is_bilingual_and_i18n_is_identical() -> None:
-    source_i18n = SOURCE_I18N.read_text(encoding="utf-8")
-    runtime_i18n = RUNTIME_I18N.read_text(encoding="utf-8")
-
-    assert runtime_i18n == source_i18n
-    assert "Detect single points of failure" in source_i18n
-    assert "Export dependency graph" in source_i18n
-    assert "Single points of failure ranking" in source_i18n
-    assert "Classement des points uniques de défaillance" in source_i18n
+def test_spof_web_catalog_is_bilingual_and_runtime_i18n_is_generated() -> None:
+    assert_runtime_i18n_contract(
+        "Detect single points of failure",
+        "Export dependency graph",
+        "Single points of failure ranking",
+        "Classement des points uniques de défaillance",
+    )

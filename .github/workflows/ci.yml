@@ -89,7 +89,7 @@ jobs:
         run: >-
           python scripts/validate_openapi.py
           docs/api/openapi.yaml
-          docs/specifications/OpenInfra-CDC-SFG-STG-v4.9.0/09-API/OpenAPI/openapi.yaml
+          docs/specifications/OpenInfra-CDC-SFG-STG-v4.10.0/09-API/OpenAPI/openapi.yaml
 
       - name: GA documentation validation
         run: |
@@ -133,8 +133,8 @@ jobs:
             --warmups 25 \
             --output build/reports/high-performance-runtime.json \
             --enforce
-          python docs/specifications/OpenInfra-CDC-SFG-STG-v4.9.0/scripts/validate_docs.py
-          python docs/specifications/OpenInfra-Roadmap-Developpement-v2.2/scripts/validate_roadmap.py
+          python docs/specifications/OpenInfra-CDC-SFG-STG-v4.10.0/scripts/validate_docs.py
+          python docs/specifications/OpenInfra-Roadmap-Developpement-v2.3/scripts/validate_roadmap.py
           python scripts/validate_enterprise_alignment.py --project-root .
 
       - name: Transactional outbox and specialized workers regression
@@ -414,7 +414,7 @@ jobs:
       - name: P21 Kubernetes and cloud-native topology contracts
         run: |
           python scripts/validate_kubernetes_topology.py --project-root . --enforce
-          python docs/specifications/OpenInfra-Roadmap-Developpement-v2.2/scripts/validate_roadmap.py
+          python docs/specifications/OpenInfra-Roadmap-Developpement-v2.3/scripts/validate_roadmap.py
           python -m pytest -q --no-cov \
             tests/unit/test_kubernetes_topology.py \
             tests/integration/test_kubernetes_topology_services.py \
@@ -477,7 +477,7 @@ jobs:
             tests/integration/test_cloud_native_promotion_tooling.py
 
       - name: Unit and integration tests with coverage
-        run: python -m pytest
+        run: python -m pytest -n 4 --dist loadfile
 
       - name: Compile check
         run: python -m compileall -q src tests scripts docker installers
@@ -505,7 +505,7 @@ jobs:
         run: openinfra version
 
       - name: Smoke specification validation
-        run: openinfra spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4.9.0
+        run: openinfra spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4.10.0
 
       - name: Smoke installer validation
         run: |

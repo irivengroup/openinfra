@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import importlib.util
+import json
+import stat
 import sys
 from dataclasses import replace
 from pathlib import Path
@@ -169,6 +171,13 @@ class TestAutonomousScopeInstallers:
 
         enterprise_server = program_cls(Path("installers/setup/enterprise/server/install.py"))
         enterprise_plan = enterprise_server.build_plan(tmp_path / "enterprise-server-target")
+        enterprise_plan = enterprise_server.configure_runtime_license(
+            enterprise_plan,
+            license_id="11111111-1111-4111-8111-111111111111",
+            installation_id="22222222-2222-4222-8222-222222222222",
+            company_name="OpenInfra Enterprise Customer",
+            max_hosts=5000,
+        )
         enterprise_server.execute(enterprise_plan, skip_service_enable=True)
         enterprise_runtime = (
             tmp_path / "enterprise-server-target/opt/openinfra/config/openinfra.conf"
@@ -206,6 +215,84 @@ class TestAutonomousScopeInstallers:
         assert "apply backend migrations" in server_labels
         assert "apply backend migrations" not in agent_labels
         assert agent_plan.transactional_rollback is True
+
+    def test_commercial_server_installer_requires_and_generates_offline_license_material(
+        self, tmp_path: Path
+    ) -> None:
+        module = InstallerRuntimeModule().load()
+        program_cls = cast(Any, module).AutonomousInstallerProgram
+        runtime_error = cast(Any, module).InstallerRuntimeError
+        installer = program_cls(Path("installers/setup/pro/server/install.py"))
+        plan = installer.build_plan(tmp_path / "pro-server-target")
+
+        assert plan.runtime_license_required is True
+        with pytest.raises(runtime_error, match="commercial runtime installation requires"):
+            installer.execute(plan, skip_service_enable=True)
+        with pytest.raises(runtime_error, match="--company-name"):
+            installer.configure_runtime_license(
+                plan,
+                license_id="11111111-1111-4111-8111-111111111111",
+                installation_id=None,
+                company_name=None,
+                max_hosts=100,
+            )
+
+        configured = installer.configure_runtime_license(
+            plan,
+            license_id="11111111-1111-4111-8111-111111111111",
+            installation_id="22222222-2222-4222-8222-222222222222",
+            company_name="OpenInfra Pro Customer",
+            max_hosts=100,
+        )
+        installer.execute(configured, skip_service_enable=True)
+
+        application_root = tmp_path / "pro-server-target/opt/openinfra"
+        material_root = application_root / "config/licensing"
+        identity = json.loads(
+            (material_root / "installation-identity.json").read_text(encoding="utf-8")
+        )
+        request = json.loads(
+            (material_root / "activation-request.json").read_text(encoding="utf-8")
+        )
+        runtime = (application_root / "config/openinfra.conf").read_text(encoding="utf-8")
+
+        assert identity["license_id"] == "11111111-1111-4111-8111-111111111111"
+        assert identity["installation_id"] == "22222222-2222-4222-8222-222222222222"
+        assert identity["company_name"] == "OpenInfra Pro Customer"
+        assert request["requested_max_hosts"] == 100
+        assert request["signature"]
+        assert stat.S_IMODE(material_root.stat().st_mode) == 0o700
+        assert stat.S_IMODE((material_root / "installation-private.pem").stat().st_mode) == 0o600
+        assert 'OPENINFRA_LICENSE_ENFORCEMENT="true"' in runtime
+        assert (
+            'OPENINFRA_LICENSE_TRUST_BUNDLE="/opt/openinfra/config/licensing/authority-public.pem"'
+            in runtime
+        )
+
+    def test_lite_installer_remains_license_exempt_and_rejects_commercial_options(
+        self, tmp_path: Path
+    ) -> None:
+        module = InstallerRuntimeModule().load()
+        program_cls = cast(Any, module).AutonomousInstallerProgram
+        runtime_error = cast(Any, module).InstallerRuntimeError
+        installer = program_cls(Path("installers/setup/lite/install.py"))
+        plan = installer.build_plan(tmp_path / "lite-license-target")
+
+        assert plan.runtime_license_required is False
+        with pytest.raises(runtime_error, match="Pro/Enterprise server"):
+            installer.configure_runtime_license(
+                plan,
+                license_id="11111111-1111-4111-8111-111111111111",
+                installation_id=None,
+                company_name="Not Applicable",
+                max_hosts=100,
+            )
+        installer.execute(plan, skip_service_enable=True)
+        runtime = (tmp_path / "lite-license-target/opt/openinfra/config/openinfra.conf").read_text(
+            encoding="utf-8"
+        )
+        assert 'OPENINFRA_LICENSE_ENFORCEMENT="false"' in runtime
+        assert not (tmp_path / "lite-license-target/opt/openinfra/config/licensing").exists()
 
     def test_offline_execution_rolls_back_created_payload_after_failure(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

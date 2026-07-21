@@ -8,7 +8,9 @@ import os
 import shutil
 import subprocess
 import sys
-from dataclasses import dataclass
+import tempfile
+import uuid
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, ClassVar
@@ -51,6 +53,22 @@ class InstallationPrerequisite:
 
 
 @dataclass(frozen=True, slots=True)
+class RuntimeLicenseBootstrap:
+    installation_id: str
+    license_id: str
+    company_name: str
+    max_hosts: int
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "installation_id": self.installation_id,
+            "license_id": self.license_id,
+            "company_name": self.company_name,
+            "max_hosts": self.max_hosts,
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class InstallationPlan:
     edition: str
     edition_directory: str
@@ -79,6 +97,8 @@ class InstallationPlan:
     prerequisites: tuple[InstallationPrerequisite, ...]
     transactional_rollback: bool
     start_service: bool
+    runtime_license_required: bool
+    runtime_license_bootstrap: RuntimeLicenseBootstrap | None
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -119,6 +139,12 @@ class InstallationPlan:
             "prerequisites": [item.as_dict() for item in self.prerequisites],
             "transactional_rollback": self.transactional_rollback,
             "start_service": self.start_service,
+            "runtime_license_required": self.runtime_license_required,
+            "runtime_license_bootstrap": (
+                self.runtime_license_bootstrap.as_dict()
+                if self.runtime_license_bootstrap is not None
+                else None
+            ),
         }
 
 
@@ -315,9 +341,35 @@ class AutonomousInstallerProgram:
             action="store_true",
             help="write files without calling systemctl; intended for offline image assembly",
         )
+        parser.add_argument("--license-id")
+        parser.add_argument("--installation-id")
+        parser.add_argument("--company-name")
+        parser.add_argument("--licensed-hosts", type=int)
         args = parser.parse_args(argv)
         try:
             plan = self.build_plan(args.target_root)
+            license_values_supplied = any(
+                value is not None
+                for value in (
+                    args.license_id,
+                    args.installation_id,
+                    args.company_name,
+                    args.licensed_hosts,
+                )
+            )
+            if plan.runtime_license_required and (args.execute or license_values_supplied):
+                plan = self.configure_runtime_license(
+                    plan,
+                    license_id=args.license_id,
+                    installation_id=args.installation_id,
+                    company_name=args.company_name,
+                    max_hosts=args.licensed_hosts,
+                )
+            elif license_values_supplied:
+                raise InstallerRuntimeError(
+                    "runtime license bootstrap options are accepted only by "
+                    "Pro/Enterprise server installers"
+                )
             if args.dry_run:
                 return self._emit(plan, executed=False, json_output=args.json)
             if args.verify_only:
@@ -386,10 +438,73 @@ class AutonomousInstallerProgram:
             prerequisites=prerequisites,
             transactional_rollback=True,
             start_service=target_root == Path("/"),
+            runtime_license_required=(
+                report.edition in {"pro", "enterprise"} and report.scope == "server"
+            ),
+            runtime_license_bootstrap=None,
+        )
+
+    def configure_runtime_license(
+        self,
+        plan: InstallationPlan,
+        *,
+        license_id: str | None,
+        installation_id: str | None,
+        company_name: str | None,
+        max_hosts: int | None,
+    ) -> InstallationPlan:
+        if not plan.runtime_license_required:
+            raise InstallerRuntimeError(
+                "runtime license bootstrap applies only to Pro/Enterprise server installers"
+            )
+        missing = [
+            label
+            for label, value in (
+                ("--license-id", license_id),
+                ("--company-name", company_name),
+                ("--licensed-hosts", max_hosts),
+            )
+            if value is None or (isinstance(value, str) and not value.strip())
+        ]
+        if missing:
+            raise InstallerRuntimeError(
+                "commercial runtime installation requires " + ", ".join(missing)
+            )
+        if license_id is None or company_name is None or max_hosts is None:
+            raise InstallerRuntimeError("runtime license bootstrap validation failed unexpectedly")
+        try:
+            normalized_license_id = str(uuid.UUID(license_id.strip()))
+            normalized_installation_id = str(
+                uuid.UUID(installation_id.strip()) if installation_id else uuid.uuid4()
+            )
+        except (AttributeError, ValueError) as exc:
+            raise InstallerRuntimeError(
+                "license and installation identifiers must use UUID format"
+            ) from exc
+        normalized_company = " ".join(company_name.strip().split())
+        if not 2 <= len(normalized_company) <= 255:
+            raise InstallerRuntimeError(
+                "license company name must contain between 2 and 255 characters"
+            )
+        if not 1 <= int(max_hosts) <= 10_000_000:
+            raise InstallerRuntimeError("licensed hosts must be between 1 and 10000000")
+        return replace(
+            plan,
+            runtime_license_bootstrap=RuntimeLicenseBootstrap(
+                installation_id=normalized_installation_id,
+                license_id=normalized_license_id,
+                company_name=normalized_company,
+                max_hosts=int(max_hosts),
+            ),
         )
 
     def execute(self, plan: InstallationPlan, skip_service_enable: bool) -> None:
         self._assert_supported_execute_target(plan)
+        if plan.runtime_license_required and plan.runtime_license_bootstrap is None:
+            raise InstallerRuntimeError(
+                "commercial runtime installation requires --license-id, "
+                "--company-name and --licensed-hosts"
+            )
         self._assert_installation_lock_absent(plan)
         self._assert_prerequisites(plan, skip_service_enable=skip_service_enable)
         journal = InstallationRollbackJournal()
@@ -415,6 +530,7 @@ class AutonomousInstallerProgram:
                 mode=0o640,
                 journal=journal,
             )
+            self._prepare_runtime_license_material(plan, journal)
             self._render_runtime_configuration(plan, journal)
             self._replace_file(
                 self._location.project_root / "pyproject.toml",
@@ -438,6 +554,8 @@ class AutonomousInstallerProgram:
                 self._run_postgresql_bootstrap(plan, journal)
             if plan.deploy_migrations:
                 self.execute_migrations(plan)
+            if plan.runtime_license_required:
+                self._persist_runtime_license_identity(plan)
             self._write_installation_lock(plan, journal)
             if plan.application_root == Path("/opt/openinfra") and not skip_service_enable:
                 self._run_command(("systemctl", "daemon-reload"))
@@ -931,6 +1049,65 @@ class AutonomousInstallerProgram:
         link.symlink_to(target)
         journal.record_replacement(link, None)
 
+    def _prepare_runtime_license_material(
+        self, plan: InstallationPlan, journal: InstallationRollbackJournal
+    ) -> None:
+        bootstrap = plan.runtime_license_bootstrap
+        if bootstrap is None:
+            return
+        if plan.application_root == Path("/opt/openinfra"):
+            return
+        cryptography_module = importlib.import_module("openinfra.infrastructure.licensing")
+        cryptography = cryptography_module.Ed25519LicenseCryptography()
+        material_store = cryptography_module.LicenseMaterialStore()
+        identity, request, private_key = cryptography.create_installation_material(
+            installation_id=bootstrap.installation_id,
+            license_id=bootstrap.license_id,
+            company_name=bootstrap.company_name,
+            edition=plan.edition,
+            requested_max_hosts=bootstrap.max_hosts,
+        )
+        with tempfile.TemporaryDirectory(prefix="openinfra-license-bootstrap-") as directory:
+            temporary_root = Path(directory) / "licensing"
+            material_store.write_installation_material(
+                temporary_root, identity, request, private_key
+            )
+            self._replace_tree(temporary_root, plan.configuration_root / "licensing", journal)
+
+    def _persist_runtime_license_identity(self, plan: InstallationPlan) -> None:
+        bootstrap = plan.runtime_license_bootstrap
+        if bootstrap is None or plan.application_root != Path("/opt/openinfra"):
+            return
+        command = [
+            str(plan.application_root / "venv/bin/openinfra"),
+            "license",
+            "bootstrap",
+            "--backend",
+            plan.database_backend,
+            "--edition",
+            plan.edition,
+            "--installation-id",
+            bootstrap.installation_id,
+            "--license-id",
+            bootstrap.license_id,
+            "--company-name",
+            bootstrap.company_name,
+            "--max-hosts",
+            str(bootstrap.max_hosts),
+            "--output-dir",
+            str(plan.configuration_root / "licensing"),
+            "--actor",
+            "autonomous-installer",
+        ]
+        environment = {
+            "OPENINFRA_RUNTIME_CONFIG": str(plan.runtime_config_file),
+            "OPENINFRA_EDITION": plan.edition,
+            "OPENINFRA_LICENSE_ENFORCEMENT": "false",
+        }
+        if plan.database_backend == "postgresql":
+            environment["OPENINFRA_DATABASE_DSN"] = self._resolve_database_dsn(plan)
+        self._run_command(tuple(command), environment=environment)
+
     def _render_runtime_configuration(
         self, plan: InstallationPlan, journal: InstallationRollbackJournal
     ) -> None:
@@ -947,6 +1124,13 @@ class AutonomousInstallerProgram:
             "OPENINFRA_INSTALL_LOCK": "/opt/openinfra/config/.openinfra-installed.lock",
             "OPENINFRA_DATABASE_BACKEND": plan.database_backend,
             "OPENINFRA_MIGRATIONS_ROOT": "/opt/openinfra/share/migrations/" + plan.database_backend,
+            "OPENINFRA_LICENSE_ENFORCEMENT": (
+                "true" if plan.edition in {"pro", "enterprise"} else "false"
+            ),
+            "OPENINFRA_LICENSE_TRUST_BUNDLE": (
+                "/opt/openinfra/config/licensing/authority-public.pem"
+            ),
+            "OPENINFRA_LICENSE_MATERIAL_ROOT": "/opt/openinfra/config/licensing",
         }
         if plan.edition == "lite":
             values["OPENINFRA_DATABASE_DSN"] = "postgresql:///openinfra"

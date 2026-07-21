@@ -1,3 +1,15 @@
+## v0.34.5 — Licence runtime offline et qualification GATE-12
+
+- ajoute une identité d’installation Ed25519 et une demande d’activation signée générée localement ;
+- ajoute des entitlements offline signés, liés à l’entreprise, l’édition, l’installation, au quota d’hôtes et aux échéances ;
+- applique une période de grâce de 30 jours, la détection du recul d’horloge et un comportement fail-closed en cas de corruption ;
+- ajoute la migration `0059_runtime_offline_licensing.sql` aux catalogues PostgreSQL et Oracle ;
+- fournit la persistance JSON/PostgreSQL/Oracle et sérialise le contrôle du quota dans la transaction métier ;
+- expose statut, activation et renouvellement par CLI et HTTP, avec réponse 402 lorsque l’enforcement est actif ;
+- intègre le bootstrap sécurisé dans les installateurs Pro/Enterprise et les notifications accessibles dans les deux portails ;
+- ajoute GATE-12, son contrôleur de qualification, ses preuves et ses tests de non-régression ;
+- conserve Lite sans licence commerciale, Oracle réservé à Enterprise et la charte graphique inchangée.
+
 ## v0.34.4 — Oracle Enterprise et état documentaire segmenté
 
 - réserve le backend Oracle à l’édition Enterprise dans le domaine, les factories, la CLI, l’API, ASGI, systemd et les installateurs ;

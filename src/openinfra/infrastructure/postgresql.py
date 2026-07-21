@@ -68,6 +68,7 @@ from openinfra.application.ports import (
     KubernetesGitOpsStatePage,
     KubernetesTopologyRepository,
     KubernetesTopologySnapshotPage,
+    LicenseRepository,
     MeasurementSourcePage,
     MultisiteReportPage,
     MultisiteRepository,
@@ -260,6 +261,12 @@ from openinfra.domain.itam import (
 )
 from openinfra.domain.kubernetes_gitops import KubernetesGitOpsState
 from openinfra.domain.kubernetes_topology import KubernetesTopologySnapshot
+from openinfra.domain.licensing import (
+    InstallationIdentity,
+    LicenseEntitlement,
+    LicenseStateCorruptedError,
+    PersistedLicenseState,
+)
 from openinfra.domain.multisite import (
     DisasterRecoveryDrillStatus,
     MultisiteDisasterRecoveryDrill,
@@ -1572,6 +1579,147 @@ class PostgreSQLRepositoryBase:
     ) -> Sequence[object]:
         value = row.get(key)
         return default if value is None else cast(Sequence[object], value)
+
+
+class PostgreSQLLicenseRepository(PostgreSQLRepositoryBase, LicenseRepository):
+    _STATE_KEY = "runtime"
+
+    def get_state(self) -> PersistedLicenseState | None:
+        row = self._fetch_one(
+            """
+            SELECT identity, entitlement, activated_at, last_seen_at
+            FROM runtime_license_state
+            WHERE state_key = %(state_key)s
+            """,
+            {"state_key": self._STATE_KEY},
+        )
+        if row is None:
+            return None
+        try:
+            identity_payload = self._json_object(row.get("identity"), "identity")
+            entitlement_value = row.get("entitlement")
+            entitlement_payload = (
+                None
+                if entitlement_value is None
+                else self._json_object(entitlement_value, "entitlement")
+            )
+            return PersistedLicenseState(
+                identity=InstallationIdentity.from_dict(identity_payload),
+                entitlement=(
+                    None
+                    if entitlement_payload is None
+                    else LicenseEntitlement.from_dict(entitlement_payload)
+                ),
+                activated_at=self._datetime_value(row.get("activated_at")),
+                last_seen_at=self._datetime_value(row.get("last_seen_at")),
+            )
+        except (TypeError, ValueError, ValidationError) as exc:
+            raise LicenseStateCorruptedError("runtime license state is invalid") from exc
+
+    def lock_state(self, installation_id: str) -> None:
+        row = self._fetch_one(
+            """
+            SELECT identity
+            FROM runtime_license_state
+            WHERE state_key = %(state_key)s
+            FOR UPDATE
+            """,
+            {"state_key": self._STATE_KEY},
+        )
+        if row is None:
+            raise LicenseStateCorruptedError("runtime license installation identity is missing")
+        try:
+            identity = InstallationIdentity.from_dict(
+                self._json_object(row.get("identity"), "identity")
+            )
+        except (TypeError, ValueError, ValidationError) as exc:
+            raise LicenseStateCorruptedError("runtime license identity is invalid") from exc
+        if identity.installation_id != installation_id:
+            raise LicenseStateCorruptedError("runtime license installation identity is missing")
+
+    def save_identity(self, identity: InstallationIdentity) -> None:
+        cursor = self._execute(
+            """
+            INSERT INTO runtime_license_state (state_key, identity, updated_at)
+            VALUES (%(state_key)s, %(identity)s::jsonb, now())
+            ON CONFLICT (state_key) DO NOTHING
+            """,
+            {
+                "state_key": self._STATE_KEY,
+                "identity": json.dumps(identity.as_dict(), sort_keys=True, separators=(",", ":")),
+            },
+        )
+        cursor.close()
+        current = self.get_state()
+        if current is None or current.identity != identity:
+            raise ConflictError(
+                "an immutable installation identity already exists for this runtime"
+            )
+
+    def save_activation(
+        self,
+        entitlement: LicenseEntitlement,
+        activated_at: datetime,
+        last_seen_at: datetime,
+    ) -> None:
+        cursor = self._execute(
+            """
+            UPDATE runtime_license_state
+            SET entitlement = %(entitlement)s::jsonb,
+                activated_at = %(activated_at)s,
+                last_seen_at = %(last_seen_at)s,
+                updated_at = now()
+            WHERE state_key = %(state_key)s
+            """,
+            {
+                "state_key": self._STATE_KEY,
+                "entitlement": json.dumps(
+                    entitlement.as_dict(), sort_keys=True, separators=(",", ":")
+                ),
+                "activated_at": activated_at,
+                "last_seen_at": last_seen_at,
+            },
+        )
+        rowcount = getattr(cursor, "rowcount", None)
+        cursor.close()
+        if rowcount == 0:
+            raise LicenseStateCorruptedError("runtime license identity is missing")
+
+    def update_last_seen(self, installation_id: str, last_seen_at: datetime) -> None:
+        cursor = self._execute(
+            """
+            UPDATE runtime_license_state
+            SET last_seen_at = %(last_seen_at)s, updated_at = now()
+            WHERE state_key = %(state_key)s
+              AND identity ->> 'installation_id' = %(installation_id)s
+            """,
+            {
+                "state_key": self._STATE_KEY,
+                "installation_id": installation_id,
+                "last_seen_at": last_seen_at,
+            },
+        )
+        rowcount = getattr(cursor, "rowcount", None)
+        cursor.close()
+        if rowcount == 0:
+            raise LicenseStateCorruptedError("runtime license identity is missing")
+
+    @staticmethod
+    def _json_object(value: object, field: str) -> dict[str, object]:
+        payload = json.loads(value) if isinstance(value, str) else value
+        if not isinstance(payload, dict):
+            raise LicenseStateCorruptedError(f"runtime license {field} must be a JSON object")
+        return cast(dict[str, object], payload)
+
+    @staticmethod
+    def _datetime_value(value: object) -> datetime | None:
+        if value is None:
+            return None
+        if isinstance(value, datetime):
+            return value
+        if isinstance(value, str):
+            return datetime.fromisoformat(value.replace("Z", "+00:00"))
+        raise LicenseStateCorruptedError("runtime license timestamp is invalid")
 
 
 class PostgreSQLRuntimeUsageRepository(PostgreSQLRepositoryBase, RuntimeUsageRepository):

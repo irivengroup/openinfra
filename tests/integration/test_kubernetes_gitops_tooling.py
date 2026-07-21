@@ -34,7 +34,7 @@ def test_kubernetes_gitops_validator_reports_complete_contract(tmp_path: Path) -
     assert payload["complete"] is True
     assert payload["epic"] == "EPIC-2104"
     assert payload["automatic_remediation"] is False
-    assert payload["migration_count"] == 58
+    assert payload["migration_count"] == 59
 
 
 def test_kubernetes_gitops_contract_is_wired_into_ci_quality_gate_and_packaging() -> None:
@@ -52,5 +52,5 @@ def test_kubernetes_gitops_contract_is_wired_into_ci_quality_gate_and_packaging(
     )
     assert '"tests/integration/test_kubernetes_gitops_tooling.py"' in artifact_verifier
     assert '"/api/v1/kubernetes/gitops-states"' in wheel_smoke
-    assert 'EXPECTED_LAST_MIGRATION = "0058_oracle_document_shards.sql"' in wheel_smoke
-    assert "EXPECTED_MIGRATION_COUNT = 58" in wheel_smoke
+    assert 'EXPECTED_LAST_MIGRATION = "0059_runtime_offline_licensing.sql"' in wheel_smoke
+    assert "EXPECTED_MIGRATION_COUNT = 59" in wheel_smoke

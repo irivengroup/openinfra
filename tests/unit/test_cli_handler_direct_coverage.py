@@ -386,19 +386,19 @@ def test_cli_oracle_migration_handlers_and_runtime_factories(
 
     class FakeOracleExecutor:
         def status_as_dict(self) -> dict[str, object]:
-            return {"backend": "oracle", "pending": 58}
+            return {"backend": "oracle", "pending": 59}
 
         def apply_all(self) -> dict[str, object]:
-            return {"backend": "oracle", "applied": 58}
+            return {"backend": "oracle", "applied": 59}
 
     monkeypatch.setattr(cli_module, "OracleMigrationExecutor", FakeOracleExecutor)
     cli._create_migration_executor = lambda _args: FakeOracleExecutor()  # type: ignore[method-assign]
     args = SimpleNamespace(dry_run=True)
     assert cli._handle_database_apply_migrations(args) == 0
-    assert json.loads(capsys.readouterr().out)["pending"] == 58
+    assert json.loads(capsys.readouterr().out)["pending"] == 59
     args.dry_run = False
     assert cli._handle_database_apply_migrations(args) == 0
-    assert json.loads(capsys.readouterr().out)["applied"] == 58
+    assert json.loads(capsys.readouterr().out)["applied"] == 59
 
     cli = OpenInfraCLI()
 
@@ -498,18 +498,18 @@ def test_cli_application_factory_backend_matrix(
         oracle_user=None,
         postgres_dsn=None,
     )
-    assert cli._create_application(args) == ("json", args.data, "pro")
+    assert cli._create_application(args, enforce_license=False) == ("json", args.data, "pro")
     backend.selected = "oracle"
-    assert cli._create_application(args)[0] == "oracle"
+    assert cli._create_application(args, enforce_license=False)[0] == "oracle"
     oracle.value = object()
     with pytest.raises(OpenInfraError, match="invalid Oracle runtime settings"):
-        cli._create_application(args)
+        cli._create_application(args, enforce_license=False)
     oracle.value = settings
     backend.selected = "postgresql"
-    assert cli._create_application(args)[0] == "postgresql"
+    assert cli._create_application(args, enforce_license=False)[0] == "postgresql"
     dsn.value = ""
     with pytest.raises(OpenInfraError, match="required for postgresql backend"):
-        cli._create_application(args)
+        cli._create_application(args, enforce_license=False)
 
 
 def test_cli_invalid_ha_auth_policy_and_saml_paths(

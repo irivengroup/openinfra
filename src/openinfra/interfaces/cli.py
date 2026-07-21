@@ -5,9 +5,10 @@ import base64
 import json
 import os
 import sys
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any, NoReturn
+from uuid import uuid4
 
 from openinfra import __version__
 from openinfra.application.access_policy_services import (
@@ -333,6 +334,10 @@ from openinfra.application.kubernetes_topology_services import (
     ImportKubernetesTopologyCommand,
     ListKubernetesTopologiesCommand,
 )
+from openinfra.application.licensing_services import (
+    ActivateRuntimeLicenseCommand,
+    BootstrapInstallationIdentityCommand,
+)
 from openinfra.application.multisite_services import (
     ConfigureDisasterRecoveryPlanCommand,
     ConfigureRegionalDiscoveryRouteCommand,
@@ -432,6 +437,10 @@ from openinfra.infrastructure.advanced_identity import (
 )
 from openinfra.infrastructure.async_processing import FileOutboxPublisher
 from openinfra.infrastructure.installer_config import InstallerConfigValidator
+from openinfra.infrastructure.licensing import (
+    Ed25519LicenseCryptography,
+    LicenseMaterialStore,
+)
 from openinfra.infrastructure.oracle import (
     OracleConnectionSettings,
     OracleMigrationCatalog,
@@ -482,6 +491,7 @@ class OpenInfraCLI:
         self._add_installer_commands(subparsers)
         self._add_edition_commands(subparsers)
         self._add_database_commands(subparsers)
+        self._add_license_commands(subparsers)
         self._add_auth_commands(subparsers)
         self._add_security_commands(subparsers)
         self._add_identity_commands(subparsers)
@@ -819,6 +829,59 @@ class OpenInfraCLI:
             "--scope", choices=("all-in-one", "server", "web", "agent"), required=True
         )
         ha_plan.set_defaults(handler=self._handle_database_ha_plan)
+
+    def _add_license_commands(self, subparsers: Any) -> None:
+        license_parser = subparsers.add_parser(
+            "license", help="offline commercial runtime license operations"
+        )
+        commands = license_parser.add_subparsers(dest="license_command", required=True)
+
+        status = commands.add_parser("status", help="show the evaluated runtime license state")
+        self._add_backend_arguments(status)
+        status.set_defaults(handler=self._handle_license_status)
+
+        bootstrap = commands.add_parser(
+            "bootstrap",
+            aliases=["request"],
+            help="create and persist the immutable installation identity and activation request",
+        )
+        self._add_backend_arguments(bootstrap)
+        bootstrap.add_argument("--license-id", required=True)
+        bootstrap.add_argument("--company-name", required=True)
+        bootstrap.add_argument("--requested-max-hosts", type=int, required=True)
+        bootstrap.add_argument("--installation-id")
+        bootstrap.add_argument("--material-dir", type=Path, required=True)
+        bootstrap.add_argument("--actor", default="installer")
+        bootstrap.set_defaults(handler=self._handle_license_bootstrap)
+
+        authority = commands.add_parser(
+            "authority-generate",
+            help="generate an encrypted offline Ed25519 license authority",
+        )
+        authority.add_argument("--password-file", type=Path, required=True)
+        authority.add_argument("--private-key", type=Path, required=True)
+        authority.add_argument("--public-key", type=Path, required=True)
+        authority.set_defaults(handler=self._handle_license_authority_generate)
+
+        issue = commands.add_parser("issue", help="issue an entitlement from a signed request")
+        issue.add_argument("--request", type=Path, required=True)
+        issue.add_argument("--authority-private-key", type=Path, required=True)
+        issue.add_argument("--password-file", type=Path, required=True)
+        issue.add_argument("--max-hosts", type=int, required=True)
+        issue.add_argument("--not-before", required=True)
+        issue.add_argument("--expires-at", required=True)
+        issue.add_argument("--output", type=Path, required=True)
+        issue.set_defaults(handler=self._handle_license_issue)
+
+        for name, handler, help_text in (
+            ("activate", self._handle_license_activate, "activate a signed entitlement"),
+            ("renew", self._handle_license_renew, "renew the active signed entitlement"),
+        ):
+            command = commands.add_parser(name, help=help_text)
+            self._add_backend_arguments(command)
+            command.add_argument("--entitlement", type=Path, required=True)
+            command.add_argument("--actor", default="cli")
+            command.set_defaults(handler=handler)
 
     def _add_auth_commands(self, subparsers: Any) -> None:
         auth = subparsers.add_parser("auth", help="authentication provider policy operations")
@@ -10667,29 +10730,144 @@ class OpenInfraCLI:
     def _packaged_migration_root(self) -> Path:
         return Path(__file__).resolve().parents[1] / "migrations" / "postgresql"
 
-    def _create_application(self, args: argparse.Namespace) -> OpenInfraApplication:
+    def _handle_license_status(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args, enforce_license=False)
+        print(json.dumps(application.license_service.status().as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_license_bootstrap(self, args: argparse.Namespace) -> int:
+        cryptography = Ed25519LicenseCryptography()
+        identity, request, private_key = cryptography.create_installation_material(
+            installation_id=str(args.installation_id or uuid4()),
+            license_id=str(args.license_id),
+            company_name=str(args.company_name),
+            edition=str(args.edition),
+            requested_max_hosts=int(args.requested_max_hosts),
+        )
+        paths = LicenseMaterialStore().write_installation_material(
+            Path(args.material_dir), identity, request, private_key
+        )
+        application = self._create_application(args, enforce_license=False)
+        application.license_service.bootstrap_identity(
+            BootstrapInstallationIdentityCommand(identity=identity, actor=str(args.actor))
+        )
+        print(
+            json.dumps(
+                {
+                    "identity": identity.as_dict(),
+                    "request": request.as_dict(),
+                    "files": {name: str(path) for name, path in paths.items()},
+                },
+                sort_keys=True,
+            )
+        )
+        return 0
+
+    def _handle_license_authority_generate(self, args: argparse.Namespace) -> int:
+        passphrase = self._read_license_password(Path(args.password_file))
+        private_key, public_key, key_id = Ed25519LicenseCryptography().generate_authority_material(
+            passphrase
+        )
+        LicenseMaterialStore().write_authority_material(
+            Path(args.private_key), Path(args.public_key), private_key, public_key
+        )
+        print(
+            json.dumps(
+                {
+                    "authority_key_id": key_id,
+                    "private_key": str(args.private_key),
+                    "public_key": str(args.public_key),
+                },
+                sort_keys=True,
+            )
+        )
+        return 0
+
+    def _handle_license_issue(self, args: argparse.Namespace) -> int:
+        store = LicenseMaterialStore()
+        cryptography = Ed25519LicenseCryptography()
+        request = store.load_request(Path(args.request))
+        entitlement = cryptography.issue_entitlement(
+            request=request,
+            authority_private_key_pem=Path(args.authority_private_key).read_bytes(),
+            password=self._read_license_password(Path(args.password_file)),
+            max_hosts=int(args.max_hosts),
+            not_before=self._parse_license_datetime(str(args.not_before)),
+            expires_at=self._parse_license_datetime(str(args.expires_at)),
+        )
+        store.write_entitlement(Path(args.output), entitlement)
+        print(json.dumps(entitlement.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_license_activate(self, args: argparse.Namespace) -> int:
+        return self._install_runtime_entitlement(args, renewal=False)
+
+    def _handle_license_renew(self, args: argparse.Namespace) -> int:
+        return self._install_runtime_entitlement(args, renewal=True)
+
+    def _install_runtime_entitlement(self, args: argparse.Namespace, *, renewal: bool) -> int:
+        entitlement = LicenseMaterialStore().load_entitlement(Path(args.entitlement))
+        application = self._create_application(args, enforce_license=False)
+        command = ActivateRuntimeLicenseCommand(entitlement=entitlement, actor=str(args.actor))
+        report = (
+            application.license_service.renew(command)
+            if renewal
+            else application.license_service.activate(command)
+        )
+        print(json.dumps(report.as_dict(), sort_keys=True))
+        return 0
+
+    @staticmethod
+    def _read_license_password(path: Path) -> bytes:
+        try:
+            passphrase = path.read_bytes().rstrip(b"\r\n")
+        except OSError as exc:
+            raise OpenInfraError(f"license password file is unreadable: {path}") from exc
+        if not passphrase:
+            raise ValidationError("license password file is empty")
+        return passphrase
+
+    @staticmethod
+    def _parse_license_datetime(value: str) -> datetime:
+        try:
+            parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise ValidationError("license datetime must use ISO-8601") from exc
+        if parsed.tzinfo is None or parsed.utcoffset() is None:
+            raise ValidationError("license datetime must include a timezone")
+        return parsed.astimezone(UTC)
+
+    def _create_application(
+        self, args: argparse.Namespace, *, enforce_license: bool = True
+    ) -> OpenInfraApplication:
         explicit_backend = getattr(args, "backend", None)
         edition = getattr(args, "edition", os.environ.get("OPENINFRA_EDITION", "enterprise"))
         backend = RuntimeDatabaseBackendResolver().resolve(explicit_backend, str(edition))
         if backend == "json":
-            return ApplicationFactory().create_json_application(args.data, edition=edition)
-        if backend == "oracle":
+            application = ApplicationFactory().create_json_application(args.data, edition=edition)
+        elif backend == "oracle":
             settings = RuntimeOracleSettingsResolver().resolve(
                 explicit_dsn=getattr(args, "oracle_dsn", None),
                 explicit_user=getattr(args, "oracle_user", None),
             )
             if not isinstance(settings, OracleConnectionSettings):
                 raise OpenInfraError("invalid Oracle runtime settings")
-            return ApplicationFactory().create_oracle_application(
+            application = ApplicationFactory().create_oracle_application(
                 settings, seed=False, edition=edition
             )
-        dsn = RuntimeDatabaseDsnResolver().resolve(getattr(args, "postgres_dsn", None))
-        if not dsn:
-            raise OpenInfraError(
-                "--postgres-dsn, OPENINFRA_DATABASE_DSN or /opt/openinfra/config/"
-                "openinfra.conf is required for postgresql backend"
+        else:
+            dsn = RuntimeDatabaseDsnResolver().resolve(getattr(args, "postgres_dsn", None))
+            if not dsn:
+                raise OpenInfraError(
+                    "--postgres-dsn, OPENINFRA_DATABASE_DSN or /opt/openinfra/config/"
+                    "openinfra.conf is required for postgresql backend"
+                )
+            application = ApplicationFactory().create_postgresql_application(
+                dsn, seed=False, edition=edition
             )
-        return ApplicationFactory().create_postgresql_application(dsn, seed=False, edition=edition)
+        if enforce_license:
+            application.license_service.require_runtime_access()
+        return application
 
     def fail_fast(self, message: str) -> NoReturn:
         raise OpenInfraError(message)

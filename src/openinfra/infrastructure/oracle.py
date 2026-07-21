@@ -213,7 +213,7 @@ class OracleDocumentStore(JsonDocumentStore):
         for row in cursor.fetchall():
             key = str(row[0])
             payload = self._read_payload(row[1])
-            if not isinstance(payload, (dict, list, str)):
+            if payload is not None and not isinstance(payload, (dict, list, str)):
                 raise OpenInfraError("Oracle OpenInfra shard payload is invalid: " + key)
             loaded[key] = payload
             versions[key] = int(row[2])

@@ -1,7 +1,0 @@
-# Exemple documentaire de contrat stockage exposé à l'opérateur.
-# Le mountpoint, le filesystem, le propriétaire, le groupe, le mode et fstab
-# sont des décisions internes de l'installateur, pas des champs install.ini.
-storage:
-  vgname: datavg
-  lvname: openinfradata_lv
-  lvsize: 100GB

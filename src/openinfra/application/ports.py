@@ -115,6 +115,12 @@ from openinfra.domain.itam import (
 )
 from openinfra.domain.kubernetes_gitops import KubernetesGitOpsState
 from openinfra.domain.kubernetes_topology import KubernetesTopologySnapshot
+from openinfra.domain.licensing import (
+    InstallationIdentity,
+    LicenseActivationRequest,
+    LicenseEntitlement,
+    PersistedLicenseState,
+)
 from openinfra.domain.multisite import (
     MultisiteDisasterRecoveryDrill,
     MultisiteDisasterRecoveryPlan,
@@ -2425,6 +2431,74 @@ class ExportRepository(ABC):
 
     @abstractmethod
     def export_storage_strategy_name(self) -> str:
+        raise TypeError("adapter contract invoked directly")
+
+
+class LicenseRepository(ABC):
+    @abstractmethod
+    def get_state(self) -> PersistedLicenseState | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def lock_state(self, installation_id: str) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save_identity(self, identity: InstallationIdentity) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save_activation(
+        self, entitlement: LicenseEntitlement, activated_at: datetime, last_seen_at: datetime
+    ) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def update_last_seen(self, installation_id: str, last_seen_at: datetime) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+
+class LicenseCryptography(ABC):
+    @abstractmethod
+    def create_installation_material(
+        self,
+        *,
+        installation_id: str,
+        license_id: str,
+        company_name: str,
+        edition: str,
+        requested_max_hosts: int,
+    ) -> tuple[InstallationIdentity, LicenseActivationRequest, bytes]:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def verify_activation_request(self, request: LicenseActivationRequest) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def generate_authority_material(self, password: bytes) -> tuple[bytes, bytes, str]:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def issue_entitlement(
+        self,
+        *,
+        request: LicenseActivationRequest,
+        authority_private_key_pem: bytes,
+        password: bytes,
+        max_hosts: int,
+        not_before: datetime,
+        expires_at: datetime,
+        issued_at: datetime | None = None,
+    ) -> LicenseEntitlement:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def verify_entitlement(self, entitlement: LicenseEntitlement, trust_bundle_pem: bytes) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def public_key_id(self, public_key_pem: bytes) -> str:
         raise TypeError("adapter contract invoked directly")
 
 

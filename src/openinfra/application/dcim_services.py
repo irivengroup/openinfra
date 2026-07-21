@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from openinfra.application.edition_services import EditionRuntimeGuard
+from openinfra.application.licensing_services import RuntimeLicenseService
 from openinfra.application.ports import AuditRepository, DcimRepository, TransactionManager
 from openinfra.domain.common import (
     AuditEvent,
@@ -2644,11 +2645,13 @@ class DcimLocationService:
         audit_repository: AuditRepository,
         transaction_manager: TransactionManager,
         edition_guard: EditionRuntimeGuard | None = None,
+        license_service: RuntimeLicenseService | None = None,
     ) -> None:
         self._dcim_repository = dcim_repository
         self._audit_repository = audit_repository
         self._transaction_manager = transaction_manager
         self._edition_guard = edition_guard
+        self._license_service = license_service
 
     def locate_equipment(self, command: LocateEquipmentCommand) -> Equipment:
         tenant_id = TenantId.from_value(command.tenant_id)
@@ -2704,6 +2707,9 @@ class DcimLocationService:
             location=location,
         )
         with self._transaction_manager.begin() as unit_of_work:
+            existing_equipment = self._dcim_repository.find_equipment(tenant_id, command.asset_tag)
+            if existing_equipment is None and self._license_service is not None:
+                self._license_service.require_host_capacity_in_current_transaction(1)
             self._dcim_repository.add_equipment(equipment)
             self._audit_repository.append(
                 AuditEvent.record(

@@ -1,14 +1,15 @@
 {
   "name": "openinfra-web",
-  "version": "0.34.4",
+  "version": "0.34.5",
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "vite build && node scripts/validate-bundle.mjs",
-    "test": "node --test tests/*.test.mjs",
-    "lint": "node scripts/validate-static-assets.mjs",
+    "build": "npm run generate:runtime-i18n && vite build && node scripts/validate-bundle.mjs",
+    "test": "npm run generate:runtime-i18n && node --test tests/*.test.mjs",
+    "lint": "npm run generate:runtime-i18n && node scripts/validate-static-assets.mjs",
     "a11y": "node scripts/validate-accessibility.mjs",
-    "a11y:jsx": "eslint src/main.jsx"
+    "a11y:jsx": "eslint src/main.jsx",
+    "generate:runtime-i18n": "node scripts/generate-runtime-i18n.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^6.0.3",

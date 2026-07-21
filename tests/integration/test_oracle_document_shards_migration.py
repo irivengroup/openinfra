@@ -15,9 +15,9 @@ def test_oracle_document_shards_migration_is_present_in_both_catalogs() -> None:
     )
     oracle_names = tuple(path.name for path in sorted(ORACLE_ROOT.glob("[0-9]" * 4 + "_*.sql")))
 
-    assert len(postgresql_names) == 58
+    assert len(postgresql_names) == 59
     assert postgresql_names == oracle_names
-    assert postgresql_names[-1] == MIGRATION_NAME
+    assert MIGRATION_NAME in postgresql_names
 
 
 def test_postgresql_document_shards_use_hash_partitioning_and_partition_safe_key() -> None:
@@ -37,13 +37,12 @@ def test_oracle_document_shards_are_json_checked_and_manifest_pinned() -> None:
     sql = sql_path.read_text(encoding="utf-8")
     manifest = json.loads((ORACLE_ROOT / "manifest.json").read_text(encoding="utf-8"))
     entries = manifest["migrations"]
-    final_entry = entries[-1]
+    shard_entry = next(item for item in entries if item["filename"] == MIGRATION_NAME)
 
     assert "PARTITION BY HASH (shard_key) PARTITIONS 8" in sql
     assert "CHECK (payload IS JSON)" in sql
     assert "shard_key VARCHAR2(128 CHAR)" in sql
     assert not re.search(r"\b(?:DROP|TRUNCATE)\b", sql, re.IGNORECASE)
-    assert len(entries) == 58
-    assert final_entry["filename"] == MIGRATION_NAME
-    assert final_entry["source_sha256"]
-    assert final_entry["oracle_sha256"]
+    assert len(entries) == 59
+    assert shard_entry["source_sha256"]
+    assert shard_entry["oracle_sha256"]

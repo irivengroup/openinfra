@@ -23,6 +23,11 @@ class OpenApiDocumentationTaxonomy:
         ),
         OpenApiDocumentationContext(
             "Plateforme",
+            "Licence runtime",
+            "Statut, activation et renouvellement offline des licences Pro et Entreprise.",
+        ),
+        OpenApiDocumentationContext(
+            "Plateforme",
             "Observabilité et capacité",
             "Métriques Prometheus, télémétrie runtime et qualification de capacité.",
         ),
@@ -342,6 +347,8 @@ class OpenApiDocumentationTaxonomy:
             "/api/v1/version",
         }:
             return "Plateforme", "Exploitation et documentation"
+        if path.startswith("/api/v1/license/"):
+            return "Plateforme", "Licence runtime"
         if path == "/metrics":
             return "Plateforme", "Observabilité et capacité"
         if path.startswith("/api/v1/reference/"):

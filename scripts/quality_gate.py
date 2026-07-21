@@ -31,11 +31,11 @@ class ContractFileGuard:
 
     def assert_sources_present(self) -> None:
         required = (
-            self._project_root / "docs/specifications/OpenInfra-CDC-SFG-STG-v4.9.0/VERSION",
-            self._project_root / "docs/specifications/OpenInfra-Roadmap-Developpement-v2.2/VERSION",
+            self._project_root / "docs/specifications/OpenInfra-CDC-SFG-STG-v4.10.0/VERSION",
+            self._project_root / "docs/specifications/OpenInfra-Roadmap-Developpement-v2.3/VERSION",
             self._project_root
-            / "docs/specifications/OpenInfra-Roadmap-Developpement-v2.2"
-            / "14-alignement-cdc-v4.9.0.csv",
+            / "docs/specifications/OpenInfra-Roadmap-Developpement-v2.3"
+            / "14-alignement-cdc-v4.10.0.csv",
         )
         missing = [str(path) for path in required if not path.is_file()]
         if missing:
@@ -744,8 +744,8 @@ class HighPerformanceRuntimeGuard:
             "tests/unit/test_export_stream_builder.py",
             "tests/performance/test_cursor_pagination_benchmark.py",
             "scripts/benchmark_cursor_pagination.py",
-            "docs/specifications/OpenInfra-CDC-SFG-STG-v4.9.0/00-Delta-v4.9.md",
-            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.2/02-roadmap-phases.csv",
+            "docs/specifications/OpenInfra-CDC-SFG-STG-v4.10.0/00-Delta-v4.9.md",
+            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.3/02-roadmap-phases.csv",
         )
         missing = [name for name in required_files if not (self._project_root / name).is_file()]
         if missing:

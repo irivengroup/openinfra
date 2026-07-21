@@ -15,6 +15,7 @@ from openinfra.quality.continuity_certification import PraPcaCertificationEviden
 from openinfra.quality.dependency_graph_benchmark import DependencyGraphBenchmarkConfig
 from openinfra.quality.ga_go_no_go import GaGoNoGoPolicy
 from openinfra.quality.multisite_chaos import MultisiteChaosCampaignEvidence
+from openinfra.quality.offline_licensing_promotion import Gate12Policy
 from openinfra.quality.release_packaging import ReleaseSigningMaterial
 from openinfra.quality.release_security import ReleaseSecurityControlCatalog
 from openinfra.quality.scaleout_promotion import ScaleoutPromotionPolicy
@@ -26,7 +27,7 @@ class InstalledWheelSmokeError(RuntimeError):
 
 
 class InstalledWheelSmoke:
-    EXPECTED_VERSION = "0.34.4"
+    EXPECTED_VERSION = "0.34.5"
     EXPECTED_ASYNC_ROUTES = (
         "/api/v1/async/jobs",
         "/api/v1/async/jobs/get",
@@ -56,6 +57,11 @@ class InstalledWheelSmoke:
     EXPECTED_ADVANCED_IDENTITY_ROUTES = (
         "/api/v1/auth/saml/acs",
         "/api/v1/identity/team-sync",
+    )
+    EXPECTED_LICENSE_ROUTES = (
+        "/api/v1/license/status",
+        "/api/v1/license/activate",
+        "/api/v1/license/renew",
     )
     EXPECTED_GRAPH_ROUTES = (
         "/api/v1/graph/traverse",
@@ -232,8 +238,8 @@ class InstalledWheelSmoke:
         "/api/v1/kubernetes/topologies/capacity-export",
         "/api/v1/kubernetes/topologies/latest-capacity-export",
     )
-    EXPECTED_LAST_MIGRATION = "0058_oracle_document_shards.sql"
-    EXPECTED_MIGRATION_COUNT = 58
+    EXPECTED_LAST_MIGRATION = "0059_runtime_offline_licensing.sql"
+    EXPECTED_MIGRATION_COUNT = 59
     EXPECTED_ASSETS = (
         "openinfra-web.js",
         "openinfra-web.css",
@@ -281,6 +287,7 @@ class InstalledWheelSmoke:
         self._assert_observability_routes(openapi)
         self._assert_data_plane_routes(openapi)
         self._assert_advanced_identity_routes(openapi)
+        self._assert_license_routes(openapi)
         self._assert_graph_routes(openapi)
         self._assert_flow_routes(openapi)
         self._assert_certificate_routes(openapi)
@@ -303,6 +310,7 @@ class InstalledWheelSmoke:
         self._assert_multisite_chaos_contract()
         self._assert_scaleout_promotion_contract(package_root)
         self._assert_cloud_native_promotion_contract(package_root)
+        self._assert_offline_licensing_promotion_contract(package_root)
         self._assert_benchmark_contract()
         self._assert_release_security_contract(package_root)
         self._assert_release_packaging_contract()
@@ -315,6 +323,7 @@ class InstalledWheelSmoke:
             "observability_routes": len(self.EXPECTED_OBSERVABILITY_ROUTES),
             "data_plane_routes": len(self.EXPECTED_DATA_PLANE_ROUTES),
             "advanced_identity_routes": len(self.EXPECTED_ADVANCED_IDENTITY_ROUTES),
+            "license_routes": len(self.EXPECTED_LICENSE_ROUTES),
             "advanced_identity_oracle_runtime": True,
             "graph_routes": len(self.EXPECTED_GRAPH_ROUTES),
             "flow_routes": len(self.EXPECTED_FLOW_ROUTES),
@@ -342,6 +351,7 @@ class InstalledWheelSmoke:
             "multisite_chaos_certification": True,
             "enterprise_scaleout_gate": "GATE-09",
             "cloud_native_gate": "GATE-10",
+            "offline_licensing_gate": "GATE-12",
         }
 
     @staticmethod
@@ -377,6 +387,26 @@ class InstalledWheelSmoke:
             raise InstalledWheelSmokeError("installed Cloud-native promotion policy is incomplete")
 
     @staticmethod
+    def _assert_offline_licensing_promotion_contract(package_root: Path) -> None:
+        policy_path = (
+            package_root / "docs" / "release" / "offline-runtime-licensing-promotion-policy.json"
+        )
+        runbook_path = package_root / "docs" / "runbooks" / "OFFLINE_RUNTIME_LICENSING.md"
+        if not runbook_path.is_file():
+            raise InstalledWheelSmokeError(
+                "installed wheel is missing the offline runtime licensing runbook"
+            )
+        policy = Gate12Policy.load(policy_path)
+        if policy.gate_id != "GATE-12" or policy.release_id != "REL-13":
+            raise InstalledWheelSmokeError(
+                "installed offline runtime licensing promotion policy is inconsistent"
+            )
+        if policy.required_controls != Gate12Policy.EXPECTED_CONTROLS:
+            raise InstalledWheelSmokeError(
+                "installed offline runtime licensing promotion policy is incomplete"
+            )
+
+    @staticmethod
     def _assert_multisite_observability_contract() -> None:
         if MultisiteOperationalMetricsProvider._max_routes != 10_000:
             raise InstalledWheelSmokeError(
@@ -405,6 +435,7 @@ class InstalledWheelSmoke:
             "Sécurité · Inventaire PKI",
             "IPAM · Conformité réseau",
             "Multisite · Reprise d'activité",
+            "Plateforme · Licence runtime",
         )
         missing = [fragment for fragment in required_fragments if fragment not in openapi]
         if missing:
@@ -451,6 +482,13 @@ class InstalledWheelSmoke:
         if missing:
             raise InstalledWheelSmokeError(
                 "installed OpenAPI is missing advanced identity routes: " + ", ".join(missing)
+            )
+
+    def _assert_license_routes(self, openapi: str) -> None:
+        missing = [route for route in self.EXPECTED_LICENSE_ROUTES if route not in openapi]
+        if missing:
+            raise InstalledWheelSmokeError(
+                "installed OpenAPI is missing runtime license routes: " + ", ".join(missing)
             )
 
     def _assert_graph_routes(self, openapi: str) -> None:
@@ -626,7 +664,7 @@ class InstalledWheelSmoke:
     def _assert_release_security_contract(package_root: Path) -> None:
         controls = ReleaseSecurityControlCatalog.build(
             package_root,
-            image_ref="openinfra/runtime:0.34.4",
+            image_ref="openinfra/runtime:0.34.5",
             api_base_url="http://127.0.0.1:8080",
             web_base_url="http://127.0.0.1:2006",
         )
@@ -657,6 +695,7 @@ class InstalledWheelSmoke:
             package_root / "migrations" / "oracle" / "0001_bootstrap.sql",
             package_root / "migrations" / "oracle" / "0057_federated_identity_team_sync.sql",
             package_root / "migrations" / "oracle" / "0058_oracle_document_shards.sql",
+            package_root / "migrations" / "oracle" / "0059_runtime_offline_licensing.sql",
             package_root / "migrations" / "oracle" / "manifest.json",
             package_root / "docs" / "runbooks" / "RUNTIME_NATIVE.md",
             package_root / "docs" / "runbooks" / "ADVANCED_IDENTITY_ORACLE_SYSTEMD.md",
@@ -709,6 +748,9 @@ class InstalledWheelSmoke:
             ),
             "openinfra-gate11": (
                 "openinfra.quality.advanced_identity_oracle_promotion:Gate11QualificationCli.main"
+            ),
+            "openinfra-gate12": (
+                "openinfra.quality.offline_licensing_promotion:Gate12QualificationCli.main"
             ),
         }
         if entry_points != expected:

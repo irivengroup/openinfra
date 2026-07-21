@@ -102,9 +102,9 @@ test('multisite forms use typed access, boolean and site-list controls', () => {
     assert.match(source, /["']?name["']?\s*:\s*['"]site_codes['"][\s\S]{0,240}?["']?type["']?\s*:\s*['"]json['"]/u);
   }
   assert.match(translations, /Multisite management/u);
-  assert.match(translations, /viewer:\s*['"]Viewer['"]/u);
-  assert.match(translations, /operator:\s*['"]Operator['"]/u);
-  assert.match(translations, /admin:\s*['"]Local administrator['"]/u);
+  assert.match(translations, /viewer:\s*['"`]Viewer['"`]/u);
+  assert.match(translations, /operator:\s*['"`]Operator['"`]/u);
+  assert.match(translations, /admin:\s*['"`]Local administrator['"`]/u);
 });
 
 test('site-scoped access enumerates every repository page', () => {

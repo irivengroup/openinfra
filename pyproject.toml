@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "openinfra"
-version = "0.34.4"
+version = "0.34.5"
 description = "OpenInfra Python POO IT ressources management, DCIM and IPAM foundation"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -31,11 +31,13 @@ advanced-identity = ["ldap3>=2.9", "python3-saml>=1.16,<2.0"]
 dev = [
   "pytest>=8.0",
   "pytest-cov>=5.0",
+  "pytest-xdist>=3.6",
   "ruff>=0.5",
   "mypy>=1.10",
   "bandit>=1.7",
   "pip-audit>=2.10.1",
   "build>=1.2",
+  "twine>=6.0",
   "PyYAML>=6.0",
   "urllib3>=2.7.0,<3.0",
 ]
@@ -47,6 +49,7 @@ openinfra-web = "openinfra.interfaces.web:OpenInfraWebEntrypoint.main"
 openinfra-runtime-secrets = "openinfra.infrastructure.runtime_secrets:RuntimeSecretsCli.main"
 openinfra-server-runtime = "openinfra.interfaces.server_runtime:OpenInfraServerRuntime.main"
 openinfra-gate11 = "openinfra.quality.advanced_identity_oracle_promotion:Gate11QualificationCli.main"
+openinfra-gate12 = "openinfra.quality.offline_licensing_promotion:Gate12QualificationCli.main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/openinfra"]
@@ -63,6 +66,7 @@ packages = ["src/openinfra"]
 "docs/runbooks/CLOUD_NATIVE_PROMOTION.md" = "openinfra/docs/runbooks/CLOUD_NATIVE_PROMOTION.md"
 "docs/runbooks/RUNTIME_NATIVE.md" = "openinfra/docs/runbooks/RUNTIME_NATIVE.md"
 "docs/runbooks/ADVANCED_IDENTITY_ORACLE_SYSTEMD.md" = "openinfra/docs/runbooks/ADVANCED_IDENTITY_ORACLE_SYSTEMD.md"
+"docs/runbooks/OFFLINE_RUNTIME_LICENSING.md" = "openinfra/docs/runbooks/OFFLINE_RUNTIME_LICENSING.md"
 "installers/systemd/openinfra-runtime-secrets.service" = "openinfra/systemd/openinfra-runtime-secrets.service"
 "installers/systemd/openinfra-migrate.service" = "openinfra/systemd/openinfra-migrate.service"
 "installers/systemd/openinfra-team-sync.service" = "openinfra/systemd/openinfra-team-sync.service"
@@ -80,7 +84,6 @@ python_files = ["test_*.py"]
 [tool.coverage.run]
 branch = false
 parallel = true
-patch = ["subprocess"]
 source = ["src/openinfra"]
 omit = ["src/openinfra/infrastructure/postgresql.py"]
 

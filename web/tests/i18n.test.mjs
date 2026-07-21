@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import test from 'node:test';
+import { buildRuntimeI18n } from '../scripts/runtime-i18n-build.mjs';
 
 import {
   DEFAULT_LANGUAGE,
@@ -114,7 +115,8 @@ test('React and packaged runtime use the same internationalization implementatio
     readFile(resolve(webRoot, 'index.html'), 'utf8'),
     readFile(resolve(projectRoot, 'src/openinfra/interfaces/rendering/static/index.html'), 'utf8'),
   ]);
-  assert.equal(runtimeI18n, sourceI18n);
+  assert.equal(runtimeI18n, await buildRuntimeI18n());
+  assert.ok(runtimeI18n.length < sourceI18n.length);
   assert.match(reactSource, /OpenInfraI18n/);
   assert.match(runtimeSource, /openinfra-i18n\.js/);
   assert.match(reactSource, /id="openinfra-language"/);

@@ -1,3 +1,19 @@
+## v0.34.6 — Canonicalisation RSOT définitive et GATE-13
+
+| Exigence | Implémentation | Vérification |
+|---|---|---|
+| `REQ-00860` — vocabulaire public RSOT exclusif | commandes, services applicatifs, API HTTP, rôles RBAC et capacités d’édition utilisent exclusivement `rsot` / `core_rsot` | `TST-RSOT-163`, `tests/integration/test_rsot_canonical_contract.py` |
+| Rejet des anciens alias | `itrm`, `ri` et `sot` sont refusés par la CLI et retournent HTTP 404 ; les rôles et symboles historiques ne sont plus exposés | contrôles `RSOT-CLI`, `RSOT-HTTP`, `RSOT-RBAC`, `RSOT-EDITION` |
+| Suppression des modules de compatibilité | services ITRM/RI supprimés et module qualité canonique `rsot_quality_services.py` intégré | contrôles `RSOT-CODE`, tests unitaires et intégration |
+| Packaging sans alias actif | wheel et sdist inspectés pour empêcher la réintroduction de modules, symboles ou routes historiques | contrôle `RSOT-PACKAGING`, `scripts/verify_artifact.py` |
+| Gouvernance contractuelle | CDC 4.11.0, roadmap 2.4.0, P24, REL-14 et politique de promotion fail-closed | validateurs CDC/roadmap et `openinfra-gate13` |
+| Promotion | GATE-13 exige les six preuves RSOT avant publication de REL-14 | `src/openinfra/quality/rsot_canonical_promotion.py`, `.github/workflows/rsot-canonical.yml` |
+
+- Guide de migration : `docs/runbooks/RSOT_CANONICAL_MIGRATION.md`.
+- Matrice de contrôle : `docs/specifications/OpenInfra-CDC-SFG-STG-v4.11.0/11-Matrices/Matrice-rsot-canonical-v4.11.csv`.
+- La suppression des alias est volontairement incompatible pour les noms publics concernés ; aucune capacité métier RSOT n’est supprimée.
+- La charte graphique approuvée n’est pas modifiée.
+
 ## v0.34.5 — Licence runtime offline et GATE-12
 
 | Exigence | Implémentation | Vérification |

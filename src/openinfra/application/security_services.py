@@ -169,50 +169,6 @@ class BuiltinRolePolicy:
                 Permission.AUDIT_READ,
             )
         ),
-        "itrm:reader": frozenset(
-            (Permission.RSOT_READ, Permission.RSOT_QUALITY_READ, Permission.SCHEMA_READ)
-        ),
-        "itrm:operator": frozenset(
-            (
-                Permission.RSOT_READ,
-                Permission.RSOT_WRITE,
-                Permission.RSOT_QUALITY_READ,
-                Permission.SCHEMA_READ,
-            )
-        ),
-        "itrm:governance-admin": frozenset(
-            (
-                Permission.RSOT_READ,
-                Permission.RSOT_WRITE,
-                Permission.RSOT_GOVERNANCE_READ,
-                Permission.RSOT_GOVERNANCE_WRITE,
-                Permission.RSOT_QUALITY_READ,
-                Permission.SCHEMA_READ,
-                Permission.AUDIT_READ,
-            )
-        ),
-        "ri:reader": frozenset(
-            (Permission.RSOT_READ, Permission.RSOT_QUALITY_READ, Permission.SCHEMA_READ)
-        ),
-        "ri:operator": frozenset(
-            (
-                Permission.RSOT_READ,
-                Permission.RSOT_WRITE,
-                Permission.RSOT_QUALITY_READ,
-                Permission.SCHEMA_READ,
-            )
-        ),
-        "ri:governance-admin": frozenset(
-            (
-                Permission.RSOT_READ,
-                Permission.RSOT_WRITE,
-                Permission.RSOT_GOVERNANCE_READ,
-                Permission.RSOT_GOVERNANCE_WRITE,
-                Permission.RSOT_QUALITY_READ,
-                Permission.SCHEMA_READ,
-                Permission.AUDIT_READ,
-            )
-        ),
         "async:reader": frozenset((Permission.ASYNC_READ, Permission.SCHEMA_READ)),
         "async:operator": frozenset(
             (Permission.ASYNC_READ, Permission.ASYNC_SUBMIT, Permission.SCHEMA_READ)
@@ -477,21 +433,6 @@ class BuiltinRolePolicy:
         ),
         "access:admin": frozenset((Permission.ACCESS_POLICY_ADMIN, Permission.SCHEMA_READ)),
         "audit:reader": frozenset((Permission.AUDIT_READ, Permission.SCHEMA_READ)),
-        "sot:reader": frozenset((Permission.RSOT_READ, Permission.SCHEMA_READ)),
-        "sot:operator": frozenset(
-            (Permission.RSOT_READ, Permission.RSOT_WRITE, Permission.SCHEMA_READ)
-        ),
-        "sot:governance-admin": frozenset(
-            (
-                Permission.RSOT_READ,
-                Permission.RSOT_WRITE,
-                Permission.RSOT_GOVERNANCE_READ,
-                Permission.RSOT_GOVERNANCE_WRITE,
-                Permission.RSOT_QUALITY_READ,
-                Permission.SCHEMA_READ,
-                Permission.AUDIT_READ,
-            )
-        ),
     }
 
     def permissions_for(self, roles: tuple[SecurityRole, ...]) -> frozenset[Permission]:

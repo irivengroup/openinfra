@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "product": "OpenInfra",
+  "version": "0.34.6",
+  "candidate_id": "openinfra-0.34.6-local-candidate",
+  "certification_date": "2026-07-21",
+  "decision": {
+    "local_delivery": "go",
+    "production_promotion": "no-go",
+    "production_blockers": [
+      "pip-audit requires reachable PyPI or approved vulnerability mirror",
+      "live PostgreSQL and Oracle 19c Enterprise qualification",
+      "live Docker Compose and systemd qualification",
+      "live SAML LDAP FreeIPA and Team Sync qualification",
+      "release reports must be regenerated with the real Git commit SHA-1"
+    ]
+  },
+  "contracts": {
+    "cdc": "4.11.0",
+    "roadmap": "2.4.0",
+    "phase": "P24",
+    "release": "REL-14",
+    "gate": "GATE-13",
+    "requirements": 860,
+    "contract_tests": 666,
+    "traceability_rows": 860,
+    "entities": 529,
+    "roadmap_phases": 25,
+    "roadmap_releases": 15,
+    "roadmap_epics": 145,
+    "roadmap_milestones": 17,
+    "roadmap_gates": 14,
+    "roadmap_tests": 129,
+    "cdc_alignments": 139
+  },
+  "tests": {
+    "python_total": 1577,
+    "python_passed": 1577,
+    "frontend_total": 79,
+    "frontend_passed": 79
+  },
+  "coverage": {
+    "statements": 48332,
+    "covered": 47373,
+    "missing": 959,
+    "percent": 98.01580733261608,
+    "threshold": 98.0,
+    "status": "passed"
+  },
+  "quality": {
+    "ruff_files": 467,
+    "ruff": "passed",
+    "mypy_modules": 139,
+    "mypy": "passed",
+    "compileall": "passed",
+    "bandit_product_scope": "passed",
+    "repository_security_gate": "passed",
+    "quality_gate_exit_code": 0
+  },
+  "security": {
+    "npm_audit_high": "0 vulnerabilities",
+    "pip_audit": "not-executable-dns-pypi",
+    "active_legacy_alias_findings": 0,
+    "obsolete_compatibility_modules": 0,
+    "embedded_private_keys": 0
+  },
+  "database": {
+    "postgresql_migrations": 59,
+    "oracle_migrations": 59,
+    "last_migration": "0059_runtime_offline_licensing.sql"
+  },
+  "promotion": {
+    "gate11_contracts": "9/9 passed",
+    "gate12": "7/7 passed",
+    "gate13": "6/6 passed",
+    "source_commit": "0000000000000000000000000000000000000000",
+    "source_commit_status": "local-placeholder-must-be-replaced-for-production"
+  },
+  "packaging": {
+    "build": "passed",
+    "twine_check": "passed",
+    "artifact_verification": "passed",
+    "installed_wheel_smoke": "passed"
+  }
+}

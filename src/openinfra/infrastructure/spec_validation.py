@@ -33,6 +33,8 @@ class SpecValidationReport:
 
 
 class ContractualSpecValidator:
+    SUPPORTED_VERSIONS = frozenset({"4.0.0", "4.8.1", "4.9.0", "4.10.0", "4.11.0"})
+
     def validate(self, root: Path) -> SpecValidationReport:
         errors: list[str] = []
         self._assert_required_files(root, errors)
@@ -73,7 +75,7 @@ class ContractualSpecValidator:
         if not version_file.is_file():
             return "unknown"
         version = version_file.read_text(encoding="utf-8").strip()
-        if version not in {"4.0.0", "4.8.1", "4.9.0", "4.10.0"}:
+        if version not in self.SUPPORTED_VERSIONS:
             errors.append(f"unsupported specification version: {version}")
         return version
 

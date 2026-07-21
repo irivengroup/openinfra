@@ -1,0 +1,10 @@
+solution,lite,pro,enterprise,mode,minimum_features,forbidden_features
+ServiceNow,non,oui,oui,REST/CMDB API,CI sync; ticket links; context enrichment; webhook; dry-run; audit,No native ticket engine in OpenInfra
+Jira Service Management,non,oui,oui,REST API,issue/request link; context enrichment; webhook; audit,No internal issue workflow in OpenInfra
+GLPI,non,oui,oui,REST API,asset sync; external ticket link; inventory context; audit,No GLPI replacement module in OpenInfra
+Freshservice,non,oui,oui,REST API,asset/ticket context; webhook; mapping; audit,No service desk portal in OpenInfra
+Zendesk,non,option,oui,REST API,ticket link; asset context; webhook,No internal queue in OpenInfra
+Zammad,non,option,oui,REST API,ticket link; asset context; webhook,No internal ticketing in OpenInfra
+Redmine,non,option,oui,REST API,issue link; asset context; webhook,No internal issue tracker in OpenInfra
+OTRS/Znuny,non,option,oui,REST API,ticket link; asset context; webhook,No internal ITSM workflow in OpenInfra
+

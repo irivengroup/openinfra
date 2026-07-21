@@ -183,7 +183,7 @@ class TestSourceGovernanceServices:
                 "reject",
             )
         )
-        app.it_resources_management_service.upsert_object(
+        app.rsot_service.upsert_object(
             UpsertSourceObjectCommand(
                 tenant_id="default",
                 actor="pytest",
@@ -197,7 +197,7 @@ class TestSourceGovernanceServices:
             )
         )
 
-        rejected = app.it_resources_management_service.reconcile_object(
+        rejected = app.rsot_service.reconcile_object(
             ReconcileSourceObjectCommand(
                 tenant_id="default",
                 actor="pytest",
@@ -208,7 +208,7 @@ class TestSourceGovernanceServices:
                 apply=True,
             )
         )
-        applied = app.it_resources_management_service.reconcile_object(
+        applied = app.rsot_service.reconcile_object(
             ReconcileSourceObjectCommand(
                 tenant_id="default",
                 actor="pytest",
@@ -221,10 +221,10 @@ class TestSourceGovernanceServices:
                 apply=True,
             )
         )
-        current = app.it_resources_management_service.get_object(
+        current = app.rsot_service.get_object(
             GetSourceObjectCommand("default", token, "device/reconcile-001")
         )
-        audit = app.it_resources_management_service.list_object_audit(
+        audit = app.rsot_service.list_object_audit(
             ListSourceObjectAuditCommand("default", token, "device/reconcile-001", limit=10)
         )
 

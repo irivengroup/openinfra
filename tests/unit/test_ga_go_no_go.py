@@ -104,7 +104,7 @@ class GaGoNoGoFixture:
         reports: dict[str, dict[str, object]] = {
             "technical-validation": {
                 "schema_version": 1,
-                "openinfra_version": "0.34.5",
+                "openinfra_version": "0.34.6",
                 "generated_at": timestamp,
                 "complete": True,
                 "passed": True,
@@ -113,7 +113,7 @@ class GaGoNoGoFixture:
             },
             "enterprise-capacity": {
                 "schema_version": 1,
-                "openinfra_version": "0.34.5",
+                "openinfra_version": "0.34.6",
                 "generated_at": timestamp,
                 "capacity_certification": True,
                 "status": "certified",
@@ -121,7 +121,7 @@ class GaGoNoGoFixture:
             },
             "release-security": {
                 "schema_version": 1,
-                "openinfra_version": "0.34.5",
+                "openinfra_version": "0.34.6",
                 "generated_at": timestamp,
                 "complete": True,
                 "offline_mode": False,
@@ -130,7 +130,7 @@ class GaGoNoGoFixture:
             },
             "release-packaging": {
                 "schema_version": 1,
-                "release_version": "0.34.5",
+                "release_version": "0.34.6",
                 "generated_at": timestamp,
                 "complete": True,
                 "trusted_signing_key": True,
@@ -139,14 +139,14 @@ class GaGoNoGoFixture:
             },
             "ga-documentation": {
                 "schema_version": 1,
-                "version": "0.34.5",
+                "version": "0.34.6",
                 "generated_at": timestamp,
                 "epic": "EPIC-1804",
                 "passed": True,
             },
             "operations-readiness": {
                 "schema_version": 1,
-                "release_version": "0.34.5",
+                "release_version": "0.34.6",
                 "generated_at": timestamp,
                 "complete": True,
                 "operations_readiness": True,
@@ -158,7 +158,7 @@ class GaGoNoGoFixture:
             },
             "support-readiness": {
                 "schema_version": 1,
-                "release_version": "0.34.5",
+                "release_version": "0.34.6",
                 "generated_at": timestamp,
                 "complete": True,
                 "support_readiness": True,
@@ -170,7 +170,7 @@ class GaGoNoGoFixture:
             },
             "business-readiness": {
                 "schema_version": 1,
-                "release_version": "0.34.5",
+                "release_version": "0.34.6",
                 "generated_at": timestamp,
                 "complete": True,
                 "business_readiness": True,
@@ -202,8 +202,8 @@ class GaGoNoGoFixture:
             public_key_path = statement_path.with_suffix(".json.pub")
             statement = {
                 "schema_version": 1,
-                "release_version": "0.34.5",
-                "candidate_id": "openinfra-0.34.5-rc1",
+                "release_version": "0.34.6",
+                "candidate_id": "openinfra-0.34.6-rc1",
                 "role": role,
                 "approver": f"OpenInfra {role}",
                 "decision": "approve",
@@ -245,8 +245,8 @@ class GaGoNoGoFixture:
             json.dumps(
                 {
                     "schema_version": 1,
-                    "release_version": "0.34.5",
-                    "candidate_id": "openinfra-0.34.5-rc1",
+                    "release_version": "0.34.6",
+                    "candidate_id": "openinfra-0.34.6-rc1",
                     "source_commit": "a" * 40,
                     "generated_at": self.now.isoformat(),
                     "evidence": self.evidence,
@@ -486,7 +486,7 @@ def test_candidate_manifest_validation_rejects_invalid_contracts(tmp_path: Path)
     now = datetime(2026, 7, 12, 18, 0, tzinfo=UTC).isoformat()
     base: dict[str, object] = {
         "schema_version": 1,
-        "release_version": "0.34.5",
+        "release_version": "0.34.6",
         "candidate_id": "candidate",
         "source_commit": "a" * 40,
         "generated_at": now,
@@ -600,7 +600,7 @@ def test_evidence_inspector_covers_invalid_reports(tmp_path: Path) -> None:
     assert GaEvidenceInspector._report_failures(
         "enterprise-capacity",
         {
-            "openinfra_version": "0.34.5",
+            "openinfra_version": "0.34.6",
             "capacity_certification": False,
             "status": "rejected",
             "failures": ["x"],
@@ -609,7 +609,7 @@ def test_evidence_inspector_covers_invalid_reports(tmp_path: Path) -> None:
     assert GaEvidenceInspector._report_failures(
         "release-security",
         {
-            "openinfra_version": "0.34.5",
+            "openinfra_version": "0.34.6",
             "complete": False,
             "release_security_certification": False,
             "offline_mode": True,
@@ -619,7 +619,7 @@ def test_evidence_inspector_covers_invalid_reports(tmp_path: Path) -> None:
     assert GaEvidenceInspector._report_failures(
         "release-packaging",
         {
-            "release_version": "0.34.5",
+            "release_version": "0.34.6",
             "complete": False,
             "release_packaging_certification": False,
             "trusted_signing_key": False,
@@ -628,7 +628,7 @@ def test_evidence_inspector_covers_invalid_reports(tmp_path: Path) -> None:
     )
     assert GaEvidenceInspector._report_failures(
         "ga-documentation",
-        {"version": "0.34.5", "passed": False, "epic": "wrong"},
+        {"version": "0.34.6", "passed": False, "epic": "wrong"},
     )
     assert GaEvidenceInspector._report_failures("unsupported", {})
 

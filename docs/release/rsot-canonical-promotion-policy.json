@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "gate_id": "GATE-13",
+  "release_id": "REL-14",
+  "required_controls": [
+    "RSOT-CLI",
+    "RSOT-HTTP",
+    "RSOT-RBAC",
+    "RSOT-EDITION",
+    "RSOT-CODE",
+    "RSOT-PACKAGING"
+  ]
+}

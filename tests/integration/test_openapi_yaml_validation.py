@@ -8,7 +8,7 @@ from scripts.validate_openapi import OpenApiValidationError, validate_openapi_do
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 OPENAPI_DOCUMENTS = (
     PROJECT_ROOT / "docs/api/openapi.yaml",
-    PROJECT_ROOT / "docs/specifications/OpenInfra-CDC-SFG-STG-v4.10.0/09-API/OpenAPI/openapi.yaml",
+    PROJECT_ROOT / "docs/specifications/OpenInfra-CDC-SFG-STG-v4.11.0/09-API/OpenAPI/openapi.yaml",
 )
 
 

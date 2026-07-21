@@ -1,6 +1,6 @@
 # Diagnostic et support
 
-Version cible : `0.34.5`
+Version cible : `0.34.6`
 
 ## Collecte minimale
 
@@ -83,7 +83,7 @@ La migration est exécutée dans la transaction de l’exécuteur OpenInfra. Apr
 Déploiement serveur standard :
 
 ```bash
-sudo /opt/openinfra/venv/bin/python -m pip install --upgrade /opt/openinfra/releases/openinfra-0.34.5-py3-none-any.whl
+sudo /opt/openinfra/venv/bin/python -m pip install --upgrade /opt/openinfra/releases/openinfra-0.34.6-py3-none-any.whl
 sudo systemctl start openinfra-migrate.service
 sudo journalctl -u openinfra-migrate.service --no-pager --since today
 ```

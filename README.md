@@ -1,6 +1,19 @@
-# OpenInfra v0.34.5
+# OpenInfra v0.34.6
 
-OpenInfra 0.34.5 ajoute un **licensing runtime offline** pour les éditions Pro et Enterprise, lié cryptographiquement à l’installation, à l’entreprise, à l’édition et au quota d’hôtes. La validation repose sur Ed25519, fonctionne sans accès Internet, applique une période de grâce fixe de 30 jours après expiration et devient fail-closed lorsque l’enforcement commercial est activé. PostgreSQL reste le backend par défaut de toutes les éditions et Oracle 19c demeure réservé à Enterprise.
+OpenInfra 0.34.6 finalise le contrat **RSOT — Ressource Source of Truth** : les anciens alias ITRM, RI et SOT sont supprimés de la CLI, de l’API, du RBAC, des capacités d’édition et des modules de compatibilité. Les fonctions métier restent disponibles sous les seuls contrats `rsot`, `rsot:*` et `core_rsot`. Le licensing runtime offline de GATE-12 reste inchangé ; PostgreSQL demeure le backend par défaut et Oracle 19c reste réservé à Enterprise.
+
+## RSOT canonique — P24 / REL-14 / GATE-13
+
+- commande publique unique `openinfra rsot` ;
+- routes publiques uniques `/api/v1/rsot/*` ;
+- anciens endpoints ITRM/RI/SOT explicitement non trouvés ;
+- rôles intégrés exclusivement sous `rsot:reader`, `rsot:operator` et `rsot:governance-admin` ;
+- capacité d’édition unique `core_rsot` ;
+- suppression des modules Python de compatibilité ITRM/RI ;
+- guide de migration opérateur et tests de rejet de tous les anciens contrats ;
+- qualification GATE-13 sur six contrôles exécutables, packaging et smoke du wheel installé.
+
+Voir `docs/runbooks/RSOT_CANONICAL_MIGRATION.md`.
 
 ## Licence runtime offline — GATE-12
 

@@ -51,9 +51,6 @@ from openinfra.application.ipam_services import (
     IpamModelService,
     IpamUiService,
 )
-from openinfra.application.it_resources_management_quality_services import (
-    ITResourcesManagementQualityService,
-)
 from openinfra.application.itam_services import ItamSupportService
 from openinfra.application.kubernetes_gitops_services import KubernetesGitOpsService
 from openinfra.application.kubernetes_topology_services import KubernetesTopologyService
@@ -95,6 +92,9 @@ from openinfra.application.ports import (
     TransactionManager,
 )
 from openinfra.application.rag_services import RagService
+from openinfra.application.rsot_quality_services import (
+    RsotQualityService,
+)
 from openinfra.application.sbom_services import SbomService
 from openinfra.application.search_services import GlobalSearchService
 from openinfra.application.security_services import SecurityService
@@ -279,7 +279,7 @@ class OpenInfraApplication:
     itam_support_service: ItamSupportService
     source_of_truth_service: SourceOfTruthService
     source_governance_service: SourceGovernanceService
-    it_resources_management_quality_service: ITResourcesManagementQualityService
+    rsot_quality_service: RsotQualityService
     identity_repository: IdentityRepository
     security_repository: SecurityRepository
     access_policy_repository: AccessPolicyRepository
@@ -296,12 +296,8 @@ class OpenInfraApplication:
     license_service: RuntimeLicenseService
 
     @property
-    def it_resources_management_service(self) -> SourceOfTruthService:
+    def rsot_service(self) -> SourceOfTruthService:
         return self.source_of_truth_service
-
-    @property
-    def ressources_inventory_quality_service(self) -> ITResourcesManagementQualityService:
-        return self.it_resources_management_quality_service
 
 
 class ApplicationFactory:
@@ -1164,7 +1160,7 @@ class ApplicationFactory:
                 transaction_manager,
                 security_service,
             ),
-            it_resources_management_quality_service=ITResourcesManagementQualityService(
+            rsot_quality_service=RsotQualityService(
                 source_of_truth_repository,
                 source_governance_repository,
                 audit_repository,

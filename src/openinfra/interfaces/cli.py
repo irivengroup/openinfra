@@ -277,21 +277,6 @@ from openinfra.application.ipam_services import (
     PreviewDdiReservationCommand,
     RegisterIpAddressCommand,
 )
-from openinfra.application.it_resources_management_quality_services import (
-    EvaluateItrmObjectQualityCommand,
-    ItrmQualitySummaryCommand,
-)
-from openinfra.application.it_resources_management_services import (
-    CreateSourceRelationCommand,
-    GetSourceObjectAsOfCommand,
-    GetSourceObjectCommand,
-    GetSourceObjectVersionCommand,
-    ListSourceObjectAuditCommand,
-    ListSourceObjectsCommand,
-    ListSourceRelationsCommand,
-    ReconcileSourceObjectCommand,
-    UpsertSourceObjectCommand,
-)
 from openinfra.application.itam_services import (
     AddThirdPartySupportCommand,
     CreateItamOrganizationCommand,
@@ -382,6 +367,10 @@ from openinfra.application.rag_services import (
     SyncRsotRagCommand,
     UpsertRagDocumentCommand,
 )
+from openinfra.application.rsot_quality_services import (
+    EvaluateRsotObjectQualityCommand,
+    RsotQualitySummaryCommand,
+)
 from openinfra.application.sbom_services import (
     AssessSbomRiskCommand,
     CompareSbomsCommand,
@@ -422,6 +411,17 @@ from openinfra.application.source_governance_services import (
     DeactivateSourceGovernanceRuleCommand,
     EvaluateSourceGovernanceCommand,
     ListSourceGovernanceRulesCommand,
+)
+from openinfra.application.source_of_truth_services import (
+    CreateSourceRelationCommand,
+    GetSourceObjectAsOfCommand,
+    GetSourceObjectCommand,
+    GetSourceObjectVersionCommand,
+    ListSourceObjectAuditCommand,
+    ListSourceObjectsCommand,
+    ListSourceRelationsCommand,
+    ReconcileSourceObjectCommand,
+    UpsertSourceObjectCommand,
 )
 from openinfra.domain.access_policy import AccessRequestContext
 from openinfra.domain.authentication import ExternalDirectoryConfig
@@ -516,9 +516,6 @@ class OpenInfraCLI:
         self._add_certificate_commands(subparsers)
         self._add_network_config_commands(subparsers)
         self._add_rsot_commands(subparsers)
-        self._add_itrm_commands(subparsers)
-        self._add_ri_commands(subparsers)
-        self._add_sot_commands(subparsers)
         self._add_ipam_commands(subparsers)
         self._add_dcim_commands(subparsers)
         return parser
@@ -3936,33 +3933,6 @@ class OpenInfraCLI:
             short_label="RSOT",
         )
 
-    def _add_itrm_commands(self, subparsers: Any) -> None:
-        self._add_inventory_commands(
-            subparsers,
-            command_name="itrm",
-            help_text="deprecated legacy alias for RSOT commands",
-            command_dest="itrm_command",
-            short_label="RSOT legacy compatibility",
-        )
-
-    def _add_ri_commands(self, subparsers: Any) -> None:
-        self._add_inventory_commands(
-            subparsers,
-            command_name="ri",
-            help_text="legacy alias for RSOT commands",
-            command_dest="ri_command",
-            short_label="RSOT legacy compatibility",
-        )
-
-    def _add_sot_commands(self, subparsers: Any) -> None:
-        self._add_inventory_commands(
-            subparsers,
-            command_name="sot",
-            help_text="legacy alias for RSOT (Ressource Source of Truth) commands",
-            command_dest="sot_command",
-            short_label="SOT compatibility",
-        )
-
     def _add_inventory_commands(
         self,
         subparsers: Any,
@@ -3971,14 +3941,14 @@ class OpenInfraCLI:
         command_dest: str,
         short_label: str,
     ) -> None:
-        sot = subparsers.add_parser(command_name, help=help_text)
-        sot_subparsers = sot.add_subparsers(dest=command_dest, required=True)
-        taxonomy = sot_subparsers.add_parser(
+        rsot = subparsers.add_parser(command_name, help=help_text)
+        rsot_subparsers = rsot.add_subparsers(dest=command_dest, required=True)
+        taxonomy = rsot_subparsers.add_parser(
             "resource-taxonomy",
             help=f"list supported {short_label} resource categories and category-filtered types",
         )
-        taxonomy.set_defaults(handler=self._handle_sot_resource_taxonomy)
-        upsert = sot_subparsers.add_parser(
+        taxonomy.set_defaults(handler=self._handle_rsot_resource_taxonomy)
+        upsert = rsot_subparsers.add_parser(
             "upsert-object", help=f"create or update a {short_label} object"
         )
         self._add_backend_arguments(upsert)
@@ -4005,16 +3975,18 @@ class OpenInfraCLI:
         upsert.add_argument("--attributes-json", default="{}")
         upsert.add_argument("--tag", action="append", default=[])
         upsert.add_argument("--source", required=True)
-        upsert.set_defaults(handler=self._handle_sot_upsert_object)
-        get_object = sot_subparsers.add_parser(
+        upsert.set_defaults(handler=self._handle_rsot_upsert_object)
+        get_object = rsot_subparsers.add_parser(
             "get-object", help=f"get a {short_label} object by key"
         )
         self._add_backend_arguments(get_object)
         get_object.add_argument("--tenant", required=True)
         get_object.add_argument("--admin-token", required=True)
         get_object.add_argument("--key", required=True)
-        get_object.set_defaults(handler=self._handle_sot_get_object)
-        list_objects = sot_subparsers.add_parser("list-objects", help=f"list {short_label} objects")
+        get_object.set_defaults(handler=self._handle_rsot_get_object)
+        list_objects = rsot_subparsers.add_parser(
+            "list-objects", help=f"list {short_label} objects"
+        )
         self._add_backend_arguments(list_objects)
         list_objects.add_argument("--tenant", required=True)
         list_objects.add_argument("--admin-token", required=True)
@@ -4024,8 +3996,8 @@ class OpenInfraCLI:
         list_objects.add_argument("--resource-category", choices=ResourceTaxonomy.category_values())
         list_objects.add_argument("--resource-type", choices=ResourceTaxonomy.all_type_values())
         list_objects.add_argument("--tag")
-        list_objects.set_defaults(handler=self._handle_sot_list_objects)
-        get_version = sot_subparsers.add_parser(
+        list_objects.set_defaults(handler=self._handle_rsot_list_objects)
+        get_version = rsot_subparsers.add_parser(
             "get-object-version", help=f"get a {short_label} object historical version"
         )
         self._add_backend_arguments(get_version)
@@ -4033,8 +4005,8 @@ class OpenInfraCLI:
         get_version.add_argument("--admin-token", required=True)
         get_version.add_argument("--key", required=True)
         get_version.add_argument("--version", type=int, required=True)
-        get_version.set_defaults(handler=self._handle_sot_get_object_version)
-        get_as_of = sot_subparsers.add_parser(
+        get_version.set_defaults(handler=self._handle_rsot_get_object_version)
+        get_as_of = rsot_subparsers.add_parser(
             "get-object-as-of", help=f"get a {short_label} object as it was at an ISO-8601 date"
         )
         self._add_backend_arguments(get_as_of)
@@ -4042,8 +4014,8 @@ class OpenInfraCLI:
         get_as_of.add_argument("--admin-token", required=True)
         get_as_of.add_argument("--key", required=True)
         get_as_of.add_argument("--as-of", required=True)
-        get_as_of.set_defaults(handler=self._handle_sot_get_object_as_of)
-        list_object_audit = sot_subparsers.add_parser(
+        get_as_of.set_defaults(handler=self._handle_rsot_get_object_as_of)
+        list_object_audit = rsot_subparsers.add_parser(
             "list-object-audit", help=f"list audit records for a {short_label} object"
         )
         self._add_backend_arguments(list_object_audit)
@@ -4052,8 +4024,8 @@ class OpenInfraCLI:
         list_object_audit.add_argument("--key", required=True)
         list_object_audit.add_argument("--limit", type=int, default=100)
         list_object_audit.add_argument("--cursor")
-        list_object_audit.set_defaults(handler=self._handle_sot_list_object_audit)
-        reconcile = sot_subparsers.add_parser(
+        list_object_audit.set_defaults(handler=self._handle_rsot_list_object_audit)
+        reconcile = rsot_subparsers.add_parser(
             "reconcile-object",
             help=f"plan or apply a governed {short_label} object reconciliation",
         )
@@ -4069,8 +4041,8 @@ class OpenInfraCLI:
         reconcile.add_argument("--display-name")
         reconcile.add_argument("--tag", action="append")
         reconcile.add_argument("--apply", action="store_true")
-        reconcile.set_defaults(handler=self._handle_sot_reconcile_object)
-        create_relation = sot_subparsers.add_parser(
+        reconcile.set_defaults(handler=self._handle_rsot_reconcile_object)
+        create_relation = rsot_subparsers.add_parser(
             "create-relation", help=f"create a typed {short_label} relation"
         )
         self._add_backend_arguments(create_relation)
@@ -4081,8 +4053,8 @@ class OpenInfraCLI:
         create_relation.add_argument("--source-key", required=True)
         create_relation.add_argument("--target-key", required=True)
         create_relation.add_argument("--provenance", required=True)
-        create_relation.set_defaults(handler=self._handle_sot_create_relation)
-        list_relations = sot_subparsers.add_parser(
+        create_relation.set_defaults(handler=self._handle_rsot_create_relation)
+        list_relations = rsot_subparsers.add_parser(
             "list-relations", help=f"list typed {short_label} relations"
         )
         self._add_backend_arguments(list_relations)
@@ -4094,8 +4066,8 @@ class OpenInfraCLI:
         list_relations.add_argument("--target-key")
         list_relations.add_argument("--relation-type")
         list_relations.add_argument("--as-of")
-        list_relations.set_defaults(handler=self._handle_sot_list_relations)
-        governance_create = sot_subparsers.add_parser(
+        list_relations.set_defaults(handler=self._handle_rsot_list_relations)
+        governance_create = rsot_subparsers.add_parser(
             "create-governance-rule",
             help=f"create or update a {short_label} authoritative source governance rule",
         )
@@ -4114,8 +4086,8 @@ class OpenInfraCLI:
             choices=("reject", "accept_with_audit"),
             default="reject",
         )
-        governance_create.set_defaults(handler=self._handle_sot_create_governance_rule)
-        governance_list = sot_subparsers.add_parser(
+        governance_create.set_defaults(handler=self._handle_rsot_create_governance_rule)
+        governance_list = rsot_subparsers.add_parser(
             "list-governance-rules",
             help=f"list {short_label} governance rules with pagination",
         )
@@ -4126,8 +4098,8 @@ class OpenInfraCLI:
         governance_list.add_argument("--cursor")
         governance_list.add_argument("--include-inactive", action="store_true")
         governance_list.add_argument("--object-kind")
-        governance_list.set_defaults(handler=self._handle_sot_list_governance_rules)
-        governance_eval = sot_subparsers.add_parser(
+        governance_list.set_defaults(handler=self._handle_rsot_list_governance_rules)
+        governance_eval = rsot_subparsers.add_parser(
             "evaluate-governance",
             help=f"evaluate a source update against {short_label} governance rules",
         )
@@ -4138,8 +4110,8 @@ class OpenInfraCLI:
         governance_eval.add_argument("--incoming-source", required=True)
         governance_eval.add_argument("--existing-attributes-json", default="{}")
         governance_eval.add_argument("--incoming-attributes-json", default="{}")
-        governance_eval.set_defaults(handler=self._handle_sot_evaluate_governance)
-        governance_deactivate = sot_subparsers.add_parser(
+        governance_eval.set_defaults(handler=self._handle_rsot_evaluate_governance)
+        governance_deactivate = rsot_subparsers.add_parser(
             "deactivate-governance-rule",
             help=f"deactivate a {short_label} governance rule",
         )
@@ -4148,16 +4120,16 @@ class OpenInfraCLI:
         governance_deactivate.add_argument("--actor", default="cli")
         governance_deactivate.add_argument("--admin-token", required=True)
         governance_deactivate.add_argument("--name", required=True)
-        governance_deactivate.set_defaults(handler=self._handle_sot_deactivate_governance_rule)
-        quality_object = sot_subparsers.add_parser(
+        governance_deactivate.set_defaults(handler=self._handle_rsot_deactivate_governance_rule)
+        quality_object = rsot_subparsers.add_parser(
             "quality-object", help=f"evaluate one {short_label} object quality and certification"
         )
         self._add_backend_arguments(quality_object)
         quality_object.add_argument("--tenant", required=True)
         quality_object.add_argument("--admin-token", required=True)
         quality_object.add_argument("--key", required=True)
-        quality_object.set_defaults(handler=self._handle_sot_quality_object)
-        quality_summary = sot_subparsers.add_parser(
+        quality_object.set_defaults(handler=self._handle_rsot_quality_object)
+        quality_summary = rsot_subparsers.add_parser(
             "quality-summary", help=f"summarize {short_label} quality and certification status"
         )
         self._add_backend_arguments(quality_summary)
@@ -4171,7 +4143,7 @@ class OpenInfraCLI:
         )
         quality_summary.add_argument("--resource-type", choices=ResourceTaxonomy.all_type_values())
         quality_summary.add_argument("--tag")
-        quality_summary.set_defaults(handler=self._handle_sot_quality_summary)
+        quality_summary.set_defaults(handler=self._handle_rsot_quality_summary)
 
     def _add_backend_arguments(self, parser: Any) -> None:
         parser.add_argument("--backend", choices=("json", "postgresql", "oracle"), default="json")
@@ -8747,32 +8719,13 @@ class OpenInfraCLI:
         print(json.dumps(result.as_dict(), sort_keys=True))
         return 0
 
-    def _warn_legacy_inventory_alias(self, args: argparse.Namespace) -> None:
-        if hasattr(args, "itrm_command"):
-            sys.stderr.write(
-                "DEPRECATION: 'openinfra itrm' is a legacy alias; use 'openinfra rsot'. "
-                "The ITRM alias is scheduled for removal in a future major release.\n"
-            )
-        elif hasattr(args, "ri_command"):
-            sys.stderr.write(
-                "DEPRECATION: 'openinfra ri' is a legacy alias; use 'openinfra rsot'. "
-                "The RI alias is scheduled for removal in a future major release.\n"
-            )
-        elif hasattr(args, "sot_command"):
-            sys.stderr.write(
-                "DEPRECATION: 'openinfra sot' is a legacy alias; use 'openinfra rsot'. "
-                "The SOT alias is scheduled for removal in a future major release.\n"
-            )
-
-    def _handle_sot_resource_taxonomy(self, args: argparse.Namespace) -> int:
-        self._warn_legacy_inventory_alias(args)
+    def _handle_rsot_resource_taxonomy(self, args: argparse.Namespace) -> int:
         print(json.dumps(ResourceTaxonomy.as_dict(), sort_keys=True))
         return 0
 
-    def _handle_sot_upsert_object(self, args: argparse.Namespace) -> int:
-        self._warn_legacy_inventory_alias(args)
+    def _handle_rsot_upsert_object(self, args: argparse.Namespace) -> int:
         application = self._create_application(args)
-        result = application.it_resources_management_service.upsert_object(
+        result = application.rsot_service.upsert_object(
             UpsertSourceObjectCommand(
                 tenant_id=args.tenant,
                 actor=args.actor,
@@ -8790,10 +8743,9 @@ class OpenInfraCLI:
         print(json.dumps(result, sort_keys=True))
         return 0
 
-    def _handle_sot_get_object(self, args: argparse.Namespace) -> int:
-        self._warn_legacy_inventory_alias(args)
+    def _handle_rsot_get_object(self, args: argparse.Namespace) -> int:
         application = self._create_application(args)
-        result = application.it_resources_management_service.get_object(
+        result = application.rsot_service.get_object(
             GetSourceObjectCommand(
                 tenant_id=args.tenant,
                 admin_token=args.admin_token,
@@ -8803,10 +8755,9 @@ class OpenInfraCLI:
         print(json.dumps(result, sort_keys=True))
         return 0
 
-    def _handle_sot_list_objects(self, args: argparse.Namespace) -> int:
-        self._warn_legacy_inventory_alias(args)
+    def _handle_rsot_list_objects(self, args: argparse.Namespace) -> int:
         application = self._create_application(args)
-        page = application.it_resources_management_service.list_objects(
+        page = application.rsot_service.list_objects(
             ListSourceObjectsCommand(
                 tenant_id=args.tenant,
                 admin_token=args.admin_token,
@@ -8820,10 +8771,9 @@ class OpenInfraCLI:
         print(json.dumps(page.as_dict(), sort_keys=True))
         return 0
 
-    def _handle_sot_get_object_version(self, args: argparse.Namespace) -> int:
-        self._warn_legacy_inventory_alias(args)
+    def _handle_rsot_get_object_version(self, args: argparse.Namespace) -> int:
         application = self._create_application(args)
-        result = application.it_resources_management_service.get_object_version(
+        result = application.rsot_service.get_object_version(
             GetSourceObjectVersionCommand(
                 tenant_id=args.tenant,
                 admin_token=args.admin_token,
@@ -8834,10 +8784,9 @@ class OpenInfraCLI:
         print(json.dumps(result, sort_keys=True))
         return 0
 
-    def _handle_sot_get_object_as_of(self, args: argparse.Namespace) -> int:
-        self._warn_legacy_inventory_alias(args)
+    def _handle_rsot_get_object_as_of(self, args: argparse.Namespace) -> int:
         application = self._create_application(args)
-        result = application.it_resources_management_service.get_object_as_of(
+        result = application.rsot_service.get_object_as_of(
             GetSourceObjectAsOfCommand(
                 tenant_id=args.tenant,
                 admin_token=args.admin_token,
@@ -8848,10 +8797,9 @@ class OpenInfraCLI:
         print(json.dumps(result, sort_keys=True))
         return 0
 
-    def _handle_sot_list_object_audit(self, args: argparse.Namespace) -> int:
-        self._warn_legacy_inventory_alias(args)
+    def _handle_rsot_list_object_audit(self, args: argparse.Namespace) -> int:
         application = self._create_application(args)
-        page = application.it_resources_management_service.list_object_audit(
+        page = application.rsot_service.list_object_audit(
             ListSourceObjectAuditCommand(
                 tenant_id=args.tenant,
                 admin_token=args.admin_token,
@@ -8863,10 +8811,9 @@ class OpenInfraCLI:
         print(json.dumps(page.as_dict(), sort_keys=True))
         return 0
 
-    def _handle_sot_reconcile_object(self, args: argparse.Namespace) -> int:
-        self._warn_legacy_inventory_alias(args)
+    def _handle_rsot_reconcile_object(self, args: argparse.Namespace) -> int:
         application = self._create_application(args)
-        result = application.it_resources_management_service.reconcile_object(
+        result = application.rsot_service.reconcile_object(
             ReconcileSourceObjectCommand(
                 tenant_id=args.tenant,
                 actor=args.actor,
@@ -8884,10 +8831,9 @@ class OpenInfraCLI:
         print(json.dumps(result, sort_keys=True))
         return 0
 
-    def _handle_sot_create_relation(self, args: argparse.Namespace) -> int:
-        self._warn_legacy_inventory_alias(args)
+    def _handle_rsot_create_relation(self, args: argparse.Namespace) -> int:
         application = self._create_application(args)
-        result = application.it_resources_management_service.create_relation(
+        result = application.rsot_service.create_relation(
             CreateSourceRelationCommand(
                 tenant_id=args.tenant,
                 actor=args.actor,
@@ -8901,10 +8847,9 @@ class OpenInfraCLI:
         print(json.dumps(result, sort_keys=True))
         return 0
 
-    def _handle_sot_list_relations(self, args: argparse.Namespace) -> int:
-        self._warn_legacy_inventory_alias(args)
+    def _handle_rsot_list_relations(self, args: argparse.Namespace) -> int:
         application = self._create_application(args)
-        page = application.it_resources_management_service.list_relations(
+        page = application.rsot_service.list_relations(
             ListSourceRelationsCommand(
                 tenant_id=args.tenant,
                 admin_token=args.admin_token,
@@ -8919,8 +8864,7 @@ class OpenInfraCLI:
         print(json.dumps(page.as_dict(), sort_keys=True))
         return 0
 
-    def _handle_sot_create_governance_rule(self, args: argparse.Namespace) -> int:
-        self._warn_legacy_inventory_alias(args)
+    def _handle_rsot_create_governance_rule(self, args: argparse.Namespace) -> int:
         application = self._create_application(args)
         rule = application.source_governance_service.create_rule(
             CreateSourceGovernanceRuleCommand(
@@ -8939,8 +8883,7 @@ class OpenInfraCLI:
         print(json.dumps(rule.as_dict(), sort_keys=True))
         return 0
 
-    def _handle_sot_list_governance_rules(self, args: argparse.Namespace) -> int:
-        self._warn_legacy_inventory_alias(args)
+    def _handle_rsot_list_governance_rules(self, args: argparse.Namespace) -> int:
         application = self._create_application(args)
         page = application.source_governance_service.list_rules(
             ListSourceGovernanceRulesCommand(
@@ -8955,8 +8898,7 @@ class OpenInfraCLI:
         print(json.dumps(page.as_dict(), sort_keys=True))
         return 0
 
-    def _handle_sot_evaluate_governance(self, args: argparse.Namespace) -> int:
-        self._warn_legacy_inventory_alias(args)
+    def _handle_rsot_evaluate_governance(self, args: argparse.Namespace) -> int:
         application = self._create_application(args)
         result = application.source_governance_service.evaluate(
             EvaluateSourceGovernanceCommand(
@@ -8971,8 +8913,7 @@ class OpenInfraCLI:
         print(json.dumps(result, sort_keys=True))
         return 0
 
-    def _handle_sot_deactivate_governance_rule(self, args: argparse.Namespace) -> int:
-        self._warn_legacy_inventory_alias(args)
+    def _handle_rsot_deactivate_governance_rule(self, args: argparse.Namespace) -> int:
         application = self._create_application(args)
         result = application.source_governance_service.deactivate_rule(
             DeactivateSourceGovernanceRuleCommand(
@@ -8985,11 +8926,10 @@ class OpenInfraCLI:
         print(json.dumps(result, sort_keys=True))
         return 0
 
-    def _handle_sot_quality_object(self, args: argparse.Namespace) -> int:
-        self._warn_legacy_inventory_alias(args)
+    def _handle_rsot_quality_object(self, args: argparse.Namespace) -> int:
         application = self._create_application(args)
-        result = application.it_resources_management_quality_service.evaluate_object(
-            EvaluateItrmObjectQualityCommand(
+        result = application.rsot_quality_service.evaluate_object(
+            EvaluateRsotObjectQualityCommand(
                 tenant_id=args.tenant,
                 admin_token=args.admin_token,
                 key=args.key,
@@ -8998,11 +8938,10 @@ class OpenInfraCLI:
         print(json.dumps(result, sort_keys=True))
         return 0
 
-    def _handle_sot_quality_summary(self, args: argparse.Namespace) -> int:
-        self._warn_legacy_inventory_alias(args)
+    def _handle_rsot_quality_summary(self, args: argparse.Namespace) -> int:
         application = self._create_application(args)
-        summary = application.it_resources_management_quality_service.summarize(
-            ItrmQualitySummaryCommand(
+        summary = application.rsot_quality_service.summarize(
+            RsotQualitySummaryCommand(
                 tenant_id=args.tenant,
                 admin_token=args.admin_token,
                 limit=args.limit,

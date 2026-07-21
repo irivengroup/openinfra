@@ -1,0 +1,10 @@
+# Exemple documentaire du stockage PostgreSQL exposé à l'opérateur.
+# L'installateur gère en interne /data/openinfra/, PGDATA, le symlink
+# /opt/openinfra/data, le compte système PostgreSQL et les permissions.
+postgresql_data_lvm:
+  vgname: datavg
+  lvname: openinfradata_lv
+  max_lvsize_by_edition:
+    lite: 2GB
+    pro: 100GB
+    enterprise: 1TB

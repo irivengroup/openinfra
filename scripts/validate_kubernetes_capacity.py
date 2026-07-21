@@ -22,8 +22,8 @@ class KubernetesCapacityProjectValidator:
         "docs/api/openapi.yaml",
         "docs/architecture/kubernetes-capacity.md",
         "docs/operations/kubernetes-capacity.md",
-        "docs/specifications/OpenInfra-Roadmap-Developpement-v2.3/04-roadmap-epics.csv",
-        "docs/specifications/OpenInfra-Roadmap-Developpement-v2.3/09-roadmap-tests-validation.csv",
+        "docs/specifications/OpenInfra-Roadmap-Developpement-v2.4/04-roadmap-epics.csv",
+        "docs/specifications/OpenInfra-Roadmap-Developpement-v2.4/09-roadmap-tests-validation.csv",
         "tests/unit/test_kubernetes_capacity.py",
         "tests/integration/test_kubernetes_capacity_services.py",
         "tests/integration/test_kubernetes_capacity_http_api.py",
@@ -96,11 +96,11 @@ class KubernetesCapacityProjectValidator:
                 ),
             )
         self._assert_fragments(
-            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.3/04-roadmap-epics.csv",
+            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.4/04-roadmap-epics.csv",
             ("EPIC-2105", "Capacité cluster et namespace"),
         )
         self._assert_fragments(
-            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.3/09-roadmap-tests-validation.csv",
+            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.4/09-roadmap-tests-validation.csv",
             ("TST-P21-K8S-SCALE-GATE", "Qualification REL-11"),
         )
         migrations = sorted((self._root / "installers/migrations/postgresql").glob("*.sql"))

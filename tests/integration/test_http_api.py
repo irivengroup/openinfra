@@ -322,9 +322,6 @@ class TestHttpApi:
                     "governance_rules": "/api/v1/rsot/governance-rules",
                     "quality_object": "/api/v1/rsot/quality/object",
                     "quality_summary": "/api/v1/rsot/quality/summary",
-                    "deprecated_itrm_alias": "/api/v1/itrm/objects",
-                    "deprecated_sot_alias": "/api/v1/sot/objects",
-                    "deprecated_ri_alias": "/api/v1/ri/objects",
                 },
                 "ipam": {
                     "ui_dashboard": "/api/v1/ipam/ui-dashboard",
@@ -619,7 +616,7 @@ class TestHttpApi:
             BootstrapTokenCommand(
                 tenant_id="default",
                 actor="pytest",
-                subject="itrm-quality-api",
+                subject="rsot-quality-api",
                 roles=("rsot:operator",),
                 token=token,
             )
@@ -629,7 +626,7 @@ class TestHttpApi:
                 tenant_id="default",
                 actor="pytest",
                 admin_token=token,
-                key="device/itrm-quality-api",
+                key="device/rsot-quality-api",
                 kind="device",
                 display_name="RSOT Quality API",
                 attributes_json=json.dumps({"serial": "SNAPI", "site": "PAR1"}),
@@ -644,7 +641,7 @@ class TestHttpApi:
             base_url = f"http://127.0.0.1:{server.server_port}"
             report = self._get_json(
                 base_url
-                + "/api/v1/rsot/quality/object?tenant_id=default&key=device/itrm-quality-api",
+                + "/api/v1/rsot/quality/object?tenant_id=default&key=device/rsot-quality-api",
                 token=token,
             )
             summary = self._get_json(
@@ -652,10 +649,10 @@ class TestHttpApi:
                 token=token,
             )
 
-            assert report["key"] == "device/itrm-quality-api"
+            assert report["key"] == "device/rsot-quality-api"
             assert report["domain"] == "rsot"
             assert summary["total"] == 1
-            assert summary["reports"][0]["key"] == "device/itrm-quality-api"
+            assert summary["reports"][0]["key"] == "device/rsot-quality-api"
         finally:
             server.shutdown()
             server.server_close()

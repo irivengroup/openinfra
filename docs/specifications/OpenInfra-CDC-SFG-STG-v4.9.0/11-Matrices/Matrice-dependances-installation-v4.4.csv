@@ -1,0 +1,14 @@
+component,scope,edition,auto_install,examples,validation
+Python runtime,server;agent,all,oui,Python supporté par OpenInfra,Version vérifiée
+PostgreSQL client,server,pro;enterprise,oui,"psql, librairies client",Connexion et version vérifiées
+PostgreSQL server,all-in-one;server,lite;enterprise_si_géré,oui,PostgreSQL 16+ selon profil,Service et extensions vérifiés
+Patroni,server,enterprise_si_pgsql_géré,oui,Orchestration HA PostgreSQL,Cluster leader et replicas vérifiés
+etcd ou Consul,server,enterprise_si_pgsql_géré,oui,Consensus HA,Quorum vérifié
+PgBouncer,server,pro;enterprise,oui,Pooling PostgreSQL,Pool actif vérifié
+HAProxy,server;web,pro;enterprise,oui,Routage VIP et health checks,Backend disponible via VIP
+Redis ou équivalent,server,pro;enterprise,oui,"Cache, rate limit, verrous courts",Ping et métriques vérifiés
+Message queue,server,pro;enterprise,oui,"RabbitMQ, NATS ou Kafka selon profil",File et DLQ vérifiées
+Web server,web,pro;enterprise,oui,Nginx ou service web validé,Assets React servis
+Firewall,all,all,oui,"firewalld, nftables ou équivalent",Ports attendus ouverts
+TLS tooling,all,all,oui,certificats internes ou PKI,Chaîne TLS validée
+Observability exporters,all,all,oui,"Prometheus exporters, journald",Métriques exposées

@@ -37,7 +37,7 @@ def _admin_token(app: object) -> str:
 def test_global_search_groups_backend_results_by_component(tmp_path) -> None:
     app = ApplicationFactory().create_json_application(tmp_path / "store.json", seed=True)
     token = _admin_token(app)
-    app.it_resources_management_service.upsert_object(
+    app.rsot_service.upsert_object(
         UpsertSourceObjectCommand(
             tenant_id="default",
             actor="pytest",

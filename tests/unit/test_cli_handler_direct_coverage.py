@@ -129,7 +129,7 @@ class _Application:
         self.external_itsm_service = _ExternalItsmService()
         self.itam_support_service = _ItamSupportService()
         self.discovery_service = _DiscoveryService()
-        self.it_resources_management_service = _RsotService()
+        self.rsot_service = _RsotService()
         self.ipam_model_service = _IpamModelService()
         self.dcim_topology_service = _DcimTopologyService()
 
@@ -225,23 +225,18 @@ def test_cli_direct_handlers_cover_operator_read_disable_paths(
         assert capsys.readouterr().out.strip()
 
 
-def test_cli_direct_handlers_cover_legacy_rsot_alias_paths(tmp_path: Path, capsys: object) -> None:
+def test_cli_direct_handlers_cover_canonical_rsot_paths(tmp_path: Path, capsys: object) -> None:
     cli = OpenInfraCLI()
     _install_fake_application(cli, _Application())
     args = _args(tmp_path)
 
-    for marker in ("itrm_command", "ri_command", "sot_command"):
-        legacy_args = SimpleNamespace(**vars(args))
-        setattr(legacy_args, marker, "legacy")
-        assert cli._handle_sot_resource_taxonomy(legacy_args) == 0
-        payload = json.loads(capsys.readouterr().out)
-        assert "categories" in payload
-
-    assert cli._handle_sot_upsert_object(args) == 0
+    assert cli._handle_rsot_resource_taxonomy(args) == 0
+    assert "categories" in json.loads(capsys.readouterr().out)
+    assert cli._handle_rsot_upsert_object(args) == 0
     assert json.loads(capsys.readouterr().out)["changed"] is True
-    assert cli._handle_sot_get_object_as_of(args) == 0
+    assert cli._handle_rsot_get_object_as_of(args) == 0
     assert json.loads(capsys.readouterr().out)["key"] == "device/srv1"
-    assert cli._handle_sot_list_object_audit(args) == 0
+    assert cli._handle_rsot_list_object_audit(args) == 0
     assert json.loads(capsys.readouterr().out)["items"]
 
 

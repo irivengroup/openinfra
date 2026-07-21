@@ -15,7 +15,7 @@ class AutonomousInstallerValidationCli:
     def main(cls) -> int:
         parser = argparse.ArgumentParser(
             prog="validate_autonomous_installer",
-            description="Validate OpenInfra CDC v4.10.0 installer install.ini files.",
+            description="Validate OpenInfra CDC v4.11.0 installer install.ini files.",
         )
         parser.add_argument("--root", type=Path, default=Path("installers"))
         parser.add_argument("--json", action="store_true")

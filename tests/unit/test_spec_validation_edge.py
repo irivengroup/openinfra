@@ -32,3 +32,25 @@ def test_contractual_spec_validator_reports_all_invalid_document_edges(tmp_path:
     assert "unsupported specification version" in report.as_text()
     assert "csv file is empty" in report.as_text()
     assert "does not explicitly exclude" in report.as_text()
+
+
+def test_contractual_spec_validator_keeps_cdc_410_compatibility(tmp_path: Path) -> None:
+    required_files = {
+        "00-README.md": "OpenInfra CDC 4.10",
+        "03-Technique/02-PostgreSQL-Cluster.md": "cluster",
+        "04-Donnees/Partitions.md": "partitions",
+        "08-RFC-ADR/ADR-0005-No-Integrated-ITSM.md": "Aucune ITSM intégrée",
+        "11-Matrices/Exigences.csv": "id,name\nREQ-1,Requirement\n",
+        "11-Matrices/Tests.csv": "id,name\nTST-1,Test\n",
+        "VERSION": "4.10.0\n",
+    }
+    for relative, content in required_files.items():
+        path = tmp_path / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+
+    report = ContractualSpecValidator().assert_valid(tmp_path)
+
+    assert report.version == "4.10.0"
+    assert report.requirements == 1
+    assert report.tests == 1

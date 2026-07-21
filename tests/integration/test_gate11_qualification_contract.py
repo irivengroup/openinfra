@@ -44,8 +44,8 @@ class TestGate11QualificationContract:
             '"openinfra.quality.advanced_identity_oracle_promotion:'
             'Gate11QualificationCli.main"'
         ) in pyproject
-        assert 'version = "0.34.5"' in pyproject
-        assert __version__ == "0.34.5"
+        assert 'version = "0.34.6"' in pyproject
+        assert __version__ == "0.34.6"
 
     def test_policy_is_closed_and_uses_bounded_freshness(self) -> None:
         root = Path(__file__).parents[2]

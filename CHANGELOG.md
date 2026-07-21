@@ -1,3 +1,13 @@
+## v0.34.6 — Canonicalisation RSOT définitive et qualification GATE-13
+
+- retire définitivement les commandes CLI `itrm`, `ri` et `sot` au profit de la commande unique `rsot` ;
+- retire les routes HTTP `/api/v1/itrm/*`, `/api/v1/ri/*` et `/api/v1/sot/*`, qui retournent désormais 404 ;
+- supprime les rôles RBAC et identifiants de capacités historiques, avec `rsot:*` et `core_rsot` comme seuls contrats ;
+- supprime les modules de compatibilité ITRM/RI et consolide la qualité métier dans `rsot_quality_services.py` ;
+- ajoute le guide de migration opérateur, les tests de rejet explicites et la vérification du wheel installé ;
+- ajoute CDC 4.11.0, roadmap 2.4.0, REL-14, P24 et GATE-13 avec six contrôles fail-closed ;
+- conserve les fonctionnalités métier RSOT, les 59 migrations, la licence offline GATE-12 et la charte graphique approuvée.
+
 ## v0.34.5 — Licence runtime offline et qualification GATE-12
 
 - ajoute une identité d’installation Ed25519 et une demande d’activation signée générée localement ;

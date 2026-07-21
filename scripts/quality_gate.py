@@ -31,11 +31,11 @@ class ContractFileGuard:
 
     def assert_sources_present(self) -> None:
         required = (
-            self._project_root / "docs/specifications/OpenInfra-CDC-SFG-STG-v4.10.0/VERSION",
-            self._project_root / "docs/specifications/OpenInfra-Roadmap-Developpement-v2.3/VERSION",
+            self._project_root / "docs/specifications/OpenInfra-CDC-SFG-STG-v4.11.0/VERSION",
+            self._project_root / "docs/specifications/OpenInfra-Roadmap-Developpement-v2.4/VERSION",
             self._project_root
-            / "docs/specifications/OpenInfra-Roadmap-Developpement-v2.3"
-            / "14-alignement-cdc-v4.10.0.csv",
+            / "docs/specifications/OpenInfra-Roadmap-Developpement-v2.4"
+            / "14-alignement-cdc-v4.11.0.csv",
         )
         missing = [str(path) for path in required if not path.is_file()]
         if missing:
@@ -744,8 +744,8 @@ class HighPerformanceRuntimeGuard:
             "tests/unit/test_export_stream_builder.py",
             "tests/performance/test_cursor_pagination_benchmark.py",
             "scripts/benchmark_cursor_pagination.py",
-            "docs/specifications/OpenInfra-CDC-SFG-STG-v4.10.0/00-Delta-v4.9.md",
-            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.3/02-roadmap-phases.csv",
+            "docs/specifications/OpenInfra-CDC-SFG-STG-v4.11.0/00-Delta-v4.9.md",
+            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.4/02-roadmap-phases.csv",
         )
         missing = [name for name in required_files if not (self._project_root / name).is_file()]
         if missing:
@@ -936,6 +936,30 @@ class QualityGate:
     def run(self) -> None:
         ModuleFunctionGuard(self._project_root / "src/openinfra").assert_no_module_level_functions()
         ContractFileGuard(self._project_root).assert_sources_present()
+        CommandRunner().run(
+            [
+                sys.executable,
+                "docs/specifications/OpenInfra-CDC-SFG-STG-v4.11.0/scripts/validate_docs.py",
+            ]
+        )
+        CommandRunner().run(
+            [
+                sys.executable,
+                "docs/specifications/OpenInfra-CDC-SFG-STG-v4.11.0/scripts/validate_runtime_licensing.py",
+            ]
+        )
+        CommandRunner().run(
+            [
+                sys.executable,
+                "docs/specifications/OpenInfra-CDC-SFG-STG-v4.11.0/scripts/validate_rsot_canonical.py",
+            ]
+        )
+        CommandRunner().run(
+            [
+                sys.executable,
+                "docs/specifications/OpenInfra-Roadmap-Developpement-v2.4/scripts/validate_roadmap.py",
+            ]
+        )
         NativeRuntimeGuard(self._project_root).assert_runtime_environment_present()
         HighPerformanceRuntimeGuard(self._project_root).assert_pro_enterprise_runtime_is_bounded()
         CiWorkflowTriggerGuard(self._project_root).assert_push_triggers_are_not_branch_locked()
@@ -961,6 +985,38 @@ class QualityGate:
                 "quality-gate",
                 "--output",
                 "artifacts/quality-gate/gate11-contracts.json",
+                "--enforce",
+            ]
+        )
+        CommandRunner().run(
+            [
+                sys.executable,
+                "-m",
+                "openinfra.quality.offline_licensing_promotion",
+                "--project-root",
+                str(self._project_root),
+                "--candidate-id",
+                "openinfra-quality-gate",
+                "--source-commit",
+                "0" * 40,
+                "--output",
+                "artifacts/quality-gate/gate12-report.json",
+                "--enforce",
+            ]
+        )
+        CommandRunner().run(
+            [
+                sys.executable,
+                "-m",
+                "openinfra.quality.rsot_canonical_promotion",
+                "--project-root",
+                str(self._project_root),
+                "--candidate-id",
+                "openinfra-quality-gate",
+                "--source-commit",
+                "0" * 40,
+                "--output",
+                "artifacts/quality-gate/gate13-report.json",
                 "--enforce",
             ]
         )

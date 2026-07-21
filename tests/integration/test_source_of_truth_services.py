@@ -130,13 +130,13 @@ class TestSourceOfTruthServices:
             BootstrapTokenCommand(
                 tenant_id="default",
                 actor="pytest",
-                subject="itrm-history-admin",
+                subject="rsot-history-admin",
                 roles=("rsot:operator",),
                 token=admin_token,
             )
         )
 
-        app.it_resources_management_service.upsert_object(
+        app.rsot_service.upsert_object(
             UpsertSourceObjectCommand(
                 tenant_id="default",
                 actor="pytest",
@@ -149,10 +149,10 @@ class TestSourceOfTruthServices:
                 source="manual",
             )
         )
-        first_snapshot = app.it_resources_management_service.get_object_version(
+        first_snapshot = app.rsot_service.get_object_version(
             GetSourceObjectVersionCommand("default", admin_token, "device/history-srv", 1)
         )
-        app.it_resources_management_service.upsert_object(
+        app.rsot_service.upsert_object(
             UpsertSourceObjectCommand(
                 tenant_id="default",
                 actor="pytest",
@@ -165,7 +165,7 @@ class TestSourceOfTruthServices:
                 source="manual",
             )
         )
-        app.it_resources_management_service.upsert_object(
+        app.rsot_service.upsert_object(
             UpsertSourceObjectCommand(
                 tenant_id="default",
                 actor="pytest",
@@ -178,7 +178,7 @@ class TestSourceOfTruthServices:
                 source="manual",
             )
         )
-        app.it_resources_management_service.create_relation(
+        app.rsot_service.create_relation(
             CreateSourceRelationCommand(
                 tenant_id="default",
                 actor="pytest",
@@ -192,7 +192,7 @@ class TestSourceOfTruthServices:
             )
         )
 
-        as_of = app.it_resources_management_service.get_object_as_of(
+        as_of = app.rsot_service.get_object_as_of(
             GetSourceObjectAsOfCommand(
                 tenant_id="default",
                 admin_token=admin_token,
@@ -200,7 +200,7 @@ class TestSourceOfTruthServices:
                 as_of=str(first_snapshot["changed_at"]),
             )
         )
-        active_relations = app.it_resources_management_service.list_relations(
+        active_relations = app.rsot_service.list_relations(
             ListSourceRelationsCommand(
                 tenant_id="default",
                 admin_token=admin_token,
@@ -208,7 +208,7 @@ class TestSourceOfTruthServices:
                 as_of="2026-03-01T00:00:00+00:00",
             )
         )
-        expired_relations = app.it_resources_management_service.list_relations(
+        expired_relations = app.rsot_service.list_relations(
             ListSourceRelationsCommand(
                 tenant_id="default",
                 admin_token=admin_token,
@@ -216,7 +216,7 @@ class TestSourceOfTruthServices:
                 as_of="2026-12-01T00:00:00+00:00",
             )
         )
-        audit_page = app.it_resources_management_service.list_object_audit(
+        audit_page = app.rsot_service.list_object_audit(
             ListSourceObjectAuditCommand(
                 tenant_id="default",
                 admin_token=admin_token,
@@ -507,13 +507,13 @@ def test_itrm_resource_taxonomy_filters_types_and_validates_category_type(tmp_pa
         BootstrapTokenCommand(
             tenant_id="default",
             actor="pytest",
-            subject="itrm-taxonomy-admin",
+            subject="rsot-taxonomy-admin",
             roles=("rsot:operator",),
             token=admin_token,
         )
     )
 
-    taxonomy = app.it_resources_management_service.resource_taxonomy()
+    taxonomy = app.rsot_service.resource_taxonomy()
     categories = {category["value"]: category for category in taxonomy["categories"]}
 
     assert "server" in categories
@@ -524,7 +524,7 @@ def test_itrm_resource_taxonomy_filters_types_and_validates_category_type(tmp_pa
     assert "Rack server" in [item["label"] for item in categories["server"]["types"]]
     assert "firewall" in [item["value"] for item in categories["network-device"]["types"]]
 
-    created = app.it_resources_management_service.upsert_object(
+    created = app.rsot_service.upsert_object(
         UpsertSourceObjectCommand(
             tenant_id="default",
             actor="pytest",
@@ -546,7 +546,7 @@ def test_itrm_resource_taxonomy_filters_types_and_validates_category_type(tmp_pa
     assert created["attributes"]["resource_category"] == "server"
     assert created["attributes"]["resource_type"] == "rack-server"
 
-    category_page = app.it_resources_management_service.list_objects(
+    category_page = app.rsot_service.list_objects(
         ListSourceObjectsCommand(
             tenant_id="default",
             admin_token=admin_token,
@@ -555,7 +555,7 @@ def test_itrm_resource_taxonomy_filters_types_and_validates_category_type(tmp_pa
     )
     assert [item.key.value for item in category_page.items] == ["server/srv-taxonomy-01"]
 
-    type_page = app.it_resources_management_service.list_objects(
+    type_page = app.rsot_service.list_objects(
         ListSourceObjectsCommand(
             tenant_id="default",
             admin_token=admin_token,
@@ -565,7 +565,7 @@ def test_itrm_resource_taxonomy_filters_types_and_validates_category_type(tmp_pa
     assert [item.key.value for item in type_page.items] == ["server/srv-taxonomy-01"]
 
     with pytest.raises(ValidationError):
-        app.it_resources_management_service.upsert_object(
+        app.rsot_service.upsert_object(
             UpsertSourceObjectCommand(
                 tenant_id="default",
                 actor="pytest",

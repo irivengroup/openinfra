@@ -89,7 +89,7 @@ jobs:
         run: >-
           python scripts/validate_openapi.py
           docs/api/openapi.yaml
-          docs/specifications/OpenInfra-CDC-SFG-STG-v4.10.0/09-API/OpenAPI/openapi.yaml
+          docs/specifications/OpenInfra-CDC-SFG-STG-v4.11.0/09-API/OpenAPI/openapi.yaml
 
       - name: GA documentation validation
         run: |
@@ -133,8 +133,8 @@ jobs:
             --warmups 25 \
             --output build/reports/high-performance-runtime.json \
             --enforce
-          python docs/specifications/OpenInfra-CDC-SFG-STG-v4.10.0/scripts/validate_docs.py
-          python docs/specifications/OpenInfra-Roadmap-Developpement-v2.3/scripts/validate_roadmap.py
+          python docs/specifications/OpenInfra-CDC-SFG-STG-v4.11.0/scripts/validate_docs.py
+          python docs/specifications/OpenInfra-Roadmap-Developpement-v2.4/scripts/validate_roadmap.py
           python scripts/validate_enterprise_alignment.py --project-root .
 
       - name: Transactional outbox and specialized workers regression
@@ -414,7 +414,7 @@ jobs:
       - name: P21 Kubernetes and cloud-native topology contracts
         run: |
           python scripts/validate_kubernetes_topology.py --project-root . --enforce
-          python docs/specifications/OpenInfra-Roadmap-Developpement-v2.3/scripts/validate_roadmap.py
+          python docs/specifications/OpenInfra-Roadmap-Developpement-v2.4/scripts/validate_roadmap.py
           python -m pytest -q --no-cov \
             tests/unit/test_kubernetes_topology.py \
             tests/integration/test_kubernetes_topology_services.py \
@@ -505,7 +505,7 @@ jobs:
         run: openinfra version
 
       - name: Smoke specification validation
-        run: openinfra spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4.10.0
+        run: openinfra spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4.11.0
 
       - name: Smoke installer validation
         run: |
@@ -1215,6 +1215,22 @@ jobs:
             tests/integration/test_openinfra_web.py::TestOpenInfraWeb::test_dynamic_web_configuration_has_safe_fallbacks_and_cli_compatibility \
             tests/integration/test_openinfra_web.py::TestOpenInfraWeb::test_config_factory_reads_internally_managed_bootstrap_token_file \
             tests/integration/test_http_api.py::TestHttpApi::test_health_and_ipam_allocation
+
+      - name: P24 RSOT canonical and GATE-13 contracts
+        run: |
+          python docs/specifications/OpenInfra-CDC-SFG-STG-v4.11.0/scripts/validate_rsot_canonical.py
+          python docs/specifications/OpenInfra-Roadmap-Developpement-v2.4/scripts/validate_roadmap.py
+          python -m pytest -q --no-cov \
+            tests/unit/test_gate13_qualification.py \
+            tests/integration/test_rsot_canonical_contract.py \
+            tests/integration/test_rsot_canonical_specifications.py \
+            tests/integration/test_rsot_quality_services.py
+          openinfra-gate13 \
+            --project-root . \
+            --candidate-id "openinfra-ci-${GITHUB_RUN_ID}" \
+            --source-commit "${GITHUB_SHA}" \
+            --output artifacts/gate13-report.json \
+            --enforce
 
       - name: Native runtime asset smoke
         run: python scripts/native_runtime_smoke.py --project-root .

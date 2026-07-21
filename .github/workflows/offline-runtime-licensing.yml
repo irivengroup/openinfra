@@ -50,11 +50,11 @@ jobs:
           python -m pip install --requirement requirements/dev.txt
           npm ci --prefix web --ignore-scripts --no-audit --no-fund
 
-      - name: Validate CDC 4.10.0 and roadmap 2.3.0
+      - name: Validate CDC 4.11.0 and roadmap 2.4.0
         run: |
-          python docs/specifications/OpenInfra-CDC-SFG-STG-v4.10.0/scripts/validate_docs.py
-          python docs/specifications/OpenInfra-CDC-SFG-STG-v4.10.0/scripts/validate_runtime_licensing.py
-          python docs/specifications/OpenInfra-Roadmap-Developpement-v2.3/scripts/validate_roadmap.py
+          python docs/specifications/OpenInfra-CDC-SFG-STG-v4.11.0/scripts/validate_docs.py
+          python docs/specifications/OpenInfra-CDC-SFG-STG-v4.11.0/scripts/validate_runtime_licensing.py
+          python docs/specifications/OpenInfra-Roadmap-Developpement-v2.4/scripts/validate_roadmap.py
           python scripts/validate_enterprise_alignment.py
 
       - name: Validate migrations and OpenAPI contracts
@@ -62,7 +62,7 @@ jobs:
           python scripts/validate_oracle_migrations.py
           python scripts/validate_openapi.py \
             docs/api/openapi.yaml \
-            docs/specifications/OpenInfra-CDC-SFG-STG-v4.10.0/09-API/OpenAPI/openapi.yaml
+            docs/specifications/OpenInfra-CDC-SFG-STG-v4.11.0/09-API/OpenAPI/openapi.yaml
 
       - name: Format, lint and strict typing
         run: |
@@ -106,7 +106,7 @@ jobs:
           mkdir -p artifacts/gate12
           openinfra-gate12 \
             --project-root . \
-            --candidate-id "openinfra-0.34.5-${GITHUB_RUN_ID}" \
+            --candidate-id "openinfra-0.34.6-${GITHUB_RUN_ID}" \
             --source-commit "${GITHUB_SHA}" \
             --output artifacts/gate12/report.json \
             --enforce
@@ -125,7 +125,7 @@ jobs:
           set -euo pipefail
           python -m venv /tmp/openinfra-gate12-smoke
           /tmp/openinfra-gate12-smoke/bin/python -m pip install --upgrade pip
-          /tmp/openinfra-gate12-smoke/bin/python -m pip install "dist/openinfra-0.34.5-py3-none-any.whl[postgresql,oracle]"
+          /tmp/openinfra-gate12-smoke/bin/python -m pip install "dist/openinfra-0.34.6-py3-none-any.whl[postgresql,oracle]"
           cd /tmp
           /tmp/openinfra-gate12-smoke/bin/python "$GITHUB_WORKSPACE/scripts/smoke_installed_wheel.py"
 

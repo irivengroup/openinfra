@@ -18,6 +18,7 @@ from openinfra.quality.multisite_chaos import MultisiteChaosCampaignEvidence
 from openinfra.quality.offline_licensing_promotion import Gate12Policy
 from openinfra.quality.release_packaging import ReleaseSigningMaterial
 from openinfra.quality.release_security import ReleaseSecurityControlCatalog
+from openinfra.quality.rsot_canonical_promotion import Gate13Policy
 from openinfra.quality.scaleout_promotion import ScaleoutPromotionPolicy
 from openinfra.quality.support_readiness import SupportPolicy
 
@@ -27,7 +28,7 @@ class InstalledWheelSmokeError(RuntimeError):
 
 
 class InstalledWheelSmoke:
-    EXPECTED_VERSION = "0.34.5"
+    EXPECTED_VERSION = "0.34.6"
     EXPECTED_ASYNC_ROUTES = (
         "/api/v1/async/jobs",
         "/api/v1/async/jobs/get",
@@ -311,6 +312,7 @@ class InstalledWheelSmoke:
         self._assert_scaleout_promotion_contract(package_root)
         self._assert_cloud_native_promotion_contract(package_root)
         self._assert_offline_licensing_promotion_contract(package_root)
+        self._assert_rsot_canonical_promotion_contract(package_root)
         self._assert_benchmark_contract()
         self._assert_release_security_contract(package_root)
         self._assert_release_packaging_contract()
@@ -352,6 +354,7 @@ class InstalledWheelSmoke:
             "enterprise_scaleout_gate": "GATE-09",
             "cloud_native_gate": "GATE-10",
             "offline_licensing_gate": "GATE-12",
+            "rsot_canonical_gate": "GATE-13",
         }
 
     @staticmethod
@@ -404,6 +407,24 @@ class InstalledWheelSmoke:
         if policy.required_controls != Gate12Policy.EXPECTED_CONTROLS:
             raise InstalledWheelSmokeError(
                 "installed offline runtime licensing promotion policy is incomplete"
+            )
+
+    @staticmethod
+    def _assert_rsot_canonical_promotion_contract(package_root: Path) -> None:
+        policy_path = package_root / "docs" / "release" / "rsot-canonical-promotion-policy.json"
+        runbook_path = package_root / "docs" / "runbooks" / "RSOT_CANONICAL_MIGRATION.md"
+        if not runbook_path.is_file():
+            raise InstalledWheelSmokeError(
+                "installed wheel is missing the RSOT canonical migration runbook"
+            )
+        policy = Gate13Policy.load(policy_path)
+        if policy.gate_id != "GATE-13" or policy.release_id != "REL-14":
+            raise InstalledWheelSmokeError(
+                "installed RSOT canonical promotion policy is inconsistent"
+            )
+        if policy.required_controls != Gate13Policy.EXPECTED_CONTROLS:
+            raise InstalledWheelSmokeError(
+                "installed RSOT canonical promotion policy is incomplete"
             )
 
     @staticmethod
@@ -664,7 +685,7 @@ class InstalledWheelSmoke:
     def _assert_release_security_contract(package_root: Path) -> None:
         controls = ReleaseSecurityControlCatalog.build(
             package_root,
-            image_ref="openinfra/runtime:0.34.5",
+            image_ref="openinfra/runtime:0.34.6",
             api_base_url="http://127.0.0.1:8080",
             web_base_url="http://127.0.0.1:2006",
         )
@@ -751,6 +772,9 @@ class InstalledWheelSmoke:
             ),
             "openinfra-gate12": (
                 "openinfra.quality.offline_licensing_promotion:Gate12QualificationCli.main"
+            ),
+            "openinfra-gate13": (
+                "openinfra.quality.rsot_canonical_promotion:Gate13QualificationCli.main"
             ),
         }
         if entry_points != expected:

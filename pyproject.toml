@@ -4,13 +4,13 @@ build-backend = "hatchling.build"
 
 [project]
 name = "openinfra"
-version = "0.34.5"
-description = "OpenInfra Python POO IT ressources management, DCIM and IPAM foundation"
+version = "0.34.6"
+description = "OpenInfra Python POO RSOT, DCIM and IPAM foundation"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "AGPL-3.0-or-later"
 authors = [{ name = "OpenInfra Project" }]
-keywords = ["dcim", "itam", "ipam", "ressources-inventory", "postgresql", "openinfra"]
+keywords = ["dcim", "itam", "ipam", "rsot", "postgresql", "openinfra"]
 dependencies = [
   "defusedxml>=0.7.1",
   "cryptography>=48.0.1,<50.0",
@@ -50,6 +50,7 @@ openinfra-runtime-secrets = "openinfra.infrastructure.runtime_secrets:RuntimeSec
 openinfra-server-runtime = "openinfra.interfaces.server_runtime:OpenInfraServerRuntime.main"
 openinfra-gate11 = "openinfra.quality.advanced_identity_oracle_promotion:Gate11QualificationCli.main"
 openinfra-gate12 = "openinfra.quality.offline_licensing_promotion:Gate12QualificationCli.main"
+openinfra-gate13 = "openinfra.quality.rsot_canonical_promotion:Gate13QualificationCli.main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/openinfra"]
@@ -67,6 +68,7 @@ packages = ["src/openinfra"]
 "docs/runbooks/RUNTIME_NATIVE.md" = "openinfra/docs/runbooks/RUNTIME_NATIVE.md"
 "docs/runbooks/ADVANCED_IDENTITY_ORACLE_SYSTEMD.md" = "openinfra/docs/runbooks/ADVANCED_IDENTITY_ORACLE_SYSTEMD.md"
 "docs/runbooks/OFFLINE_RUNTIME_LICENSING.md" = "openinfra/docs/runbooks/OFFLINE_RUNTIME_LICENSING.md"
+"docs/runbooks/RSOT_CANONICAL_MIGRATION.md" = "openinfra/docs/runbooks/RSOT_CANONICAL_MIGRATION.md"
 "installers/systemd/openinfra-runtime-secrets.service" = "openinfra/systemd/openinfra-runtime-secrets.service"
 "installers/systemd/openinfra-migrate.service" = "openinfra/systemd/openinfra-migrate.service"
 "installers/systemd/openinfra-team-sync.service" = "openinfra/systemd/openinfra-team-sync.service"

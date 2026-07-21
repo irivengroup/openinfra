@@ -30,9 +30,9 @@ class CloudNativePromotionProjectValidator:
         "scripts/validate_kubernetes_capacity.py",
         "tests/unit/test_cloud_native_promotion.py",
         "tests/integration/test_cloud_native_promotion_tooling.py",
-        "docs/specifications/OpenInfra-Roadmap-Developpement-v2.3/04-roadmap-epics.csv",
-        "docs/specifications/OpenInfra-Roadmap-Developpement-v2.3/07-roadmap-go-nogo.csv",
-        "docs/specifications/OpenInfra-Roadmap-Developpement-v2.3/09-roadmap-tests-validation.csv",
+        "docs/specifications/OpenInfra-Roadmap-Developpement-v2.4/04-roadmap-epics.csv",
+        "docs/specifications/OpenInfra-Roadmap-Developpement-v2.4/07-roadmap-go-nogo.csv",
+        "docs/specifications/OpenInfra-Roadmap-Developpement-v2.4/09-roadmap-tests-validation.csv",
     )
 
     def __init__(self, project_root: Path) -> None:
@@ -74,15 +74,15 @@ class CloudNativePromotionProjectValidator:
             ),
         )
         self._assert_fragments(
-            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.3/04-roadmap-epics.csv",
+            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.4/04-roadmap-epics.csv",
             ("EPIC-2101", "EPIC-2106", "GATE-10"),
         )
         self._assert_fragments(
-            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.3/07-roadmap-go-nogo.csv",
+            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.4/07-roadmap-go-nogo.csv",
             ("GATE-10", "Go Kubernetes & Cloud-native"),
         )
         self._assert_fragments(
-            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.3/09-roadmap-tests-validation.csv",
+            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.4/09-roadmap-tests-validation.csv",
             ("TST-P21-K8S-SCALE-GATE", "50 000 ressources/snapshot"),
         )
         migrations = sorted((self._root / "installers/migrations/postgresql").glob("*.sql"))

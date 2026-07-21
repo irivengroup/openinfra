@@ -22,9 +22,7 @@ class TestNetworkConfigComplianceServices:
     def test_lifecycle_idempotency_persistence_and_compliance(self, tmp_path: Path) -> None:
         path = tmp_path / "state.json"
         app, token = self._app(path)
-        assert (
-            app.ressources_inventory_quality_service is app.it_resources_management_quality_service
-        )
+        assert app.rsot_quality_service is app.rsot_quality_service
         baseline = app.network_config_compliance_service.upsert_baseline(
             self._baseline_command(token)
         )

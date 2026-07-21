@@ -72,20 +72,6 @@ class Permission(StrEnum):
     ASYNC_SUBMIT = "async.submit"
     ASYNC_WORKER = "async.worker"
     ASYNC_ADMIN = "async.admin"
-    ITRM_READ = "rsot.read"
-    ITRM_WRITE = "rsot.write"
-    ITRM_GOVERNANCE_READ = "rsot.governance.read"
-    ITRM_GOVERNANCE_WRITE = "rsot.governance.write"
-    ITRM_QUALITY_READ = "rsot.quality.read"
-    RI_READ = "rsot.read"
-    RI_WRITE = "rsot.write"
-    RI_GOVERNANCE_READ = "rsot.governance.read"
-    RI_GOVERNANCE_WRITE = "rsot.governance.write"
-    RI_QUALITY_READ = "rsot.quality.read"
-    SOT_READ = "rsot.read"
-    SOT_WRITE = "rsot.write"
-    SOT_GOVERNANCE_READ = "rsot.governance.read"
-    SOT_GOVERNANCE_WRITE = "rsot.governance.write"
 
 
 @dataclass(frozen=True, slots=True)

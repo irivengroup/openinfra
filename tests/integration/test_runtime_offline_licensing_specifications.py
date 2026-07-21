@@ -11,8 +11,10 @@ class TestRuntimeOfflineLicensingSpecifications:
     PROJECT_ROOT = Path(__file__).resolve().parents[2]
     CDC_49 = PROJECT_ROOT / "docs/specifications/OpenInfra-CDC-SFG-STG-v4.9.0"
     CDC_410 = PROJECT_ROOT / "docs/specifications/OpenInfra-CDC-SFG-STG-v4.10.0"
+    CDC_411 = PROJECT_ROOT / "docs/specifications/OpenInfra-CDC-SFG-STG-v4.11.0"
     ROADMAP_22 = PROJECT_ROOT / "docs/specifications/OpenInfra-Roadmap-Developpement-v2.2"
     ROADMAP_23 = PROJECT_ROOT / "docs/specifications/OpenInfra-Roadmap-Developpement-v2.3"
+    ROADMAP_24 = PROJECT_ROOT / "docs/specifications/OpenInfra-Roadmap-Developpement-v2.4"
 
     @staticmethod
     def _read_csv(path: Path) -> list[dict[str | None, str | list[str] | None]]:
@@ -29,38 +31,38 @@ class TestRuntimeOfflineLicensingSpecifications:
             check=False,
         )
 
-    def test_cdc_410_validator_and_exact_metrics(self) -> None:
-        result = self._run_validator(self.CDC_410 / "scripts/validate_runtime_licensing.py")
+    def test_cdc_411_validator_and_exact_metrics(self) -> None:
+        result = self._run_validator(self.CDC_411 / "scripts/validate_runtime_licensing.py")
         assert result.returncode == 0, result.stdout + result.stderr
-        assert "859 exigences, 665 tests, 859 traces" in result.stdout
+        assert "860 exigences, 666 tests, 860 traces" in result.stdout
 
-        requirements = self._read_csv(self.CDC_410 / "11-Matrices/Exigences.csv")
-        tests = self._read_csv(self.CDC_410 / "11-Matrices/Tests.csv")
-        traces = self._read_csv(self.CDC_410 / "11-Matrices/Traceabilite.csv")
-        assert len(requirements) == 859
-        assert len(tests) == 665
-        assert len(traces) == 859
+        requirements = self._read_csv(self.CDC_411 / "11-Matrices/Exigences.csv")
+        tests = self._read_csv(self.CDC_411 / "11-Matrices/Tests.csv")
+        traces = self._read_csv(self.CDC_411 / "11-Matrices/Traceabilite.csv")
+        assert len(requirements) == 860
+        assert len(tests) == 666
+        assert len(traces) == 860
         assert all(None not in row for row in (requirements + tests + traces))
-        assert requirements[-1]["id"] == "REQ-00859"
+        assert requirements[-1]["id"] == "REQ-00860"
         assert {row["requirement_id"] for row in traces} == {row["id"] for row in requirements}
 
-    def test_roadmap_23_validator_and_exact_metrics(self) -> None:
-        result = self._run_validator(self.ROADMAP_23 / "scripts/validate_roadmap.py")
+    def test_roadmap_24_validator_and_exact_metrics(self) -> None:
+        result = self._run_validator(self.ROADMAP_24 / "scripts/validate_roadmap.py")
         assert result.returncode == 0, result.stdout + result.stderr
-        assert "24 phases, 14 releases, 141 epics" in result.stdout
-        assert "125 tests, 138 alignements" in result.stdout
+        assert "25 phases, 15 releases, 145 epics" in result.stdout
+        assert "129 tests, 139 alignements" in result.stdout
 
         expected_counts = {
-            "02-roadmap-phases.csv": 24,
-            "03-roadmap-releases.csv": 14,
-            "04-roadmap-epics.csv": 141,
-            "05-roadmap-jalons.csv": 16,
-            "07-roadmap-go-nogo.csv": 13,
-            "09-roadmap-tests-validation.csv": 125,
-            "14-alignement-cdc-v4.10.0.csv": 138,
+            "02-roadmap-phases.csv": 25,
+            "03-roadmap-releases.csv": 15,
+            "04-roadmap-epics.csv": 145,
+            "05-roadmap-jalons.csv": 17,
+            "07-roadmap-go-nogo.csv": 14,
+            "09-roadmap-tests-validation.csv": 129,
+            "14-alignement-cdc-v4.11.0.csv": 139,
         }
         for filename, expected in expected_counts.items():
-            rows = self._read_csv(self.ROADMAP_23 / filename)
+            rows = self._read_csv(self.ROADMAP_24 / filename)
             assert len(rows) == expected
             assert all(None not in row for row in rows)
 
@@ -73,9 +75,17 @@ class TestRuntimeOfflineLicensingSpecifications:
         assert len(self._read_csv(self.ROADMAP_22 / "02-roadmap-phases.csv")) == 23
         assert len(self._read_csv(self.ROADMAP_22 / "04-roadmap-epics.csv")) == 137
         assert len(self._read_csv(self.ROADMAP_22 / "07-roadmap-go-nogo.csv")) == 12
+        assert (self.CDC_410 / "VERSION").read_text(encoding="utf-8").strip() == "4.10.0"
+        assert (self.ROADMAP_23 / "VERSION").read_text(encoding="utf-8").strip() == "2.3.0"
+        assert len(self._read_csv(self.CDC_410 / "11-Matrices/Exigences.csv")) == 859
+        assert len(self._read_csv(self.CDC_410 / "11-Matrices/Tests.csv")) == 665
+        assert len(self._read_csv(self.CDC_410 / "11-Matrices/Traceabilite.csv")) == 859
+        assert len(self._read_csv(self.ROADMAP_23 / "02-roadmap-phases.csv")) == 24
+        assert len(self._read_csv(self.ROADMAP_23 / "04-roadmap-epics.csv")) == 141
+        assert len(self._read_csv(self.ROADMAP_23 / "07-roadmap-go-nogo.csv")) == 13
 
     def test_rel13_alignment_is_complete_and_referentially_valid(self) -> None:
-        alignment = self._read_csv(self.ROADMAP_23 / "14-alignement-cdc-v4.10.0.csv")
+        alignment = self._read_csv(self.ROADMAP_24 / "14-alignement-cdc-v4.11.0.csv")
         rel13 = {
             str(row["cdc_decision_id"]): row
             for row in alignment
@@ -94,7 +104,7 @@ class TestRuntimeOfflineLicensingSpecifications:
             "actions/setup-python@v6",
             "actions/setup-node@v6",
             "validate_runtime_licensing.py",
-            "OpenInfra-Roadmap-Developpement-v2.3/scripts/validate_roadmap.py",
+            "OpenInfra-Roadmap-Developpement-v2.4/scripts/validate_roadmap.py",
             "ruff format --check",
             "mypy src/openinfra",
             "bandit -q -r src/openinfra",

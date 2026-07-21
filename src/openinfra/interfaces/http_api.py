@@ -278,21 +278,6 @@ from openinfra.application.ipam_services import (
     PreviewDdiReservationCommand,
     RegisterIpAddressCommand,
 )
-from openinfra.application.it_resources_management_quality_services import (
-    EvaluateItrmObjectQualityCommand,
-    ItrmQualitySummaryCommand,
-)
-from openinfra.application.it_resources_management_services import (
-    CreateSourceRelationCommand,
-    GetSourceObjectAsOfCommand,
-    GetSourceObjectCommand,
-    GetSourceObjectVersionCommand,
-    ListSourceObjectAuditCommand,
-    ListSourceObjectsCommand,
-    ListSourceRelationsCommand,
-    ReconcileSourceObjectCommand,
-    UpsertSourceObjectCommand,
-)
 from openinfra.application.itam_services import (
     AddThirdPartySupportCommand,
     CreateItamOrganizationCommand,
@@ -380,6 +365,10 @@ from openinfra.application.rag_services import (
     SyncRsotRagCommand,
     UpsertRagDocumentCommand,
 )
+from openinfra.application.rsot_quality_services import (
+    EvaluateRsotObjectQualityCommand,
+    RsotQualitySummaryCommand,
+)
 from openinfra.application.sbom_services import (
     AssessSbomRiskCommand,
     CompareSbomsCommand,
@@ -419,6 +408,17 @@ from openinfra.application.source_governance_services import (
     DeactivateSourceGovernanceRuleCommand,
     EvaluateSourceGovernanceCommand,
     ListSourceGovernanceRulesCommand,
+)
+from openinfra.application.source_of_truth_services import (
+    CreateSourceRelationCommand,
+    GetSourceObjectAsOfCommand,
+    GetSourceObjectCommand,
+    GetSourceObjectVersionCommand,
+    ListSourceObjectAuditCommand,
+    ListSourceObjectsCommand,
+    ListSourceRelationsCommand,
+    ReconcileSourceObjectCommand,
+    UpsertSourceObjectCommand,
 )
 from openinfra.domain.access_policy import AccessRequestContext
 from openinfra.domain.common import AccessDeniedError, OpenInfraError, ValidationError
@@ -623,7 +623,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
         page: Any
         report: Any
         result: Any
-        route = self._canonical_route(parsed.path)
+        route = parsed.path
         if self._runtime_license_blocks(route, responder):
             return
         if route in ("/", "/api/v1"):
@@ -3220,7 +3220,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
         if route == "/api/v1/rsot/resource-taxonomy":
             responder.send(
                 HTTPStatus.OK,
-                self.server.application.it_resources_management_service.resource_taxonomy(),
+                self.server.application.rsot_service.resource_taxonomy(),
             )
             return
 
@@ -3229,7 +3229,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 query = parse_qs(parsed.query)
                 key = query.get("key", [None])[0]
                 if key:
-                    result = self.server.application.it_resources_management_service.get_object(
+                    result = self.server.application.rsot_service.get_object(
                         GetSourceObjectCommand(
                             tenant_id=self._first_query_value(query, "tenant_id"),
                             admin_token=self._bearer_token(),
@@ -3238,7 +3238,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                     )
                     responder.send(HTTPStatus.OK, result)
                 else:
-                    page = self.server.application.it_resources_management_service.list_objects(
+                    page = self.server.application.rsot_service.list_objects(
                         ListSourceObjectsCommand(
                             tenant_id=self._first_query_value(query, "tenant_id"),
                             admin_token=self._bearer_token(),
@@ -3258,7 +3258,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
         if route == "/api/v1/rsot/object-versions":
             try:
                 query = parse_qs(parsed.query)
-                result = self.server.application.it_resources_management_service.get_object_version(
+                result = self.server.application.rsot_service.get_object_version(
                     GetSourceObjectVersionCommand(
                         tenant_id=self._first_query_value(query, "tenant_id"),
                         admin_token=self._bearer_token(),
@@ -3275,7 +3275,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
         if route == "/api/v1/rsot/object-as-of":
             try:
                 query = parse_qs(parsed.query)
-                result = self.server.application.it_resources_management_service.get_object_as_of(
+                result = self.server.application.rsot_service.get_object_as_of(
                     GetSourceObjectAsOfCommand(
                         tenant_id=self._first_query_value(query, "tenant_id"),
                         admin_token=self._bearer_token(),
@@ -3292,7 +3292,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
         if route == "/api/v1/rsot/object-audit":
             try:
                 query = parse_qs(parsed.query)
-                page = self.server.application.it_resources_management_service.list_object_audit(
+                page = self.server.application.rsot_service.list_object_audit(
                     ListSourceObjectAuditCommand(
                         tenant_id=self._first_query_value(query, "tenant_id"),
                         admin_token=self._bearer_token(),
@@ -3310,13 +3310,11 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
         if route == "/api/v1/rsot/quality/object":
             try:
                 query = parse_qs(parsed.query)
-                result = (
-                    self.server.application.it_resources_management_quality_service.evaluate_object(
-                        EvaluateItrmObjectQualityCommand(
-                            tenant_id=self._first_query_value(query, "tenant_id"),
-                            admin_token=self._bearer_token(),
-                            key=self._first_query_value(query, "key"),
-                        )
+                result = self.server.application.rsot_quality_service.evaluate_object(
+                    EvaluateRsotObjectQualityCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        key=self._first_query_value(query, "key"),
                     )
                 )
                 responder.send(HTTPStatus.OK, result)
@@ -3328,8 +3326,8 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
         if route == "/api/v1/rsot/quality/summary":
             try:
                 query = parse_qs(parsed.query)
-                summary = self.server.application.it_resources_management_quality_service.summarize(
-                    ItrmQualitySummaryCommand(
+                summary = self.server.application.rsot_quality_service.summarize(
+                    RsotQualitySummaryCommand(
                         tenant_id=self._first_query_value(query, "tenant_id"),
                         admin_token=self._bearer_token(),
                         limit=int(self._first_query_value(query, "limit", "100")),
@@ -3349,7 +3347,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
         if route == "/api/v1/rsot/relations":
             try:
                 query = parse_qs(parsed.query)
-                page = self.server.application.it_resources_management_service.list_relations(
+                page = self.server.application.rsot_service.list_relations(
                     ListSourceRelationsCommand(
                         tenant_id=self._first_query_value(query, "tenant_id"),
                         admin_token=self._bearer_token(),
@@ -4090,7 +4088,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         responder = JsonHttpResponder(self)
-        route = self._canonical_route(urlparse(self.path).path)
+        route = urlparse(self.path).path
         result: Any
         rule: Any
 
@@ -7641,7 +7639,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 tags_payload = payload.get("tags")
                 if tags_payload is not None and not isinstance(tags_payload, list):
                     raise OpenInfraError("tags must be a list")
-                result = self.server.application.it_resources_management_service.reconcile_object(
+                result = self.server.application.rsot_service.reconcile_object(
                     ReconcileSourceObjectCommand(
                         tenant_id=str(payload["tenant_id"]),
                         actor=str(payload.get("actor", "api")),
@@ -7682,7 +7680,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 tags_payload = payload.get("tags", [])
                 if not isinstance(tags_payload, list):
                     raise OpenInfraError("tags must be a list")
-                result = self.server.application.it_resources_management_service.upsert_object(
+                result = self.server.application.rsot_service.upsert_object(
                     UpsertSourceObjectCommand(
                         tenant_id=str(payload["tenant_id"]),
                         actor=str(payload.get("actor", "api")),
@@ -7714,7 +7712,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
         if route == "/api/v1/rsot/relations":
             try:
                 payload = self._read_json_body()
-                result = self.server.application.it_resources_management_service.create_relation(
+                result = self.server.application.rsot_service.create_relation(
                     CreateSourceRelationCommand(
                         tenant_id=str(payload["tenant_id"]),
                         actor=str(payload.get("actor", "api")),
@@ -9060,19 +9058,6 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             return AuthProxyTeamSyncSource()
         raise ValidationError("unsupported Team Sync provider: " + provider.value)
 
-    @staticmethod
-    def _canonical_route(route: str) -> str:
-        if route.startswith("/api/v1/rsot/"):
-            return route
-        if route == "/api/v1/rsot":
-            return route
-        for legacy_prefix in ("/api/v1/itrm", "/api/v1/sot", "/api/v1/ri"):
-            if route.startswith(legacy_prefix + "/"):
-                return "/api/v1/rsot/" + route.removeprefix(legacy_prefix + "/")
-            if route == legacy_prefix:
-                return "/api/v1/rsot"
-        return route
-
     def _read_json_body(self) -> dict[str, Any]:
         content_length = int(self.headers.get("Content-Length", "0"))
         if content_length <= 0 or content_length > 1_048_576:
@@ -9398,9 +9383,6 @@ class OpenInfraApiRuntime(BaseServer):
                     "governance_rules": "/api/v1/rsot/governance-rules",
                     "quality_object": "/api/v1/rsot/quality/object",
                     "quality_summary": "/api/v1/rsot/quality/summary",
-                    "deprecated_itrm_alias": "/api/v1/itrm/objects",
-                    "deprecated_sot_alias": "/api/v1/sot/objects",
-                    "deprecated_ri_alias": "/api/v1/ri/objects",
                 },
                 "ipam": {
                     "ui_dashboard": "/api/v1/ipam/ui-dashboard",

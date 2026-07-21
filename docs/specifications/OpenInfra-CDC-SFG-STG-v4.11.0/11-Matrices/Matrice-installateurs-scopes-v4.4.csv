@@ -1,0 +1,7 @@
+edition,scope,installer_path,cluster_supported,installs_dependencies,applies_migrations,systemd_service,notes,creates_system_user,creates_lvm_fs,default_vg,default_lv,default_mountpoint,default_lv_size
+lite,all-in-one,installers/setup/lite,non,oui,oui,openinfra.service,Mode monolithique local,oui,oui,rootvg,openinfra_lv,/opt/openinfra/,2GB
+pro,server,installers/setup/pro/server,optionnel,oui,oui,openinfra.service,"Backend canonique, PostgreSQL standalone ou cluster optionnel",oui,oui,rootvg,openinfra_lv,/opt/openinfra/,2GB
+pro,web,installers/setup/pro/web,non,oui,non,openinfra-web.service,Frontend React + Bootstrap 5,oui,oui,rootvg,openinfra_lv,/opt/openinfra/,2GB
+enterprise,server,installers/setup/enterprise/server,oui,oui,oui,openinfra.service,Backend canonique clusterisable et PostgreSQL large,oui,oui,rootvg,openinfra_lv,/opt/openinfra/,2GB
+enterprise,web,installers/setup/enterprise/web,oui,oui,non,openinfra-web.service,Frontend clusterisable,oui,oui,rootvg,openinfra_lv,/opt/openinfra/,2GB
+enterprise,agent,installers/setup/enterprise/agent,oui,oui,non,openinfra-agent.service,Agents discovery distribués,oui,oui,rootvg,openinfra_lv,/opt/openinfra/,2GB

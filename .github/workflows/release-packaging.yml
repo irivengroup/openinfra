@@ -69,7 +69,7 @@ jobs:
           PYTHON
 
       - name: Upload certified release artefacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: openinfra-release-packaging-${{ github.ref_name }}
           path: artifacts/release-packaging/*

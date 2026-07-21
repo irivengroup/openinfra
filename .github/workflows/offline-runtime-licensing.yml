@@ -134,7 +134,7 @@ jobs:
 
       - name: Upload immutable GATE-12 evidence
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: openinfra-gate12-${{ github.run_id }}
           path: |

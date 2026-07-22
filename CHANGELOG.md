@@ -1,20 +1,26 @@
 # Changelog
 
-## 0.34.8 — 2026-07-21
+## 0.34.9 — 2026-07-22
 
 ### Ajouté
 
-- recommandation DCIM de placement d’équipements fondée sur l’espace U contigu, la puissance rack, les circuits simples ou A/B redondants et la capacité thermique ;
-- commande `openinfra dcim recommend-placement` et endpoint `GET /api/v1/dcim/placement-recommendations` ;
-- opération de consultation dans les portails React et statique, sans modification de la charte graphique ;
-- classement déterministe, compteurs de rejet explicites et audit `dcim.placement.recommended` ;
-- runbook d’exploitation et contrat OpenAPI synchronisé avec le CDC 4.12.0.
+- synchronisation transactionnelle IPAM vers BIND, PowerDNS et Kea avec journal durable et clé d’idempotence ;
+- capture de l’état fournisseur avant mutation, reçus persistants et compensation exacte en ordre inverse ;
+- classification fail-closed des résultats fournisseurs incertains avec réconciliation obligatoire ;
+- permission `ipam.ddi.sync`, commande `openinfra ipam ddi-sync`, endpoint `POST /api/v1/ipam/ddi-sync` et opération portail ;
+- migration PostgreSQL/Oracle `0060_ipam_ddi_execution_journal.sql` avec parité 60/60 ;
+- runbook d’exploitation, variables externalisées, OpenAPI principal/CDC, packaging et workflow GATE-14.
+
+### Corrigé
+
+- normalise explicitement le répertoire de matériel de licence à `0700`, y compris lorsqu’un système de fichiers parent impose un bit `setgid` ;
+- rend la qualification GATE-11 déterministe sur les volumes à groupe hérité sans assouplir les contrôles de propriétaire ni de permissions.
 
 ### Qualité et compatibilité
 
-- `TST-FUNC-0007` devient une preuve GATE-14 automatisée ; le registre contient désormais 20 preuves automatisées, 599 partielles et 48 externes ;
-- aucun changement de schéma ni migration ; compatibilité ascendante des API, CLI, données JSON, PostgreSQL et Oracle ;
-- Oracle reste réservé à l’édition Enterprise et le thème approuvé demeure inchangé.
+- `TST-FUNC-0008` devient une preuve automatisée : 21 preuves automatisées, 598 partielles, 48 externes, 34 sélecteurs et 59 fichiers d’évidence ;
+- `ddi-preview` reste compatible et purement consultatif ;
+- PostgreSQL reste le backend par défaut, Oracle reste Enterprise-only et le thème approuvé demeure inchangé.
 
 ## 0.34.7 — 2026-07-21
 

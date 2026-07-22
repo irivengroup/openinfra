@@ -187,6 +187,7 @@ class LicenseMaterialStore:
         private_key_pem: bytes,
     ) -> dict[str, Path]:
         root.mkdir(parents=True, exist_ok=True, mode=0o700)
+        root.chmod(0o700)
         paths = {
             "identity": root / "installation-identity.json",
             "request": root / "activation-request.json",

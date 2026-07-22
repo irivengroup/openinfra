@@ -1,135 +1,142 @@
-# Rapport de certification locale — OpenInfra Python POO v0.34.8
+# Rapport de certification locale — OpenInfra Python POO v0.34.9
 
-**Date de certification :** 21 juillet 2026
-**Candidat :** `openinfra-0.34.8-final-candidate`
+**Date de qualification :** 22 juillet 2026
+**Candidat :** `openinfra-0.34.9-validation-candidate`
 **Référentiels actifs :** CDC `4.12.0`, roadmap `2.5.0`, phase `P25`, release `REL-15`, gate `GATE-14`
 
 ## Décision
 
-Le code source, le frontend et les distributions Python OpenInfra **0.34.8** sont **GO pour livraison comme candidat certifié localement**.
+L'incrément fonctionnel OpenInfra **0.34.9** et sa campagne Python complète sont **GO**.
+La déclaration d'un bundle `final-candidate` reste **NO-GO** tant que les contrôles locaux obligatoires rendus indisponibles par le registre d'outillage ne sont pas rejoués sur le SHA source final : Ruff, mypy, Bandit, Twine, ESLint JSX, build Vite et audits npm/Python.
 
-La promotion en production reste **NO-GO** jusqu'à production des preuves externes suivantes sur l'infrastructure cible :
+Cette décision est fail-closed : aucune indisponibilité d'outil ou de registre n'est transformée en résultat favorable.
 
-1. audit Python avec accès fonctionnel à PyPI ou à un miroir de vulnérabilités approuvé ;
-2. qualification réelle PostgreSQL et Oracle 19c Enterprise ;
-3. qualification Docker Compose et systemd ;
-4. qualification SAML, LDAP/FreeIPA et Team Sync avec fournisseurs réels ;
-5. exécution des rapports de promotion sur le commit de publication et conservation des preuves CI immuables.
+## Périmètre fonctionnel 0.34.9
 
-L'audit Python distant n'a pas pu interroger PyPI en raison d'un échec de résolution DNS. Aucun résultat favorable n'est revendiqué pour ce contrôle.
+Cette version conserve toutes les capacités certifiées jusqu'à 0.34.8 et matérialise la synchronisation transactionnelle IPAM vers DNS/DHCP exigée par `TST-FUNC-0008` :
 
-## Périmètre fonctionnel 0.34.8
+- journal de saga durable et idempotent ;
+- verrouillage transactionnel PostgreSQL et persistance JSON ;
+- exécution DNS BIND/nsupdate et PowerDNS ;
+- exécution DHCP Kea ;
+- capture de l'état fournisseur avant mutation ;
+- compensation exacte en ordre inverse ;
+- distinction entre échec déterministe et résultat fournisseur incertain ;
+- statut `compensation_failed` et réconciliation obligatoire en cas d'incertitude ;
+- secrets externalisés, HTTPS obligatoire pour les API, délais bornés et `shell=False` ;
+- permission RBAC dédiée `ipam.ddi.sync` ;
+- CLI `openinfra ipam ddi-sync` ;
+- API `POST /api/v1/ipam/ddi-sync` ;
+- OpenAPI principal et CDC, portail React et actifs statiques embarqués ;
+- migration `0060_ipam_ddi_execution_journal.sql` avec parité PostgreSQL/Oracle 60/60 ;
+- runbook `docs/runbooks/IPAM_DDI_SYNCHRONIZATION.md`.
 
-Cette version conserve les capacités certifiées jusqu'à 0.34.7 et matérialise la recommandation de placement DCIM exigée par `TST-FUNC-0007` :
+Le registre GATE-14 classe désormais `TST-FUNC-0008` comme preuve automatisée :
 
-- CDC actif `4.12.0` : 861 exigences, 667 tests contractuels, 861 lignes de traçabilité et 529 entités ;
-- roadmap active `2.5.0` : P25, REL-15, EPIC-2501 à EPIC-2504 et GATE-14 ;
-- recommandation déterministe de racks compatibles avec la hauteur U, la face, la puissance, la redondance A/B et le refroidissement demandés ;
-- prise en compte de l'occupation par équipements et panneaux de brassage, des racks retirés, des limites rack/circuit et des zones thermiques ;
-- exposition cohérente par service applicatif, CLI, HTTP, OpenAPI, portail React et runtime statique embarqué ;
-- opération strictement consultative : aucune réservation de capacité ni mutation d'infrastructure ;
-- registre exhaustif des 667 tests contractuels ;
-- classification explicite de 20 preuves automatisées, 599 preuves partielles et 48 qualifications externes ;
-- résolution statique de 28 sélecteurs pytest ;
-- contrôle de 55 fichiers de preuve ;
-- zéro preuve manquante et zéro exigence N1 non classifiée ;
-- audit d'hygiène contextuel sans exclusion globale de l'arbre produit ;
-- détection des chemins obsolètes, clés privées embarquées et alias publics historiques ;
-- intégration GATE-14 dans la CLI, la CI, le wheel, le sdist et le smoke installé ;
-- charte graphique approuvée inchangée.
+- 667 tests contractuels ;
+- 21 preuves automatisées ;
+- 598 preuves partielles ;
+- 48 qualifications externes ;
+- 34 sélecteurs pytest résolus ;
+- 59 fichiers de preuve ;
+- zéro preuve manquante ;
+- zéro exigence N1 non classifiée.
 
-Les preuves `partial` et `external` ne sont pas assimilées à une validation fonctionnelle complète. Elles restent des catégories explicites de traçabilité et de qualification à fermer selon leur périmètre.
+## Correctifs de finalisation
 
-## Résultats de certification
+La reprise depuis le checkpoint a détecté deux dépendances implicites au système de fichiers, désormais éliminées :
+
+- `LicenseMaterialStore` réapplique explicitement le mode exact `0700` après création du répertoire sensible ;
+- la fixture GATE-11 fixe explicitement le groupe primaire attendu lorsque le volume parent impose un héritage `setgid`.
+
+Les contrôles de production restent stricts : répertoire `0700`, jeton `0400`, fichiers réguliers sans lien symbolique et propriétaire UID/GID attendu. Aucun endpoint, contrat CLI, migration, permission RBAC, comportement de licence ni thème frontend n’est modifié.
+
+## Résultats acquis
 
 | Contrôle | Résultat |
 |---|---:|
-| Fichiers de tests Python | **280/280 PASS** |
-| Suite Python complète | **1 616/1 616 PASS** |
-| Durée suite Python isolée, 4 workers | **251,10 s** |
-| Couverture globale exacte | **48 973 instructions, 48 005 couvertes, 968 non couvertes, 98,02340064933739 % PASS** |
-| Couverture module GATE-14 | **431 instructions, 423 couvertes, 8 non couvertes, 98,14 % PASS** |
-| Ruff format | **471 fichiers PASS** |
-| Ruff lint | **PASS** |
-| mypy strict | **132 modules PASS** |
+| Fichiers de tests Python isolés | **284/284 PASS** |
+| Suite Python complète | **1 644/1 644 PASS** |
+| Échecs | **0** |
+| Durée de la campagne reproductible | **235,58 s** |
+| Instructions | **49 858** |
+| Instructions couvertes | **48 873** |
+| Instructions non couvertes | **985** |
+| Couverture exacte | **98,024389265514 % PASS** |
+| Seuil exact obligatoire | **98,000000000000 %** |
+| Gate anti-arrondi | **PASS** — 97,99 % est explicitement rejeté |
 | `compileall` | **PASS** |
-| Bandit SAST, périmètre `src/openinfra` | **PASS** |
 | Security gate dépôt/CI | **PASS** |
 | Quality gate global | **code 0 / PASS** |
-| Frontend React | **81/81 PASS** |
-| Accessibilité HTML et JSX | **PASS** |
-| Build Vite | **PASS** |
-| Shell JavaScript initial | **2 556 octets bruts / 1 263 octets gzip PASS** |
-| `npm audit --audit-level=high --omit=optional` | **0 vulnérabilité** |
-| Audit Python distant | **NON EXÉCUTABLE — résolution DNS PyPI indisponible** |
-| CDC 4.12.0 | **861 exigences, 667 tests, 861 traces, 529 entités** |
-| Roadmap 2.5.0 | **26 phases, 16 releases, 149 epics, 18 jalons, 15 gates, 135 tests** |
-| Alignements roadmap ↔ CDC | **140** |
-| Catalogue PostgreSQL | **59 migrations** |
-| Catalogue Oracle | **59 migrations** |
+| Catalogue PostgreSQL | **60 migrations PASS** |
+| Catalogue Oracle | **60 migrations PASS** |
+| Génération/parité Oracle | **PASS** |
 | OpenAPI principal et CDC | **PASS** |
-| Alignement Enterprise | **PASS** |
-| GATE-11 contrats | **9/9 PASS** |
-| GATE-12 licensing offline | **7/7 PASS** |
-| GATE-13 RSOT canonique | **6/6 PASS** |
-| GATE-14 complétude contractuelle | **6/6 PASS** |
-| Build wheel/sdist | **PASS** |
-| `twine check` | **PASS** |
-| Vérification du contenu des artefacts | **PASS** |
-| Smoke du wheel installé hors dépôt | **PASS** |
-| Audit alias ITRM/RI/SOT actifs | **0 constat** |
-| Audit modules de compatibilité obsolètes | **0 constat** |
-| Audit clés privées embarquées | **0 constat** |
+| Frontend Node sans dépendances externes | **81/81 PASS** |
+| Contrat statique des actifs frontend | **PASS** |
+| Accessibilité WCAG 2.2 AA statique | **PASS** |
+| Build wheel PEP 517 | **PASS** |
+| Build sdist PEP 517 | **PASS** |
+| Vérification du contenu wheel/sdist | **PASS** |
+| Installation du wheel hors dépôt, sans dépendance à l’arbre source | **PASS** |
+| Smoke de contenu du wheel avec runtime local qualifié | **PASS** |
+| Smoke strict du wheel avec résolution complète des dépendances | **NON REJOUÉ** — registre indisponible |
+| Version installée | **0.34.9** |
+| Dernière migration installée | **0060_ipam_ddi_execution_journal.sql** |
 
-## Stratégie de tests et couverture
+## Contrôle exact de couverture
 
-Les 1 616 tests sont répartis sur quatre workers, mais chaque fichier est exécuté dans un processus Python indépendant avec un timeout borné. Les 280 fichiers de couverture parallèle ne sont fusionnés qu'après réussite complète de la campagne.
+Le précédent contrôle `coverage report --fail-under=98` pouvait accepter un taux inférieur à 98 % lorsque l'affichage était arrondi sans décimale. La 0.34.9 ajoute :
 
-Cette isolation a détecté puis corrigé une fuite d'état préexistante dans un test SAML qui remplaçait globalement `importlib.import_module`. Le test restauré est autonome et repasse seul comme dans la campagne complète.
+- `precision = 8` dans la configuration Coverage.py ;
+- `scripts/validate_coverage.py`, qui recalcule le taux à partir des nombres entiers `covered_lines / num_statements` avec `Decimal` ;
+- son intégration au quality gate et aux workflows GATE-13/GATE-14 ;
+- une non-régression prouvant que 97,99 % échoue et que 98,00 % passe.
 
-La couverture est exportée aux formats XML et JSON puis contrôlée par un seuil strict de 98 %. Aucune exclusion de couverture n'a été ajoutée et aucun résultat issu d'une exécution interrompue ou échouée n'est utilisé.
+Les 284 bases de couverture ne sont fusionnées qu'après réussite de tous les fichiers. Aucun résultat issu d'une campagne interrompue ou échouée n'est incorporé.
 
-## Contrats CDC, roadmap et promotion
+## Packaging qualifié
 
-- CDC actif : `docs/specifications/OpenInfra-CDC-SFG-STG-v4.12.0` ;
-- roadmap active : `docs/specifications/OpenInfra-Roadmap-Developpement-v2.5` ;
-- exigence de complétude : `REQ-00861` ;
-- test contractuel : `TST-COMP-164` ;
-- matrice : `11-Matrices/Matrice-completude-contractuelle-v4.12.csv` ;
-- registre : `docs/release/contract-proof-registry-v4.12.csv` ;
-- politique : `docs/release/contract-completeness-promotion-policy.json` ;
-- workflow : `.github/workflows/contract-completeness.yml` ;
-- runbook : `docs/runbooks/CONTRACT_COMPLETENESS_PROMOTION.md` ;
-- CDC 4.11.0 et roadmap 2.4.0 restent conservés pour la traçabilité historique.
+Le wheel installé hors de l'arbre source confirme notamment :
 
-## Sécurité et hygiène
+- version distribution et module `0.34.9` ;
+- 60 migrations PostgreSQL et 60 migrations Oracle ;
+- dernière migration `0060_ipam_ddi_execution_journal.sql` ;
+- route `/api/v1/ipam/ddi-sync` ;
+- route de recommandation DCIM conservée ;
+- actifs runtime et documentation GA ;
+- politiques et runbooks GATE-11 à GATE-14 ;
+- scripts console publics jusqu'à `openinfra-gate14` ;
+- aucune dépendance à l'arbre source.
 
-- aucune clé privée d'autorité de licence n'est embarquée ;
-- l'autorité Ed25519 reste chiffrée et opérée hors ligne ;
-- les écritures sensibles et les rapports GATE-14 sont atomiques ;
-- les états de licence corrompus restent traités en fail-closed ;
-- l'audit d'hygiène exclut uniquement les fichiers exacts qui définissent ses propres règles ;
-- les fichiers produit actifs restent analysés pour les marqueurs de développement interdits, les matériaux cryptographiques privés et les alias publics historiques ;
-- la CI bloque la publication si l'un des contrôles GATE-11 à GATE-14 échoue.
+Les distributions définitives ne seront reconstruites qu'après fermeture des contrôles d'outillage puis gel Git.
 
-## Packaging certifié
+## Contrôles localement indisponibles
 
-Les distributions vérifiées sont :
+| Contrôle | Statut | Cause observée |
+|---|---|---|
+| Ruff format/lint | **NON REJOUÉ SUR LE SHA FINAL** | registre Python interne HTTP 503, aucun binaire local |
+| mypy strict | **NON REJOUÉ SUR LE SHA FINAL** | registre Python interne HTTP 503, aucun module local |
+| Bandit | **NON REJOUÉ SUR LE SHA FINAL** | registre Python interne HTTP 503, aucun module local |
+| Twine check | **NON REJOUÉ** | registre Python interne HTTP 503, aucun module local |
+| ESLint JSX | **NON REJOUÉ** | `node_modules` absent, registre npm HTTP 503 |
+| Build Vite | **NON REJOUÉ** | Vite absent, registre npm HTTP 503 |
+| npm audit | **NON REJOUÉ** | endpoint d'audit du registre npm HTTP 503 |
+| pip-audit | **NON REJOUÉ** | module absent et registre Python HTTP 503 |
+| Smoke strict du wheel | **NON REJOUÉ** | la résolution de `defusedxml` et des autres dépendances runtime ne peut pas utiliser le registre Python indisponible |
 
-- `openinfra-0.34.8-py3-none-any.whl` ;
-- `openinfra-0.34.8.tar.gz`.
+Les tentatives d'installation et leurs erreurs sont conservées hors de l'arbre source dans les preuves de qualification.
 
-Le smoke installé hors dépôt vérifie notamment :
+## Qualifications externes restant obligatoires
 
-- la version 0.34.8 ;
-- les scripts console publics jusqu'à `openinfra-gate14` ;
-- la taxonomie OpenAPI ;
-- les 59 migrations PostgreSQL et Oracle ;
-- les politiques, registres et runbooks GATE-11 à GATE-14 ;
-- la route OpenAPI `/api/v1/dcim/placement-recommendations` et le runbook DCIM associé ;
-- l'absence de dépendance à l'arbre source.
-
-Les empreintes finales, le commit source et l'identité des deux constructions reproductibles sont portés par le manifeste du bundle final.
+- PostgreSQL réel, concurrence et reprise après interruption ;
+- Oracle 19c Enterprise réel ;
+- BIND/nsupdate, PowerDNS et Kea réels avec compensation ;
+- Docker Compose complet ;
+- services systemd ;
+- SAML, LDAP/FreeIPA et Team Sync ;
+- scans de dépendances avec registres et bases de vulnérabilités accessibles ;
+- rapports GATE-11 à GATE-14 associés au véritable commit de publication.
 
 ## Commandes de validation de référence
 
@@ -137,10 +144,12 @@ Les empreintes finales, le commit source et l'identité des deux constructions r
 python -m ruff format --check src tests scripts docker installers
 python -m ruff check src tests scripts docker installers
 python -m mypy src/openinfra
-python -m compileall -q src/openinfra scripts installers/setup
+python -m compileall -q src/openinfra tests scripts docker installers
 python -m bandit -q -r src/openinfra
 python scripts/security_gate.py --project-root .
-python -m pytest -q -n 4 --dist loadfile --cov=src/openinfra --cov-fail-under=98
+python -m pytest -n 4 --dist loadfile --cov-fail-under=98
+python -m coverage json -o coverage.json
+python scripts/validate_coverage.py --coverage-json coverage.json --minimum 98
 python scripts/quality_gate.py
 ```
 
@@ -162,19 +171,7 @@ python -m twine check dist/*
 python scripts/verify_artifact.py dist/*
 ```
 
-## Risques résiduels et validations externes
+## Décision courante
 
-| Risque / validation | Statut | Action de fermeture |
-|---|---|---|
-| Vulnérabilités Python distantes | Non vérifié localement | exécuter l'audit depuis CI avec PyPI ou miroir approuvé |
-| Oracle 19c Enterprise réel | À qualifier | appliquer les 59 migrations et exécuter GATE-11/GATE-12 sur runner Oracle |
-| PostgreSQL réel et concurrence | À qualifier | exécuter migrations, repositories, quotas et charges concurrentes |
-| Docker Compose | À qualifier | démarrage complet, readiness, migrations et smoke HTTP |
-| systemd | À qualifier | installation native, permissions, secrets, timers et reprise |
-| SAML/LDAP/Team Sync | À qualifier | tests avec IdP, LDAP/IPA et fournisseurs réels |
-| Commit de publication | À lier au gel source | régénérer les rapports de promotion et conserver le manifeste signé |
-
-## Décision finale locale
-
-**GO local pour livraison comme candidat OpenInfra 0.34.8.**
-**NO-GO production jusqu'à fermeture des preuves externes listées ci-dessus.**
+**GO fonctionnel et tests pour OpenInfra 0.34.9.**
+**NO-GO pour déclarer le bundle final-candidate tant que les contrôles d'outillage localement indisponibles ne sont pas rejoués avec succès.**

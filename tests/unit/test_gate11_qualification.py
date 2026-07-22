@@ -30,7 +30,7 @@ from openinfra.quality.advanced_identity_oracle_promotion import (
     Gate11TeamSyncQualification,
 )
 
-CANDIDATE = "openinfra-0.34.8-rc1"
+CANDIDATE = "openinfra-0.34.9-rc1"
 COMMIT = "a" * 40
 ENVIRONMENT = "qualification-lab-01"
 
@@ -352,13 +352,16 @@ class TestGate11LiveQualifications:
     def test_systemd_qualification_checks_runtime_and_secret_permissions(
         self, tmp_path: Path
     ) -> None:
-        username = pwd.getpwuid(os.getuid()).pw_name
+        account = pwd.getpwuid(os.getuid())
+        username = account.pw_name
         secret_dir = tmp_path / "secrets"
         secret_dir.mkdir(mode=0o700)
         secret_dir.chmod(0o700)
+        os.chown(secret_dir, -1, account.pw_gid)
         token = secret_dir / "bootstrap-token"
         token.write_text("x" * 40)
         token.chmod(0o400)
+        os.chown(token, -1, account.pw_gid)
         outputs: list[Gate11CommandResult] = []
         for unit in (
             *Gate11SystemdQualification.SERVICE_UNITS,
@@ -592,8 +595,8 @@ class TestGate11PromotionEvidence:
             source_commit=COMMIT,
             environment_id=ENVIRONMENT,
         )
-        assert report["details"]["postgresql_migration_count"] == 59
-        assert report["details"]["oracle_migration_count"] == 59
+        assert report["details"]["postgresql_migration_count"] == 60
+        assert report["details"]["oracle_migration_count"] == 60
         assert report["checks"]["migration_filenames_match"] is True
         assert report["checks"]["gate11_entrypoint_present"] is True
         assert report["checks"]["promotion_policy_requires_enterprise"] is True

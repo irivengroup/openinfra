@@ -1,116 +1,104 @@
 {
-  "schema_version": 1,
-  "product": "OpenInfra",
-  "version": "0.34.8",
-  "candidate_id": "openinfra-0.34.8-final-candidate",
-  "certification_date": "2026-07-21",
-  "decision": {
-    "local_delivery": "go",
-    "production_promotion": "no-go",
-    "production_blockers": [
-      "Python vulnerability audit requires reachable PyPI or approved mirror",
-      "live PostgreSQL and Oracle 19c Enterprise qualification",
-      "live Docker Compose and systemd qualification",
-      "live SAML LDAP FreeIPA and Team Sync qualification",
-      "promotion reports must be bound to the frozen publication commit"
-    ]
-  },
+  "candidate_id": "openinfra-0.34.9-requalification-candidate",
+  "certification_date": "2026-07-22",
   "contracts": {
     "cdc": "4.12.0",
-    "roadmap": "2.5.0",
+    "cdc_alignments": 140,
+    "contract_tests": 667,
+    "entities": 529,
+    "gate": "GATE-14",
     "phase": "P25",
     "release": "REL-15",
-    "gate": "GATE-14",
     "requirements": 861,
-    "contract_tests": 667,
-    "traceability_rows": 861,
-    "entities": 529,
+    "roadmap": "2.5.0",
+    "roadmap_epics": 149,
+    "roadmap_gates": 15,
+    "roadmap_milestones": 18,
     "roadmap_phases": 26,
     "roadmap_releases": 16,
-    "roadmap_epics": 149,
-    "roadmap_milestones": 18,
-    "roadmap_gates": 15,
-    "roadmap_tests": 135,
-    "cdc_alignments": 140
-  },
-  "tests": {
-    "python_files": 280,
-    "python_total": 1616,
-    "python_passed": 1616,
-    "python_duration_seconds": 251.1,
-    "frontend_total": 81,
-    "frontend_passed": 81
+    "traceability_rows": 861
   },
   "coverage": {
-    "statements": 48973,
-    "covered": 48005,
-    "missing": 968,
-    "percent": 98.02340064933739,
+    "coverage_data_files": 284,
+    "covered": 48873,
+    "missing": 985,
+    "percent": 98.02438926551406,
+    "rounding_regression": "97.99 percent is rejected",
+    "statements": 49858,
+    "status": "passed",
+    "strategy": "one isolated coverage process and SQLite data file per test file; exact integer-ratio gate after successful combine",
     "threshold": 98.0,
-    "status": "passed"
-  },
-  "quality": {
-    "ruff_files": 471,
-    "ruff": "passed",
-    "mypy_modules": 132,
-    "mypy": "passed",
-    "compileall": "passed",
-    "bandit_product_scope": "passed",
-    "repository_security_gate": "passed",
-    "quality_gate_exit_code": 0
-  },
-  "security": {
-    "npm_audit_high": "0 vulnerabilities",
-    "pip_audit": "not-executable-dns-pypi",
-    "active_legacy_alias_findings": 0,
-    "obsolete_compatibility_modules": 0,
-    "embedded_private_keys": 0
+    "timeout_seconds_per_file": 300,
+    "workers": 8
   },
   "database": {
-    "postgresql_migrations": 59,
-    "oracle_migrations": 59,
-    "last_migration": "0059_runtime_offline_licensing.sql"
+    "last_migration": "0060_ipam_ddi_execution_journal.sql",
+    "oracle_migrations": 60,
+    "oracle_parity": "passed",
+    "postgresql_migrations": 60
   },
-  "promotion": {
-    "gate11_contracts": "9/9 passed",
-    "gate12": "7/7 passed",
-    "gate13": "6/6 passed",
-    "gate14": "6/6 passed",
-    "contractual_tests": 667,
-    "automated_proofs": 20,
-    "partial_proofs": 599,
-    "external_proofs": 48,
-    "pytest_selectors": 28,
-    "evidence_files": 55,
-    "missing_proofs": 0,
-    "unclassified_n1_requirements": 0,
-    "source_commit": "bound-in-final-bundle-manifest",
-    "source_commit_status": "pending-source-freeze"
+  "decision": {
+    "blockers": [
+      "Ruff, mypy, Bandit and Twine unavailable because the Python tool registry returns HTTP 503",
+      "ESLint, Vite and npm audit unavailable because the npm registry returns HTTP 503",
+      "pip-audit unavailable because the tool cannot be installed from the unavailable registry",
+      "strict wheel smoke cannot resolve runtime dependencies because the Python registry is unavailable",
+      "live PostgreSQL, Oracle 19c, DDI providers, Docker Compose, systemd and identity qualification"
+    ],
+    "functional_increment": "go",
+    "local_final_candidate": "no-go",
+    "production_promotion": "no-go"
+  },
+  "executable_traceability": {
+    "automated": 21,
+    "external": 48,
+    "missing": 0,
+    "n1_missing": 0,
+    "partial": 598,
+    "partial_external_evidence_files": 59,
+    "pytest_selectors_resolved": 34,
+    "registry_entries": 667
+  },
+  "finalization_fixes": {
+    "license_directory_exact_mode": "passed",
+    "setgid_inheritance_regression": "passed",
+    "targeted_regression_tests": 48
   },
   "frontend": {
-    "build": "passed",
-    "accessibility": "passed",
-    "initial_raw_js_bytes": 2556,
-    "initial_gzip_js_bytes": 1263
+    "eslint_jsx": "not-rerun-registry-http-503",
+    "node_tests": "81/81 passed",
+    "npm_audit": "not-rerun-registry-http-503",
+    "static_contract": "passed",
+    "vite_build": "not-rerun-registry-http-503",
+    "wcag_2_2_aa_static": "passed"
   },
   "packaging": {
-    "build": "passed",
-    "twine_check": "passed",
-    "artifact_verification": "passed",
-    "installed_wheel_smoke": "passed"
+    "artifact_content": "passed-requalification",
+    "final_reproducible_source": "pending-final-tool-gates",
+    "installed_wheel_smoke": "passed-content-with-local-runtime",
+    "sdist_build": "passed-requalification",
+    "strict_wheel_smoke": "not-rerun-registry-unavailable",
+    "twine_check": "not-rerun-registry-http-503",
+    "wheel_build": "passed-requalification"
   },
-  "release_delta": {
-    "contract_test": "TST-FUNC-0007",
-    "capability": "deterministic DCIM equipment placement recommendations",
-    "interfaces": [
-      "application",
-      "cli",
-      "http",
-      "openapi",
-      "react",
-      "packaged-static-runtime"
-    ],
-    "database_migration_required": false,
-    "theme_changed": false
-  }
+  "product": "OpenInfra",
+  "quality": {
+    "bandit": "not-rerun-registry-http-503",
+    "compileall": "passed",
+    "mypy": "not-rerun-registry-http-503",
+    "quality_gate_exit_code": 0,
+    "ruff": "not-rerun-registry-http-503",
+    "security_gate": "passed"
+  },
+  "schema_version": 1,
+  "tests": {
+    "duration_seconds": 235.58143885799996,
+    "frontend_passed": 81,
+    "frontend_total": 81,
+    "python_failed": 0,
+    "python_passed": 1644,
+    "python_total": 1644,
+    "test_files": 284
+  },
+  "version": "0.34.9"
 }

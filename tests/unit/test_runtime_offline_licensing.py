@@ -156,6 +156,7 @@ def test_material_store_uses_atomic_strict_permissions(tmp_path: Path) -> None:
 
     assert material.load_identity(paths["identity"]) == scenario.identity
     assert material.load_request(paths["request"]) == scenario.request
+    assert stat.S_IMODE((tmp_path / "license").stat().st_mode) == 0o700
     assert material.load_entitlement(entitlement_path).license_id == scenario.identity.license_id
     assert stat.S_IMODE(paths["identity"].stat().st_mode) == 0o600
     assert stat.S_IMODE(paths["private_key"].stat().st_mode) == 0o600
@@ -163,6 +164,25 @@ def test_material_store_uses_atomic_strict_permissions(tmp_path: Path) -> None:
     assert stat.S_IMODE(paths["public_key"].stat().st_mode) == 0o644
     assert stat.S_IMODE(entitlement_path.stat().st_mode) == 0o640
     assert not list((tmp_path / "license").glob(".*.tmp"))
+
+
+def test_material_store_normalizes_existing_sensitive_directory_permissions(
+    tmp_path: Path,
+) -> None:
+    scenario = LicenseScenario(tmp_path)
+    material = LicenseMaterialStore()
+    root = tmp_path / "inherited-permissions" / "license"
+    root.mkdir(parents=True)
+    root.chmod(0o2770)
+
+    material.write_installation_material(
+        root,
+        scenario.identity,
+        scenario.request,
+        scenario.installation_private,
+    )
+
+    assert stat.S_IMODE(root.stat().st_mode) == 0o700
 
 
 def test_active_warning_grace_and_expired_states(tmp_path: Path) -> None:

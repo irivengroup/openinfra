@@ -4,6 +4,8 @@ import pytest
 
 from openinfra.domain.common import ValidationError
 from openinfra.domain.dependency import (
+    DependencyChangeImpactReport,
+    DependencyCriticalRisk,
     DependencyGraphExport,
     DependencySpofCandidate,
     DependencySpofReport,
@@ -84,3 +86,62 @@ def test_graph_export_format_accepts_supported_values(value: str) -> None:
 def test_graph_export_format_rejects_unknown_value() -> None:
     with pytest.raises(ValidationError, match="json, csv or graphml"):
         GraphExportFormat.from_value("xlsx")
+
+
+def test_change_impact_domain_serializes_services_risks_and_completeness() -> None:
+    root = GraphNode.from_object_payload(
+        {
+            "key": "server/db-01",
+            "display_name": "Database server",
+            "kind": "server",
+            "resource_category": "compute",
+            "resource_type": "virtual-machine",
+            "status": "active",
+        },
+        0,
+    )
+    service = GraphNode.from_object_payload(
+        {
+            "key": "service/api",
+            "display_name": "Customer API",
+            "kind": "service",
+            "resource_category": "software-service",
+            "resource_type": "api-service",
+            "status": "active",
+        },
+        1,
+    )
+    risk = DependencyCriticalRisk(
+        node=service,
+        affected_business_service_count=1,
+        affected_business_service_keys=("application/portal",),
+        affected_node_count=2,
+        direct_affected_count=1,
+        risk_level="medium",
+    )
+    report = DependencyChangeImpactReport(
+        root_key=root.key,
+        direction=GraphDirection.INCOMING,
+        as_of=None,
+        impacted_nodes=(service,),
+        impacted_business_services=(service,),
+        critical_dependencies=(risk,),
+        root_spof_risk=True,
+        max_depth_reached=1,
+        truncated=True,
+        edges=(),
+    )
+
+    payload = report.as_dict()
+    assert payload["complete"] is False
+    assert payload["business_service_count"] == 1
+    assert payload["critical_dependency_count"] == 1
+    assert payload["root_spof_risk"] is True
+    assert payload["critical_dependencies"][0] == {
+        "node": service.as_dict(),
+        "affected_business_service_count": 1,
+        "affected_business_service_keys": ["application/portal"],
+        "affected_node_count": 2,
+        "direct_affected_count": 1,
+        "risk_level": "medium",
+    }

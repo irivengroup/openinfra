@@ -53,7 +53,8 @@ class TestSecurityGate:
         (requirements / "dev.txt").write_text(
             "\n".join(
                 (
-                    "hatchling>=1.25",
+                    "setuptools>=82",
+                    "wheel>=0.46",
                     "pytest>=8.0",
                     "pytest-cov>=5.0",
                     "pytest-xdist>=3.6",

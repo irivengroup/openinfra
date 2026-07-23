@@ -344,7 +344,8 @@ class GitHubWorkflowSecurityGuard:
         dev_only_packages = (
             "bandit",
             "build",
-            "hatchling",
+            "setuptools",
+            "wheel",
             "mypy",
             "pip-audit",
             "pytest",

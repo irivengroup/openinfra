@@ -178,6 +178,7 @@ export const SIDEBAR_CONTEXTS = {
       "label": "Analyse d’impact",
       "operationIds": [
         "graph-impact",
+        "graph-change-impact",
         "graph-spof"
       ]
     },
@@ -360,6 +361,7 @@ export const SIDEBAR_CONTEXTS = {
       "label": "Localisation & capacité",
       "operationIds": [
         "dcim-locate-equipment",
+        "dcim-locator-sheet",
         "dcim-rack-capacity",
         "dcim-placement-recommendations",
         "dcim-room-plan",

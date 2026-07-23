@@ -238,6 +238,7 @@ def test_graph_worker_dispatches_every_supported_operation() -> None:
     response = SimpleNamespace(as_dict=lambda: {"ok": True})
     graph_service.traverse.return_value = response
     graph_service.impact.return_value = response
+    graph_service.analyze_change_impact.return_value = response
     graph_service.find_path.return_value = response
     graph_service.analyze_spof.return_value = response
     graph_service.export.return_value = SimpleNamespace(content=b"export", content_type="text/csv")
@@ -252,6 +253,8 @@ def test_graph_worker_dispatches_every_supported_operation() -> None:
             "max_nodes": 100,
             "relation_types": ["depends_on"],
             "as_of": "2026-01-01T00:00:00+00:00",
+            "business_service_kinds": ["application", "service"],
+            "business_service_resource_types": ["database-instance"],
             "candidate_kinds": ["service"],
             "candidate_resource_categories": ["server"],
             "candidate_resource_types": ["virtual-machine"],
@@ -264,7 +267,13 @@ def test_graph_worker_dispatches_every_supported_operation() -> None:
             "include_spof": False,
         }
     )
-    for operation in ("graph.traverse", "graph.impact", "graph.path", "graph.spof"):
+    for operation in (
+        "graph.traverse",
+        "graph.impact",
+        "graph.change-impact",
+        "graph.path",
+        "graph.spof",
+    ):
         result = worker._execute(
             claimed=_job(WorkerSpecialization.GRAPH, operation),
             payload=payload,

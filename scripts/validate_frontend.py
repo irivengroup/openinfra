@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
@@ -373,9 +374,9 @@ class FrontendContractValidator:
             )
 
         operation_ids = re.findall(r'^\s{6}"id": "([^"]+)",?$', runtime_catalog, flags=re.MULTILINE)
-        if len(operation_ids) != 294:
+        if len(operation_ids) != 300:
             raise FrontendValidationError(
-                f"runtime domain catalog must expose 294 operations, found {len(operation_ids)}"
+                f"runtime domain catalog must expose 300 operations, found {len(operation_ids)}"
             )
         duplicates = sorted(
             operation_id
@@ -392,6 +393,7 @@ class FrontendContractValidator:
             "dcim-sites",
             "itam-organizations",
             "discovery-evidence-submit",
+            "discovery-job-result",
             "kubernetes-topologies-list",
             "kubernetes-topology-latest",
             "kubernetes-topology-graph",
@@ -498,10 +500,15 @@ class FrontendContractValidator:
         source_management_hierarchy = (
             self._project_root / "web/src/management/context-hierarchy.js"
         ).read_text(encoding="utf-8")
-        generated_header = "// Generated from web/src/i18n.js by Rolldown. Do not edit.\n"
+        source_digest = hashlib.sha256(source_i18n.encode("utf-8")).hexdigest()
+        generated_header = (
+            "// Generated from web/src/i18n.js by Rolldown. "
+            f"Source SHA-256: {source_digest}. Do not edit.\n"
+        )
         if not runtime_i18n.startswith(generated_header):
             raise FrontendValidationError(
-                "packaged runtime i18n must be the generated Rolldown artifact"
+                "packaged runtime i18n must be the generated Rolldown artifact "
+                "for the current source digest"
             )
         if len(runtime_i18n.encode("utf-8")) >= len(source_i18n.encode("utf-8")):
             raise FrontendValidationError("packaged runtime i18n must remain minified")

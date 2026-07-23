@@ -370,6 +370,9 @@ class RagService:
                     "status": answer.status.value,
                     "citation_count": len(answer.citations),
                     "confidence": str(answer.confidence),
+                    "source_object_count": len(answer.source_object_citations()),
+                    "source_data_mutation_performed": False,
+                    "change_validation_required": True,
                 },
             )
             self._repository.append_event(event)
@@ -386,6 +389,9 @@ class RagService:
                         "citation_count": len(answer.citations),
                         "status": answer.status.value,
                         "confidence": str(answer.confidence),
+                        "source_object_count": len(answer.source_object_citations()),
+                        "source_data_mutation_performed": False,
+                        "change_validation_required": True,
                         "permission_filtered_documents": search.filtered_document_count,
                     },
                 )

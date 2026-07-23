@@ -210,6 +210,37 @@ def _write_minimal_xlsx(path: Path) -> None:
         workbook.writestr("xl/worksheets/sheet1.xml", worksheet)
 
 
+def test_import_parser_enforces_format_specific_size_and_xlsx_archive_limits(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    parser = ImportDatasetParser()
+    csv_file = tmp_path / "oversized.csv"
+    csv_file.write_bytes(b"x" * (1024 * 1024 + 1))
+    with pytest.raises(ValidationError, match="1 MiB limit"):
+        tuple(parser.iter_rows(csv_file, ImportFormat.CSV, max_bytes=1024 * 1024))
+
+    workbook = tmp_path / "unsafe.xlsx"
+    with zipfile.ZipFile(workbook, "w") as archive:
+        archive.writestr("xl/worksheets/sheet1.xml", "<worksheet />")
+        archive.writestr("extra.xml", "<extra />")
+    monkeypatch.setattr(parser, "_MAX_XLSX_ENTRIES", 1)
+    with pytest.raises(ValidationError, match="too many entries"):
+        tuple(parser.iter_rows(workbook, ImportFormat.XLSX))
+
+
+def test_import_parser_rejects_oversized_xlsx_xml_before_decompression(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    parser = ImportDatasetParser()
+    workbook = tmp_path / "oversized-sheet.xlsx"
+    with zipfile.ZipFile(workbook, "w") as archive:
+        archive.writestr("xl/worksheets/sheet1.xml", "<worksheet>oversized</worksheet>")
+    monkeypatch.setattr(parser, "_MAX_XLSX_XML_BYTES", 8)
+
+    with pytest.raises(ValidationError, match="worksheet exceeds"):
+        tuple(parser.iter_rows(workbook, ImportFormat.XLSX))
+
+
 def test_import_service_rejects_limits_and_reports_row_mapping_errors(tmp_path: Path) -> None:
     app = ApplicationFactory().create_json_application(tmp_path / "state.json")
     token = _bootstrap(app)

@@ -313,6 +313,74 @@ class SourceObjectSnapshot:
 
 
 @dataclass(frozen=True, slots=True)
+class SourceObjectTimeTravelReport:
+    requested_at: datetime
+    snapshot: SourceObjectSnapshot
+    relations: tuple[SourceRelation, ...]
+    complete: bool
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        requested_at: datetime,
+        snapshot: SourceObjectSnapshot,
+        relations: tuple[SourceRelation, ...],
+        complete: bool,
+    ) -> Self:
+        normalized_requested_at = SourceOfTruthObject._normalize_datetime(
+            requested_at, "as_of"
+        )
+        payload = snapshot.payload
+        if str(payload.get("key", "")).strip().lower() != snapshot.object_key.value:
+            raise ValidationError("historical snapshot key is inconsistent")
+        if str(payload.get("id", "")).strip() != snapshot.object_id.value:
+            raise ValidationError("historical snapshot object id is inconsistent")
+        if int(payload.get("version", 0)) != snapshot.version:
+            raise ValidationError("historical snapshot version is inconsistent")
+        if normalized_requested_at < snapshot.changed_at:
+            raise ValidationError("historical snapshot is newer than the requested date")
+        normalized_relations = tuple(
+            sorted(relations, key=lambda item: (item.relation_type.value, item.source_key.value, item.target_key.value, item.id.value))
+        )
+        for relation in normalized_relations:
+            if snapshot.object_key not in (relation.source_key, relation.target_key):
+                raise ValidationError("historical relation is unrelated to the requested object")
+            if not relation.is_valid_at(normalized_requested_at):
+                raise ValidationError("historical relation is not valid at the requested date")
+        return cls(
+            requested_at=normalized_requested_at,
+            snapshot=snapshot,
+            relations=normalized_relations,
+            complete=bool(complete),
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        result = dict(self.snapshot.payload)
+        source_system = str(result.get("source", "unknown"))
+        result.update(
+            {
+                "as_of": self.requested_at.isoformat(),
+                "resolved_version": self.snapshot.version,
+                "snapshot_id": self.snapshot.id.value,
+                "snapshot_changed_at": self.snapshot.changed_at.isoformat(),
+                "snapshot_changed_by": self.snapshot.changed_by,
+                "provenance": {
+                    "source_system": source_system,
+                    "changed_by": self.snapshot.changed_by,
+                    "snapshot_id": self.snapshot.id.value,
+                    "snapshot_changed_at": self.snapshot.changed_at.isoformat(),
+                },
+                "relations": [relation.as_dict() for relation in self.relations],
+                "relation_count": len(self.relations),
+                "complete": self.complete,
+                "coherent": True,
+            }
+        )
+        return result
+
+
+@dataclass(frozen=True, slots=True)
 class SourceRelation:
     id: EntityId
     tenant_id: TenantId

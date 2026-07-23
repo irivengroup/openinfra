@@ -36,7 +36,11 @@ class BindDdiConnector(DdiConnector):
                 reservation.address.reverse_pointer,
                 f"{context.fqdn}.",
                 context.ttl,
-                {"record_type": "PTR", "renderer": "bind-nsupdate"},
+                {
+                    "record_type": "PTR",
+                    "zone": context.reverse_dns_zone or self._parent_zone(reservation.address.reverse_pointer),
+                    "renderer": "bind-nsupdate",
+                },
             ),
         )
 
@@ -77,6 +81,7 @@ class PowerDnsDdiConnector(DdiConnector):
                 context.ttl,
                 {
                     "record_type": "PTR",
+                    "zone": context.reverse_dns_zone or self._parent_zone(reservation.address.reverse_pointer),
                     "api_method": "PATCH /api/v1/servers/localhost/zones/{reverse_zone}",
                 },
             ),

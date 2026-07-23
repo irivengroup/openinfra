@@ -56,7 +56,8 @@ const moduleDefinition = {
       "method": "GET",
       "fields": [
         "Clé RSOT",
-        "Date ISO-8601"
+        "Date ISO-8601",
+        "Limite de relations"
       ]
     },
     {
@@ -176,6 +177,23 @@ const moduleDefinition = {
           "name": "as_of",
           "label": "Date ISO-8601"
         }
+      ]
+    },
+    {
+      "id": "graph-change-impact",
+      "label": "Analyser l’impact d’un changement applicatif",
+      "path": "/v1/graph/change-impact",
+      "method": "GET",
+      "fields": [
+        {"name": "root_key", "label": "Clé de la ressource modifiée", "required": true},
+        {"name": "direction", "label": "Direction", "type": "select", "options": ["incoming", "outgoing", "both"], "defaultValue": "incoming"},
+        {"name": "max_depth", "label": "Profondeur maximale", "type": "number", "defaultValue": "8"},
+        {"name": "max_nodes", "label": "Nombre maximal de nœuds", "type": "number", "defaultValue": "2000"},
+        {"name": "relation_type", "label": "Type de relation"},
+        {"name": "as_of", "label": "Date ISO-8601"},
+        {"name": "business_service_kind", "label": "Type de service métier"},
+        {"name": "business_service_resource_type", "label": "Type de ressource métier"},
+        {"name": "affected_sample_limit", "label": "Taille maximale des échantillons", "type": "number", "min": "1", "max": "200", "defaultValue": "25"}
       ]
     },
     {

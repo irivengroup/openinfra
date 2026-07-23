@@ -170,6 +170,24 @@ def test_artifact_reference_round_trip() -> None:
     assert ArtifactReference.from_dict(original.as_dict()) == original
 
 
+def test_artifact_reference_locator_payload_is_stable_and_backward_compatible() -> None:
+    original = artifact()
+
+    locator = original.as_locator_dict()
+    restored = ArtifactReference.from_dict(locator)
+
+    assert locator == {
+        "object_key": original.object_key,
+        "sha256": original.sha256,
+        "size_bytes": original.size_bytes,
+        "media_type": original.media_type,
+    }
+    assert restored.object_key == original.object_key
+    assert restored.sha256 == original.sha256
+    assert restored.size_bytes == original.size_bytes
+    assert restored.media_type == original.media_type
+
+
 def test_leased_state_validates_restore_and_transition_edges() -> None:
     now = datetime(2026, 1, 1, tzinfo=UTC)
     with pytest.raises(ValidationError, match="attempt count"):

@@ -35,14 +35,24 @@ class RsotQualityIssue:
     code: str
     field: str
     message: str
+    expected_source: str | None = None
+    actual_source: str | None = None
+    governance_rule: str | None = None
 
     def as_dict(self) -> dict[str, object]:
-        return {
+        payload: dict[str, object] = {
             "severity": self.severity.value,
             "code": self.code,
             "field": self.field,
             "message": self.message,
         }
+        if self.expected_source is not None:
+            payload["expected_source"] = self.expected_source
+        if self.actual_source is not None:
+            payload["actual_source"] = self.actual_source
+        if self.governance_rule is not None:
+            payload["governance_rule"] = self.governance_rule
+        return payload
 
 
 @dataclass(frozen=True, slots=True)
@@ -194,6 +204,11 @@ class RsotQualityService:
                     metadata={
                         "score": report.score,
                         "certification_status": report.certification_status.value,
+                        "authority_score": report.authority_score,
+                        "issue_count": len(report.issues),
+                        "non_authoritative_issue_count": self._non_authoritative_issue_count(
+                            report
+                        ),
                     },
                 )
             )
@@ -233,6 +248,13 @@ class RsotQualityService:
                         "resource_type": command.resource_type,
                         "total": summary.total,
                         "average_score": summary.average_score,
+                        "certified": summary.certified,
+                        "warning": summary.warning,
+                        "rejected": summary.rejected,
+                        "non_authoritative_issue_count": sum(
+                            self._non_authoritative_issue_count(report)
+                            for report in summary.reports
+                        ),
                     },
                 )
             )
@@ -332,23 +354,42 @@ class RsotQualityService:
         non_authoritative_count = 0
         for rule in rules:
             path = rule.attribute_path.value
-            if path == "*":
-                governed = bool(source_object.attributes)
-                field_name = "*"
-            else:
-                governed = path in source_object.attributes
-                field_name = path
+            governed = self._attribute_path_exists(source_object.attributes, path)
+            field_name = path
             if governed and not rule.is_authoritative(source_object.source):
                 non_authoritative_count += 1
+                expected_source = rule.authoritative_source.value
+                actual_source = source_object.source.value
+                governance_rule = rule.name.value
                 issues.append(
                     RsotQualityIssue(
                         RsotQualitySeverity.WARNING,
                         "non_authoritative_source",
                         field_name,
-                        "attribute is populated by a source that is not authoritative",
+                        (
+                            f"source '{actual_source}' is not authoritative for attribute "
+                            f"'{field_name}'; expected '{expected_source}' according to "
+                            f"governance rule '{governance_rule}'"
+                        ),
+                        expected_source=expected_source,
+                        actual_source=actual_source,
+                        governance_rule=governance_rule,
                     )
                 )
         return max(0, 100 - (30 * non_authoritative_count))
+
+    def _attribute_path_exists(self, attributes: dict[str, object], path: str) -> bool:
+        if path == "*":
+            return bool(attributes)
+        current: object = attributes
+        for segment in path.split("."):
+            if not isinstance(current, dict) or segment not in current:
+                return False
+            current = current[segment]
+        return True
+
+    def _non_authoritative_issue_count(self, report: RsotQualityReport) -> int:
+        return sum(issue.code == "non_authoritative_source" for issue in report.issues)
 
     def _confidence_score(self, source_object: SourceOfTruthObject) -> int:
         source = source_object.source.value

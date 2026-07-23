@@ -325,6 +325,58 @@ class DependencySpofReport:
 
 
 @dataclass(frozen=True, slots=True)
+class DependencyCriticalRisk:
+    node: GraphNode
+    affected_business_service_count: int
+    affected_business_service_keys: tuple[str, ...]
+    affected_node_count: int
+    direct_affected_count: int
+    risk_level: str
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "node": self.node.as_dict(),
+            "affected_business_service_count": self.affected_business_service_count,
+            "affected_business_service_keys": list(self.affected_business_service_keys),
+            "affected_node_count": self.affected_node_count,
+            "direct_affected_count": self.direct_affected_count,
+            "risk_level": self.risk_level,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class DependencyChangeImpactReport:
+    root_key: str
+    direction: GraphDirection
+    as_of: str | None
+    impacted_nodes: tuple[GraphNode, ...]
+    impacted_business_services: tuple[GraphNode, ...]
+    critical_dependencies: tuple[DependencyCriticalRisk, ...]
+    root_spof_risk: bool
+    max_depth_reached: int
+    truncated: bool
+    edges: tuple[GraphEdge, ...]
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "root_key": self.root_key,
+            "direction": self.direction.value,
+            "as_of": self.as_of,
+            "impacted_count": len(self.impacted_nodes),
+            "business_service_count": len(self.impacted_business_services),
+            "critical_dependency_count": len(self.critical_dependencies),
+            "root_spof_risk": self.root_spof_risk,
+            "max_depth_reached": self.max_depth_reached,
+            "truncated": self.truncated,
+            "complete": not self.truncated,
+            "business_services": [node.as_dict() for node in self.impacted_business_services],
+            "critical_dependencies": [risk.as_dict() for risk in self.critical_dependencies],
+            "nodes": [node.as_dict() for node in self.impacted_nodes],
+            "edges": [edge.as_dict() for edge in self.edges],
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class DependencyGraphExport:
     filename: str
     content_type: str

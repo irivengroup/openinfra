@@ -30,6 +30,7 @@ from openinfra.domain.source_governance import (
 from openinfra.domain.source_of_truth import (
     SourceObjectKind,
     SourceObjectPage,
+    SourceObjectTimeTravelReport,
     SourceOfTruthObject,
     SourceRelation,
     SourceRelationPage,
@@ -99,6 +100,7 @@ class GetSourceObjectAsOfCommand:
     admin_token: str
     key: str
     as_of: str | datetime
+    relation_limit: int = 100
 
 
 @dataclass(frozen=True, slots=True)
@@ -373,20 +375,55 @@ class SourceOfTruthService:
 
     def get_object_as_of(self, command: GetSourceObjectAsOfCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
-        self._security_service.authenticate_token(
+        principal = self._security_service.authenticate_token(
             AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.RSOT_READ)
         )
         as_of = self._datetime_from_value(command.as_of, "as_of")
+        pagination = Pagination.from_values(command.relation_limit)
         with self._transaction_manager.begin() as unit_of_work:
             snapshot = self._repository.find_object_as_of(tenant_id, command.key, as_of)
             if snapshot is None:
                 raise NotFoundError("source object snapshot not found at requested date")
+            outgoing = self._repository.list_relations(
+                tenant_id=tenant_id,
+                pagination=pagination,
+                source_key=snapshot.object_key.value,
+                as_of=as_of,
+            )
+            incoming = self._repository.list_relations(
+                tenant_id=tenant_id,
+                pagination=pagination,
+                target_key=snapshot.object_key.value,
+                as_of=as_of,
+            )
+            relations_by_id = {
+                relation.id.value: relation
+                for relation in (*outgoing.items, *incoming.items)
+            }
+            report = SourceObjectTimeTravelReport.create(
+                requested_at=as_of,
+                snapshot=snapshot,
+                relations=tuple(relations_by_id.values()),
+                complete=outgoing.next_cursor is None and incoming.next_cursor is None,
+            )
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=tenant_id,
+                    actor=principal.subject,
+                    action="rsot.object.time-travel.read",
+                    target_type="source_object",
+                    target_id=snapshot.object_key.value,
+                    metadata={
+                        "as_of": as_of.isoformat(),
+                        "resolved_version": snapshot.version,
+                        "snapshot_id": snapshot.id.value,
+                        "relation_count": len(relations_by_id),
+                        "complete": report.complete,
+                    },
+                )
+            )
             unit_of_work.commit()
-        result = dict(snapshot.payload)
-        result["as_of"] = as_of.isoformat()
-        result["resolved_version"] = snapshot.version
-        result["snapshot_changed_at"] = snapshot.changed_at.isoformat()
-        return result
+        return report.as_dict()
 
     def list_object_audit(self, command: ListSourceObjectAuditCommand) -> AuditEventPage:
         tenant_id = TenantId.from_value(command.tenant_id)

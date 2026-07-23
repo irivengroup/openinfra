@@ -895,6 +895,16 @@ const moduleDefinition = {
       ]
     },
     {
+      "id": "dcim-locator-sheet",
+      "label": "Fiche d’intervention équipement",
+      "path": "/v1/dcim/locator-sheet",
+      "method": "GET",
+      "fields": [
+        "Numéro d’actif",
+        "Format rendu"
+      ]
+    },
+    {
       "id": "dcim-rack-capacity",
       "label": "Capacité rack",
       "path": "/v1/dcim/rack-capacity",

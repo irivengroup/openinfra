@@ -600,7 +600,9 @@ class DdiChange:
             name=self.name,
             value=self.value,
             ttl=self.ttl,
-            metadata=(*self.metadata, ("compensates", self.action.value)),
+            metadata=tuple(
+                sorted((*self.metadata, ("compensates", self.action.value)))
+            ),
         )
 
     def as_dict(self) -> dict[str, object]:

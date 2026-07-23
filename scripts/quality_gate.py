@@ -1193,7 +1193,20 @@ class QualityGate:
             raise QualityGateError(
                 "coverage data is missing; run python -m pytest before quality_gate.py"
             )
-        CommandRunner().run([sys.executable, "-m", "coverage", "report", "--fail-under=98"])
+        exact_coverage_json = self._project_root / "coverage-summary-exact.json"
+        CommandRunner().run(
+            [sys.executable, "-m", "coverage", "json", "-o", str(exact_coverage_json)]
+        )
+        CommandRunner().run(
+            [
+                sys.executable,
+                "scripts/validate_coverage.py",
+                "--coverage-json",
+                str(exact_coverage_json),
+                "--minimum",
+                "98",
+            ]
+        )
 
 
 class QualityGateCli:

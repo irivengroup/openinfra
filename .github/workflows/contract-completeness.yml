@@ -68,10 +68,10 @@ jobs:
 
       - name: Format, lint and strict typing
         run: |
-          ruff format --check src tests scripts docker installers
-          ruff check src tests scripts docker installers
-          mypy src/openinfra
-          python -m compileall -q src/openinfra scripts installers/setup
+          ruff format --check src tests scripts docker installers openinfra_build_backend.py
+          ruff check src tests scripts docker installers openinfra_build_backend.py
+          mypy src/openinfra openinfra_build_backend.py
+          python -m compileall -q src/openinfra scripts installers/setup openinfra_build_backend.py
 
       - name: Security gates
         run: |
@@ -84,12 +84,37 @@ jobs:
             tests/unit/test_gate14_qualification.py \
             tests/integration/test_contract_completeness_specifications.py \
             tests/integration/test_contract_proof_registry.py \
+            tests/integration/test_contract_functional_physical_location.py \
+            tests/integration/test_contract_functional_ipam_concurrency.py \
+            tests/integration/test_contract_functional_bulk_import.py \
+            tests/integration/test_contract_functional_distributed_discovery.py \
+            tests/integration/test_contract_functional_change_impact.py \
+            tests/integration/test_contract_functional_time_travel.py \
+            tests/integration/test_contract_functional_rag_assistant.py \
+            tests/integration/test_contract_rsot_quality_certification.py \
+            tests/integration/test_contract_rsot_quality_rbac.py \
+            tests/integration/test_contract_rsot_quality_non_authoritative.py \
             tests/integration/test_dcim_energy_cooling_services.py \
+            tests/integration/test_ipam_ddi_sync_services.py \
+            tests/integration/test_ipam_ddi_sync_postgresql_repository.py \
+            tests/unit/test_domain_ddi_sync.py \
+            tests/unit/test_ddi_executors.py \
             tests/unit/test_gate12_qualification.py \
             tests/unit/test_gate13_qualification.py
+          node --test web/tests/bulk-import.test.mjs
+          node --test web/tests/distributed-discovery.test.mjs
+          node --test web/tests/change-impact.test.mjs
+          node --test web/tests/time-travel.test.mjs
+          node --test web/tests/rag-governance.test.mjs
+          node --test web/tests/rsot-quality-certification.test.mjs
+          node --test web/tests/rsot-quality-rbac.test.mjs
+          node --test web/tests/rsot-quality-non-authoritative.test.mjs
 
-      - name: Full Python regression and coverage gate
-        run: python -m pytest -n 4 --dist loadfile --cov-fail-under=98
+      - name: Full Python regression and exact coverage gate
+        run: |
+          python -m pytest -n 4 --dist loadfile --cov-fail-under=98
+          python -m coverage json -o coverage.json
+          python scripts/validate_coverage.py --coverage-json coverage.json --minimum 98
 
       - name: Frontend tests, accessibility and build
         working-directory: web
@@ -106,7 +131,7 @@ jobs:
           mkdir -p artifacts/gate14
           openinfra-gate14 \
             --project-root . \
-            --candidate-id "openinfra-0.34.8-${GITHUB_RUN_ID}" \
+            --candidate-id "openinfra-0.34.18-${GITHUB_RUN_ID}" \
             --source-commit "${GITHUB_SHA}" \
             --output artifacts/gate14/report.json \
             --enforce
@@ -126,7 +151,7 @@ jobs:
           python -m venv /tmp/openinfra-gate14-smoke
           /tmp/openinfra-gate14-smoke/bin/python -m pip install --upgrade pip
           /tmp/openinfra-gate14-smoke/bin/python -m pip install \
-            "dist/openinfra-0.34.8-py3-none-any.whl[postgresql,oracle]"
+            "dist/openinfra-0.34.18-py3-none-any.whl[postgresql,oracle]"
           cd /tmp
           /tmp/openinfra-gate14-smoke/bin/python \
             "$GITHUB_WORKSPACE/scripts/smoke_installed_wheel.py"

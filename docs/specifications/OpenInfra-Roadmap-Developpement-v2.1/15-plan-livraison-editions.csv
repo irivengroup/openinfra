@@ -1,4 +1,0 @@
-edition,release_cible,architecture,services,discovery,postgresql_profile,limites
-Lite,REL-03,All-in-one monolithique,openinfra.service,Discovery locale uniquement,"PostgreSQL low, PGDATA 2GB",Equipements 200; subnets/VLAN 20; IP/DNS 200; utilisateurs 5
-Pro,REL-04,Backend/web séparés,openinfra.service + openinfra-web.service,Discovery centralisée sans agent proxy,"PostgreSQL medium, PGDATA 100GB, cluster DB optionnel",Equipements 5000; subnets/VLAN 100; IP/DNS 5000; utilisateurs 100
-Entreprise,REL-05,Backend/web clusterisés + agents,openinfra.service + openinfra-web.service + openinfra-agent.service,Discovery distribuée via agents région/site/VRF,"PostgreSQL large, PGDATA 1TB, >10Md entrées, quasi-sync",Illimité selon sizing et licence

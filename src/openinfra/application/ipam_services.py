@@ -414,6 +414,7 @@ class PreviewDdiReservationCommand:
     mac_address: str | None = None
     ttl: int = 300
     dry_run: bool = True
+    reverse_dns_zone: str | None = None
 
 
 class IpamDdiService:
@@ -433,37 +434,46 @@ class IpamDdiService:
         tenant_id = TenantId.from_value(command.tenant_id)
         vrf = command.vrf.strip()
         providers = self._select_providers(command.providers)
-        reservation = self._ipam_repository.find_reservation_by_key(
-            tenant_id,
-            vrf,
-            command.idempotency_key,
-        )
-        if reservation is None:
-            raise NotFoundError("ip reservation not found for DDI preview")
-        fqdn = self._fqdn_for_reservation(reservation.hostname, command.dns_zone)
-        mac_address = self._normalize_mac(command.mac_address) if command.mac_address else None
-        context = DdiPreviewContext(
-            fqdn=fqdn,
-            mac_address=mac_address,
-            ttl=self._normalize_ttl(command.ttl),
-            dns_zone=self._normalize_zone(command.dns_zone) if command.dns_zone else None,
-        )
-        changes = tuple(
-            change
-            for provider in providers
-            for change in self._connectors[provider].build_preview_changes(reservation, context)
-        )
-        divergences = self._detect_divergences(reservation, fqdn, mac_address, providers)
-        preview = DdiReservationPreview.create(
-            tenant_id=tenant_id,
-            vrf_name=vrf,
-            idempotency_key=reservation.idempotency_key,
-            providers=providers,
-            dry_run=command.dry_run,
-            changes=changes,
-            divergences=divergences,
-        )
         with self._transaction_manager.begin() as unit_of_work:
+            reservation = self._ipam_repository.find_reservation_by_key(
+                tenant_id,
+                vrf,
+                command.idempotency_key,
+            )
+            if reservation is None:
+                raise NotFoundError("ip reservation not found for DDI preview")
+            fqdn = self._fqdn_for_reservation(reservation.hostname, command.dns_zone)
+            mac_address = (
+                self._normalize_mac(command.mac_address) if command.mac_address else None
+            )
+            context = DdiPreviewContext(
+                fqdn=fqdn,
+                mac_address=mac_address,
+                ttl=self._normalize_ttl(command.ttl),
+                dns_zone=self._normalize_zone(command.dns_zone) if command.dns_zone else None,
+                reverse_dns_zone=(
+                    self._normalize_zone(command.reverse_dns_zone)
+                    if command.reverse_dns_zone
+                    else None
+                ),
+            )
+            changes = tuple(
+                change
+                for provider in providers
+                for change in self._connectors[provider].build_preview_changes(reservation, context)
+            )
+            divergences = self._detect_divergences(
+                reservation, fqdn, mac_address, providers
+            )
+            preview = DdiReservationPreview.create(
+                tenant_id=tenant_id,
+                vrf_name=vrf,
+                idempotency_key=reservation.idempotency_key,
+                providers=providers,
+                dry_run=command.dry_run,
+                changes=changes,
+                divergences=divergences,
+            )
             self._audit_repository.append(
                 AuditEvent.record(
                     tenant_id=tenant_id,

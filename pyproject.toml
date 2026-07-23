@@ -1,10 +1,11 @@
 [build-system]
-requires = ["hatchling>=1.25"]
-build-backend = "hatchling.build"
+requires = ["setuptools>=82", "wheel>=0.46"]
+build-backend = "openinfra_build_backend"
+backend-path = ["."]
 
 [project]
 name = "openinfra"
-version = "0.34.8"
+version = "0.34.18"
 description = "OpenInfra Python POO RSOT, DCIM and IPAM foundation"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -71,7 +72,17 @@ packages = ["src/openinfra"]
 "docs/runbooks/OFFLINE_RUNTIME_LICENSING.md" = "openinfra/docs/runbooks/OFFLINE_RUNTIME_LICENSING.md"
 "docs/runbooks/RSOT_CANONICAL_MIGRATION.md" = "openinfra/docs/runbooks/RSOT_CANONICAL_MIGRATION.md"
 "docs/runbooks/CONTRACT_COMPLETENESS_PROMOTION.md" = "openinfra/docs/runbooks/CONTRACT_COMPLETENESS_PROMOTION.md"
+"docs/runbooks/ASYNC_BULK_IMPORTS.md" = "openinfra/docs/runbooks/ASYNC_BULK_IMPORTS.md"
+"docs/runbooks/DISTRIBUTED_DISCOVERY_RESULTS.md" = "openinfra/docs/runbooks/DISTRIBUTED_DISCOVERY_RESULTS.md"
+"docs/runbooks/APPLICATION_CHANGE_IMPACT.md" = "openinfra/docs/runbooks/APPLICATION_CHANGE_IMPACT.md"
+"docs/runbooks/RSOT_TIME_TRAVEL.md" = "openinfra/docs/runbooks/RSOT_TIME_TRAVEL.md"
+"docs/runbooks/GOVERNED_RAG_ASSISTANT.md" = "openinfra/docs/runbooks/GOVERNED_RAG_ASSISTANT.md"
+"docs/runbooks/RSOT_QUALITY_CERTIFICATION.md" = "openinfra/docs/runbooks/RSOT_QUALITY_CERTIFICATION.md"
+"docs/runbooks/RSOT_QUALITY_RBAC.md" = "openinfra/docs/runbooks/RSOT_QUALITY_RBAC.md"
+"docs/runbooks/RSOT_QUALITY_NON_AUTHORITATIVE_SOURCE.md" = "openinfra/docs/runbooks/RSOT_QUALITY_NON_AUTHORITATIVE_SOURCE.md"
 "docs/runbooks/DCIM_PLACEMENT_RECOMMENDATIONS.md" = "openinfra/docs/runbooks/DCIM_PLACEMENT_RECOMMENDATIONS.md"
+"docs/runbooks/DCIM_LOCATION_IPAM_CONCURRENCY.md" = "openinfra/docs/runbooks/DCIM_LOCATION_IPAM_CONCURRENCY.md"
+"docs/runbooks/IPAM_DDI_SYNCHRONIZATION.md" = "openinfra/docs/runbooks/IPAM_DDI_SYNCHRONIZATION.md"
 "installers/systemd/openinfra-runtime-secrets.service" = "openinfra/systemd/openinfra-runtime-secrets.service"
 "installers/systemd/openinfra-migrate.service" = "openinfra/systemd/openinfra-migrate.service"
 "installers/systemd/openinfra-team-sync.service" = "openinfra/systemd/openinfra-team-sync.service"
@@ -79,6 +90,27 @@ packages = ["src/openinfra"]
 
 [tool.hatch.build.targets.sdist]
 include = ["src", "tests", "scripts", "docker", "installers", "docs", "web", "requirements", ".github", "README.md", "LICENSE", "VERSION", "CHANGELOG.md", "VALIDATION-REPORT.md", "compose.yaml", "Dockerfile", ".env.example"]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+openinfra = [
+  "api/*.yaml",
+  "migrations/postgresql/*.sql",
+  "migrations/oracle/*.sql",
+  "migrations/oracle/*.json",
+  "docs/ga/**/*",
+  "docs/release/**/*",
+  "docs/runbooks/*.md",
+  "systemd/*.service",
+  "systemd/*.timer",
+  "interfaces/rendering/static/**/*",
+]
 
 [tool.pytest.ini_options]
 addopts = "-q --cov=src/openinfra --cov-report=term-missing --cov-fail-under=98"
@@ -93,6 +125,7 @@ source = ["src/openinfra"]
 omit = ["src/openinfra/infrastructure/postgresql.py"]
 
 [tool.coverage.report]
+precision = 8
 show_missing = true
 skip_covered = true
 exclude_lines = ['if TYPE_CHECKING:', 'raise TypeError\("adapter contract invoked directly"\)']

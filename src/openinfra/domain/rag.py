@@ -622,6 +622,34 @@ class RagAnswer:
             RagValidator.aware_datetime(generated_at, "generated_at"),
         )
 
+    def source_object_citations(self) -> tuple[dict[str, object], ...]:
+        result: list[dict[str, object]] = []
+        seen: set[str] = set()
+        for citation in self.citations:
+            if citation.source_type != RagSourceType.RSOT.value or citation.source_ref in seen:
+                continue
+            seen.add(citation.source_ref)
+            result.append(
+                {
+                    "object_key": citation.source_ref,
+                    "source_uri": citation.source_uri,
+                    "title": citation.title,
+                    "document_id": citation.document_id,
+                    "chunk_id": citation.chunk_id,
+                    "score": str(citation.score),
+                }
+            )
+        return tuple(result)
+
+    @staticmethod
+    def governance() -> dict[str, object]:
+        return {
+            "mode": "read-only",
+            "source_data_mutation_performed": False,
+            "change_validation_required": True,
+            "execution_capabilities": [],
+        }
+
     def as_dict(self) -> dict[str, object]:
         return {
             "id": self.id.value,
@@ -632,6 +660,8 @@ class RagAnswer:
             "status": self.status.value,
             "confidence": str(self.confidence),
             "citations": [citation.as_dict() for citation in self.citations],
+            "source_objects": list(self.source_object_citations()),
+            "governance": self.governance(),
             "retrieval_model": self.retrieval_model,
             "generated_at": self.generated_at.isoformat(),
         }

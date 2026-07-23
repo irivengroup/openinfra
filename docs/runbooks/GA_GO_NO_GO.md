@@ -1,6 +1,6 @@
 # Décision Go/No-Go GA OpenInfra
 
-Version cible : `0.34.8`
+Version cible : `0.34.18`
 
 ## Objectif
 
@@ -32,7 +32,7 @@ python scripts/ga_go_no_go.py `
   --policy docs/release/ga-go-no-go-policy.json `
   --trust-policy artifacts/ga/trust-policy.json `
   --evidence-root artifacts/ga `
-  --output artifacts/ga/openinfra-0.34.8-go-no-go.json `
+  --output artifacts/ga/openinfra-0.34.18-go-no-go.json `
   --ephemeral-signing-key
 ```
 
@@ -48,12 +48,12 @@ python scripts/ga_go_no_go.py `
   --policy docs/release/ga-go-no-go-policy.json `
   --trust-policy artifacts/ga/trust-policy.json `
   --evidence-root artifacts/ga `
-  --output artifacts/ga/openinfra-0.34.8-go-no-go.json `
+  --output artifacts/ga/openinfra-0.34.18-go-no-go.json `
   --enforce-go
 ```
 
 La commande retourne `1` pour un NO-GO et `2` pour une erreur de validation. Le rapport, sa signature et la clé publique de vérification doivent être archivés ensemble.
 
-## État de la version 0.34.8
+## État de la version 0.34.18
 
 Le mécanisme de décision est opérationnel. La GA reste en NO-GO tant que le modèle de support d'`EPIC-1806`, les preuves de capacité et de sécurité exécutées sur l'infrastructure cible, les exercices PITR/failover et toutes les approbations signées ne sont pas disponibles.

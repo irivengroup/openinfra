@@ -91,22 +91,29 @@ class ArtifactReference:
 
     @classmethod
     def from_dict(cls, value: dict[str, object]) -> Self:
+        raw_created_at = value.get("created_at")
         return cls.create(
             object_key=str(value["object_key"]),
             sha256=str(value["sha256"]),
             size_bytes=int(str(value["size_bytes"])),
             media_type=str(value["media_type"]),
-            created_at=datetime.fromisoformat(str(value["created_at"])),
+            created_at=(
+                None
+                if raw_created_at is None
+                else datetime.fromisoformat(str(raw_created_at))
+            ),
         )
 
-    def as_dict(self) -> dict[str, object]:
+    def as_locator_dict(self) -> dict[str, object]:
         return {
             "object_key": self.object_key,
             "sha256": self.sha256,
             "size_bytes": self.size_bytes,
             "media_type": self.media_type,
-            "created_at": self.created_at.isoformat(),
         }
+
+    def as_dict(self) -> dict[str, object]:
+        return {**self.as_locator_dict(), "created_at": self.created_at.isoformat()}
 
 
 @dataclass(frozen=True, slots=True)

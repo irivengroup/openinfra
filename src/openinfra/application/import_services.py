@@ -44,7 +44,13 @@ class DatasetParser(Protocol):
     def parse(self, _path: Path, _import_format: ImportFormat) -> tuple[dict[str, str], ...]:
         raise TypeError("adapter contract invoked directly")
 
-    def iter_rows(self, _path: Path, _import_format: ImportFormat) -> Iterator[dict[str, str]]:
+    def iter_rows(
+        self,
+        _path: Path,
+        _import_format: ImportFormat,
+        *,
+        max_bytes: int | None = None,
+    ) -> Iterator[dict[str, str]]:
         raise TypeError("adapter contract invoked directly")
 
 
@@ -111,6 +117,8 @@ class PlanMigrationCommand:
 
 class GenericImportService:
     _MAX_ROWS = 1_000_000
+    _MAX_BULK_CSV_BYTES = 512 * 1024 * 1024
+    _MAX_BULK_XLSX_BYTES = 50 * 1024 * 1024
 
     def __init__(
         self,
@@ -700,7 +708,14 @@ class GenericImportService:
     def _iter_rows(
         self, path: Path, import_format: ImportFormat
     ) -> Iterator[tuple[int, dict[str, str]]]:
-        for row_number, row in enumerate(self._parser.iter_rows(path, import_format), start=1):
+        max_bytes = (
+            self._MAX_BULK_CSV_BYTES
+            if import_format is ImportFormat.CSV
+            else self._MAX_BULK_XLSX_BYTES
+        )
+        for row_number, row in enumerate(
+            self._parser.iter_rows(path, import_format, max_bytes=max_bytes), start=1
+        ):
             if row_number > self._MAX_ROWS:
                 raise ValidationError("import dataset exceeds 1,000,000 rows")
             yield row_number, row

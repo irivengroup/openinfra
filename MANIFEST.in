@@ -1,0 +1,19 @@
+include openinfra_build_backend.py
+include pyproject.toml
+include README.md LICENSE VERSION CHANGELOG.md VALIDATION-REPORT.md compose.yaml Dockerfile .env.example
+recursive-include src *.py *.js *.jsx *.css *.html *.json *.yaml *.yml *.sql *.md *.service *.timer
+recursive-include tests *.py *.json *.yaml *.yml *.csv *.md
+recursive-include scripts *.py *.sh *.ps1 *.json *.yaml *.yml
+recursive-include docker *
+recursive-include installers *
+recursive-include docs *
+recursive-include web *
+recursive-include requirements *.txt
+recursive-include .github *.yaml *.yml
+prune web/node_modules
+prune web/dist
+prune build
+prune dist
+prune artifacts
+prune .git
+recursive-exclude * __pycache__ *.py[cod] .coverage*

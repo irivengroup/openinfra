@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from scripts.validate_enterprise_alignment import EnterpriseAlignmentValidator
 
 from openinfra.infrastructure.installer_config import InstallerConfigValidator
@@ -131,9 +133,9 @@ class TestInstallerAlignment:
         combined_requirements = "\n".join(path.read_text(encoding="utf-8") for path in requirements)
 
         assert not Path("migrations").exists()
-        assert len(installer_migrations) == 59
+        assert len(installer_migrations) == 60
         assert installer_migrations[0].name == "0001_bootstrap.sql"
-        assert installer_migrations[-1].name == "0059_runtime_offline_licensing.sql"
+        assert installer_migrations[-1].name == "0060_ipam_ddi_execution_journal.sql"
         assert "psycopg[binary]" in combined_requirements
         forbidden_dev_tools = ("pytest", "ruff", "mypy", "bandit", "pip-audit", "build")
         assert not any(tool in combined_requirements for tool in forbidden_dev_tools)
@@ -194,8 +196,9 @@ class TestInstallerAlignment:
         )
 
     def test_cli_auth_policy_rejects_lite_ldap_and_accepts_enterprise_ipa(
-        self, capsys: object
+        self, capsys: object, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        monkeypatch.chdir(tmp_path)
         lite_code = OpenInfraCLI().run(
             [
                 "auth",
@@ -236,3 +239,4 @@ class TestInstallerAlignment:
         assert enterprise_code == 0
         assert payload["mode"] == "ipa"
         assert payload["external_directory_enabled"] is True
+        assert not (tmp_path / ".openinfra.json").exists()

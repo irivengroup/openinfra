@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.34.5
+  version: 0.34.18
   description: >-
     API OpenInfra organisée dans Swagger et ReDoc par composant, puis par contexte métier.
     Chaque opération appartient à un contexte unique afin de conserver une navigation déterministe.
@@ -2395,6 +2395,32 @@ paths:
       - RSOT · Relations et dépendances
       x-openinfra-component: RSOT
       x-openinfra-context: Relations et dépendances
+  /api/v1/graph/change-impact:
+    get:
+      operationId: analyzeApplicationChangeImpact
+      summary: Analyze the impact of an application or infrastructure change
+      description: Produces a bounded report of impacted business services, critical dependency dominators and single-point-of-failure risk without mutating RSOT.
+      security:
+      - bearerToken: []
+      parameters:
+      - {name: tenant_id, in: query, required: true, schema: {type: string}}
+      - {name: root_key, in: query, required: true, schema: {type: string}}
+      - {name: direction, in: query, required: false, schema: {type: string, enum: [outgoing, incoming, both], default: incoming}}
+      - {name: max_depth, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 12, default: 8}}
+      - {name: max_nodes, in: query, required: false, schema: {type: integer, minimum: 2, maximum: 5000, default: 2000}}
+      - {name: relation_type, in: query, required: false, schema: {type: array, items: {type: string}}, style: form, explode: true}
+      - {name: as_of, in: query, required: false, schema: {type: string, format: date-time}}
+      - {name: business_service_kind, in: query, required: false, schema: {type: array, items: {type: string}}, style: form, explode: true}
+      - {name: business_service_resource_type, in: query, required: false, schema: {type: array, items: {type: string}}, style: form, explode: true}
+      - {name: affected_sample_limit, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 200, default: 25}}
+      responses:
+        '200': {description: Impacted business services, critical dependencies and SPOF risk report}
+        '400': {description: Invalid graph constraints, filters or query}
+        '401': {description: Missing or invalid Bearer token}
+      tags:
+      - RSOT · Relations et dépendances
+      x-openinfra-component: RSOT
+      x-openinfra-context: Relations et dépendances
   /api/v1/graph/path:
     get:
       operationId: findDependencyPath
@@ -2683,8 +2709,12 @@ paths:
         in: query
         required: true
         schema: {type: string, format: date-time}
+      - name: relation_limit
+        in: query
+        required: false
+        schema: {type: integer, minimum: 1, maximum: 500, default: 100}
       responses:
-        '200': {description: Historical object state resolved from snapshots}
+        '200': {description: Coherent historical object state with provenance and relations valid at the requested time}
         '400': {description: Validation error}
         '401': {description: Missing or invalid RSOT reader token}
       tags:
@@ -2843,7 +2873,7 @@ paths:
         required: true
         schema: {type: string}
       responses:
-        '200': {description: RSOT quality report with score, certification status and issues: null}
+        '200': {description: RSOT quality report with score, certification status and structured non_authoritative_source findings}
         '400': {description: Validation error}
         '401': {description: Missing or invalid RSOT quality reader token}
       tags:
@@ -3670,6 +3700,7 @@ paths:
                   type: array
                   items: {type: string, enum: [all, bind, powerdns, kea]}
                 dns_zone: {type: string, example: example.net}
+                reverse_dns_zone: {type: string, example: 2.0.192.in-addr.arpa}
                 mac_address: {type: string, example: aa:bb:cc:00:00:01}
                 ttl: {type: integer, minimum: 0, maximum: 86400, default: 300}
                 apply_preview: {type: boolean, default: false}
@@ -3680,6 +3711,44 @@ paths:
       - IPAM · Aperçu DDI
       x-openinfra-component: IPAM
       x-openinfra-context: Aperçu DDI
+  /api/v1/ipam/ddi-sync:
+    post:
+      summary: Apply an IPAM reservation to configured DNS and DHCP providers
+      description: Executes a durable idempotent DDI saga. Each provider mutation is journaled, exact previous state is captured before mutation, and completed effects are compensated in reverse order when a later operation fails. Ambiguous provider outcomes require explicit reconciliation and are never reported as successful.
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, vrf, reservation_idempotency_key, execution_idempotency_key, providers]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                vrf: {type: string}
+                reservation_idempotency_key: {type: string}
+                execution_idempotency_key: {type: string}
+                providers:
+                  type: array
+                  minItems: 1
+                  uniqueItems: true
+                  items: {type: string, enum: [bind, powerdns, kea]}
+                dns_zone: {type: string, example: example.net}
+                reverse_dns_zone: {type: string, example: 2.0.192.in-addr.arpa}
+                mac_address: {type: string, example: aa:bb:cc:00:00:01}
+                ttl: {type: integer, minimum: 0, maximum: 86400, default: 300}
+                resume: {type: boolean, default: false}
+      responses:
+        '200': {description: Durable DDI execution journal, including receipts, compensation state and reconciliation requirement}
+        '400': {description: Validation error, unsafe preview, unavailable provider or idempotency conflict}
+        '401': {description: Missing or invalid authentication}
+        '403': {description: Missing ipam.ddi.sync permission or tenant access}
+      tags:
+      - IPAM · Synchronisation DDI
+      x-openinfra-component: IPAM
+      x-openinfra-context: Synchronisation DDI
   /api/v1/exports/jobs:
     post:
       summary: Queue an asynchronous signed export job
@@ -3866,6 +3935,61 @@ paths:
         '200': {description: Bulk dry-run report with metrics and latest checkpoint}
         '201': {description: Bulk apply report with metrics and latest checkpoint}
         '400': {description: Validation error, access error or invalid dataset: null}
+      tags:
+      - Import et export · Imports
+      x-openinfra-component: Import et export
+      x-openinfra-context: Imports
+  /api/v1/imports/async-bulk-datasets:
+    post:
+      operationId: submitAsyncBulkImport
+      summary: Stream a CSV or XLSX dataset and queue a restartable bulk import
+      description: >-
+        Streams the raw request body into the tenant-isolated content-addressed artifact store,
+        then submits an idempotent imports.bulk-dataset job. CSV uploads are limited to 512 MiB;
+        XLSX uploads are limited to 50 MiB and undergo archive and XML decompression safeguards.
+        Processing occurs in the imports worker so interactive API requests remain available.
+      security: [bearerToken: []]
+      parameters:
+      - {name: tenant_id, in: query, required: true, schema: {type: string}}
+      - {name: actor, in: query, required: false, schema: {type: string, default: api}}
+      - {name: format, in: query, required: true, schema: {type: string, enum: [csv, xlsx]}}
+      - {name: mapping_json, in: query, required: true, schema: {type: string}, description: JSON object mapping target fields to source columns or literal values}
+      - {name: apply, in: query, required: false, schema: {type: boolean, default: false}}
+      - {name: idempotency_key, in: query, required: true, schema: {type: string, minLength: 8, maxLength: 128}}
+      - {name: batch_size, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 100000, default: 5000}}
+      - {name: checkpoint_interval, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 1000000, default: 25000}}
+      - {name: sample_limit, in: query, required: false, schema: {type: integer, minimum: 0, maximum: 10000, default: 100}}
+      - {name: max_attempts, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 20, default: 3}}
+      - {name: resume_job_id, in: query, required: false, schema: {type: string, format: uuid}}
+      - {name: X-OpenInfra-Filename, in: header, required: true, schema: {type: string, maxLength: 255}, description: URL-encoded source filename ending in .csv or .xlsx}
+      requestBody:
+        required: true
+        content:
+          text/csv:
+            schema: {type: string, format: binary}
+          application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+            schema: {type: string, format: binary}
+      responses:
+        '202': {description: Artifact stored and idempotent asynchronous import job queued}
+        '400': {description: Invalid metadata, mapping, filename, format, size or truncated upload}
+        '401': {description: Async submit permission required}
+      tags:
+      - Import et export · Imports
+      x-openinfra-component: Import et export
+      x-openinfra-context: Imports
+  /api/v1/imports/async-bulk-status:
+    get:
+      operationId: getAsyncBulkImportStatus
+      summary: Read an asynchronous bulk import job and its completed report
+      description: Returns the current queue state. The result remains null until the imports worker completes the job.
+      security: [bearerToken: []]
+      parameters:
+      - {name: tenant_id, in: query, required: true, schema: {type: string}}
+      - {name: job_id, in: query, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: Async job state and completed bulk import report when available}
+        '400': {description: Validation error, unknown job or invalid result artifact}
+        '401': {description: Async read permission required}
       tags:
       - Import et export · Imports
       x-openinfra-component: Import et export
@@ -4651,6 +4775,41 @@ paths:
       responses:
         '200': {description: Completed job; identical repeated completion is accepted}
         '400': {description: Stale token, conflicting result hash or validation error: null}
+        '401': {description: Collector certificate identity rejected}
+      tags:
+      - Discovery · Orchestration des jobs
+      x-openinfra-component: Discovery
+      x-openinfra-context: Orchestration des jobs
+  /api/v1/discovery/jobs/result:
+    post:
+      summary: Persist immutable discovery evidence and complete the leased job atomically
+      description: Authenticates the assigned collector certificate, validates the lease fencing token, persists one immutable SNMP, SSH or WinRM evidence record and completes the job with the evidence SHA-256. Identical replays return the existing evidence; conflicting replays fail closed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, collector_id, certificate_fingerprint, job_id, worker_id, lease_token, object_key, object_kind, confidence, payload, observed_at]
+              properties:
+                tenant_id: {type: string}
+                collector_id: {type: string, format: uuid}
+                certificate_fingerprint: {type: string}
+                job_id: {type: string, format: uuid}
+                worker_id: {type: string}
+                lease_token: {type: integer, minimum: 1}
+                object_key: {type: string, minLength: 1, maxLength: 512}
+                object_kind: {type: string, minLength: 1, maxLength: 128}
+                confidence: {type: number, minimum: 0, maximum: 1}
+                observed_at: {type: string, format: date-time}
+                payload:
+                  type: object
+                  description: Secret-free normalized discovery result.
+                  additionalProperties: true
+      responses:
+        '201': {description: Immutable evidence created and job completed}
+        '200': {description: Idempotent replay returning the previously persisted evidence}
+        '400': {description: Validation, stale fencing token, source mismatch or conflicting replay}
         '401': {description: Collector certificate identity rejected}
       tags:
       - Discovery · Orchestration des jobs
@@ -7644,7 +7803,7 @@ paths:
     post:
       operationId: queryGovernedRag
       summary: Produce an extractive answer with mandatory citations from permitted sources
-      description: Sources are filtered by tenant and permissions before retrieval. This endpoint cannot execute infrastructure actions.
+      description: Sources are filtered by tenant and permissions before retrieval. The response cites RSOT source objects and exposes a read-only governance contract; this endpoint cannot execute or apply infrastructure changes.
       security: [bearerToken: []]
       requestBody:
         required: true
@@ -7659,7 +7818,7 @@ paths:
                 question: {type: string, minLength: 2, maxLength: 4096}
                 limit: {type: integer, minimum: 1, maximum: 10, default: 6}
       responses:
-        '201': {description: Audited answer with citations or explicit insufficient-context status}
+        '201': {description: Audited read-only answer with citations, RSOT source object references and mandatory validation policy for any separate change}
         '400': {description: Invalid or unsearchable question}
         '401': {description: Missing or invalid RAG query token}
       tags:
@@ -10242,6 +10401,8 @@ tags:
   description: Vues de pilotage et recherche métier IPAM.
 - name: IPAM · Aperçu DDI
   description: Prévisualisation des changements DNS, DHCP et IPAM.
+- name: IPAM · Synchronisation DDI
+  description: Application transactionnelle et compensable des changements DNS et DHCP issus d’IPAM.
 - name: IPAM · Flux déclarés
   description: Déclaration et retrait des flux réseau attendus.
 - name: IPAM · Flux observés
@@ -10370,6 +10531,7 @@ x-tagGroups:
   - IPAM · DNS, DHCP et conflits
   - IPAM · Expérience opérateur
   - IPAM · Aperçu DDI
+  - IPAM · Synchronisation DDI
   - IPAM · Flux déclarés
   - IPAM · Flux observés
   - IPAM · Conformité des flux

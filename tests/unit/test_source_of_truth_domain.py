@@ -8,6 +8,7 @@ from openinfra.domain.common import TenantId, ValidationError
 from openinfra.domain.source_of_truth import (
     SourceObjectKey,
     SourceObjectSnapshot,
+    SourceObjectTimeTravelReport,
     SourceOfTruthObject,
     SourceRelation,
     SourceTag,
@@ -183,3 +184,101 @@ class TestSourceOfTruthDomain:
                 changed_by="pytest",
                 changed_at=datetime.now(UTC),
             )
+
+    def test_time_travel_report_validates_snapshot_and_relation_coherence(self) -> None:
+        tenant = TenantId.from_value("default")
+        source_object = SourceOfTruthObject.create(
+            tenant,
+            "server/time-travel",
+            "server",
+            "Time travel server",
+            {"site": "PAR1"},
+            ("history",),
+            "discovery.snmp",
+        )
+        snapshot = SourceObjectSnapshot.create(source_object, "collector-1")
+        relation = SourceRelation.create(
+            tenant,
+            "runs_on",
+            "application/history",
+            "server/time-travel",
+            "discovery.ssh",
+            valid_from=snapshot.changed_at - timedelta(minutes=1),
+            valid_to=snapshot.changed_at + timedelta(minutes=1),
+        )
+        report = SourceObjectTimeTravelReport.create(
+            requested_at=snapshot.changed_at,
+            snapshot=snapshot,
+            relations=(relation,),
+            complete=True,
+        )
+        payload = report.as_dict()
+        assert payload["coherent"] is True
+        assert payload["provenance"]["source_system"] == "discovery.snmp"
+        assert payload["relation_count"] == 1
+
+        invalid_payloads = (
+            {**snapshot.payload, "key": "server/other"},
+            {**snapshot.payload, "id": SourceOfTruthObject.create(
+                tenant, "server/other-id", "server", "Other", {}, (), "manual"
+            ).id.value},
+            {**snapshot.payload, "version": 99},
+        )
+        for invalid_payload in invalid_payloads:
+            invalid_snapshot = SourceObjectSnapshot.restore(
+                id=snapshot.id,
+                tenant_id=tenant,
+                object_key="server/time-travel",
+                object_id=source_object.id,
+                version=source_object.version,
+                payload=invalid_payload,
+                changed_by="collector-1",
+                changed_at=snapshot.changed_at,
+            )
+            with pytest.raises(ValidationError):
+                SourceObjectTimeTravelReport.create(
+                    requested_at=snapshot.changed_at,
+                    snapshot=invalid_snapshot,
+                    relations=(),
+                    complete=True,
+                )
+
+        with pytest.raises(ValidationError):
+            SourceObjectTimeTravelReport.create(
+                requested_at=snapshot.changed_at - timedelta(seconds=1),
+                snapshot=snapshot,
+                relations=(),
+                complete=True,
+            )
+        unrelated = SourceRelation.create(
+            tenant,
+            "depends_on",
+            "application/a",
+            "service/b",
+            "manual",
+            valid_from=snapshot.changed_at - timedelta(minutes=1),
+        )
+        with pytest.raises(ValidationError):
+            SourceObjectTimeTravelReport.create(
+                requested_at=snapshot.changed_at,
+                snapshot=snapshot,
+                relations=(unrelated,),
+                complete=True,
+            )
+        expired = SourceRelation.create(
+            tenant,
+            "runs_on",
+            "application/history",
+            "server/time-travel",
+            "manual",
+            valid_from=snapshot.changed_at - timedelta(minutes=2),
+            valid_to=snapshot.changed_at - timedelta(minutes=1),
+        )
+        with pytest.raises(ValidationError):
+            SourceObjectTimeTravelReport.create(
+                requested_at=snapshot.changed_at,
+                snapshot=snapshot,
+                relations=(expired,),
+                complete=True,
+            )
+

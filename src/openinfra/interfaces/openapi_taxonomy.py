@@ -156,6 +156,11 @@ class OpenApiDocumentationTaxonomy:
             "IPAM", "Aperçu DDI", "Prévisualisation des changements DNS, DHCP et IPAM."
         ),
         OpenApiDocumentationContext(
+            "IPAM",
+            "Synchronisation DDI",
+            "Application transactionnelle et compensable des changements DNS et DHCP issus d’IPAM.",
+        ),
+        OpenApiDocumentationContext(
             "IPAM", "Flux déclarés", "Déclaration et retrait des flux réseau attendus."
         ),
         OpenApiDocumentationContext(
@@ -435,6 +440,8 @@ class OpenApiDocumentationTaxonomy:
             return "IPAM", "DNS, DHCP et conflits"
         if path.startswith("/api/v1/ipam/ui-"):
             return "IPAM", "Expérience opérateur"
+        if path.startswith("/api/v1/ipam/ddi-sync"):
+            return "IPAM", "Synchronisation DDI"
         if path.startswith("/api/v1/ipam/ddi-preview"):
             return "IPAM", "Aperçu DDI"
         if path.startswith("/api/v1/flows/declarations"):

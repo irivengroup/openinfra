@@ -230,6 +230,7 @@ class TestSourceOfTruthServices:
         assert len(active_relations.items) == 1
         assert len(expired_relations.items) == 0
         assert [record.event.action for record in audit_page.items] == [
+            "rsot.object.time-travel.read",
             "rsot.object.update",
             "rsot.object.create",
         ]

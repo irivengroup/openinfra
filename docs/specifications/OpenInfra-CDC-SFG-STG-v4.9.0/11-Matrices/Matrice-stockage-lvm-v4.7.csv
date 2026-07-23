@@ -1,5 +1,0 @@
-scope,vgname,lvname,mountpoint,lv_size,owner_logical,group_logical,purpose,edition
-application,rootvg,openinfra_lv,/opt/openinfra/,2GB,openinfra,openinfra,"application binaries, configuration, controlled artefacts",lite;pro;enterprise
-postgresql_data_lite,datavg,openinfradata_lv,/data/openinfra/,2GB,postgresql_service_account,postgresql_service_group,"PostgreSQL backend data, WAL if not separated, tablespaces, PGDATA",lite
-postgresql_data_pro,datavg,openinfradata_lv,/data/openinfra/,100GB,postgresql_service_account,postgresql_service_group,"PostgreSQL backend data, WAL if not separated, tablespaces, PGDATA",pro
-postgresql_data_enterprise,datavg,openinfradata_lv,/data/openinfra/,1TB,postgresql_service_account,postgresql_service_group,"PostgreSQL backend data, WAL if not separated, tablespaces, PGDATA",enterprise

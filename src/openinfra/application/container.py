@@ -20,6 +20,7 @@ from openinfra.application.authentication_services import (
     ExternalAuthenticationService,
 )
 from openinfra.application.certificate_pki_services import CertificatePkiService
+from openinfra.application.ddi_sync_services import IpamDdiSynchronizationService
 from openinfra.application.dcim_services import (
     DcimCablingService,
     DcimEnvironmentService,
@@ -64,6 +65,8 @@ from openinfra.application.ports import (
     AuditRepository,
     CertificateInventoryRepository,
     DcimRepository,
+    DdiExecutionRepository,
+    DdiExecutor,
     DiscoveryRepository,
     ExportRepository,
     FieldOperationRepository,
@@ -120,6 +123,11 @@ from openinfra.infrastructure.async_processing import (
 from openinfra.infrastructure.certificate_parser import CryptographyCertificateParser
 from openinfra.infrastructure.cursor_pagination import CursorTokenCodec
 from openinfra.infrastructure.ddi_connectors import DdiConnectorFactory
+from openinfra.infrastructure.ddi_executors import DdiExecutorFactory
+from openinfra.infrastructure.ddi_persistence import (
+    JsonDdiExecutionRepository,
+    PostgreSQLDdiExecutionRepository,
+)
 from openinfra.infrastructure.external_identity import LdapIpaDirectoryAuthenticator
 from openinfra.infrastructure.import_parsers import ImportDatasetParser
 from openinfra.infrastructure.json_store import (
@@ -232,6 +240,8 @@ class OpenInfraApplication:
     ipam_conflict_service: IpamConflictService
     ipam_ui_service: IpamUiService
     ipam_ddi_service: IpamDdiService
+    ipam_ddi_sync_service: IpamDdiSynchronizationService
+    ddi_execution_repository: DdiExecutionRepository
     import_service: GenericImportService
     export_service: ExportService
     discovery_service: DiscoveryCollectorService
@@ -306,11 +316,13 @@ class ApplicationFactory:
         data_path: Path,
         seed: bool = True,
         edition: str = "enterprise",
+        ddi_executors: tuple[DdiExecutor, ...] | None = None,
     ) -> OpenInfraApplication:
         store = JsonDocumentStore(data_path)
         transaction_manager = JsonTransactionManager(store)
         dcim_repository = JsonDcimRepository(store)
         ipam_repository = JsonIpamRepository(store)
+        ddi_execution_repository = JsonDdiExecutionRepository(store)
         audit_repository = JsonAuditRepository(store)
         security_repository = JsonSecurityRepository(store)
         identity_repository = JsonIdentityRepository(store)
@@ -365,6 +377,8 @@ class ApplicationFactory:
             store=store,
             dcim_repository=dcim_repository,
             ipam_repository=ipam_repository,
+            ddi_execution_repository=ddi_execution_repository,
+            ddi_executors=ddi_executors,
             itam_support_repository=itam_support_repository,
             audit_repository=audit_repository,
             security_repository=security_repository,
@@ -409,6 +423,7 @@ class ApplicationFactory:
         read_pool_settings: PostgreSQLConnectionPoolSettings | None = None,
         read_routing_settings: PostgreSQLReadRoutingSettings | None = None,
         cursor_signing_secret: str | None = None,
+        ddi_executors: tuple[DdiExecutor, ...] | None = None,
     ) -> OpenInfraApplication:
         connection_factory = PostgreSQLConnectionFactory(
             dsn,
@@ -437,6 +452,7 @@ class ApplicationFactory:
         transaction_manager = PostgreSQLTransactionManager(registry)
         dcim_repository = PostgreSQLDcimRepository(registry, cursor_codec)
         ipam_repository = PostgreSQLIpamRepository(registry, cursor_codec)
+        ddi_execution_repository = PostgreSQLDdiExecutionRepository(registry)
         audit_repository = PostgreSQLAuditRepository(registry, cursor_codec)
         security_repository = PostgreSQLSecurityRepository(registry, cursor_codec)
         identity_repository = PostgreSQLIdentityRepository(registry, cursor_codec)
@@ -504,6 +520,8 @@ class ApplicationFactory:
             store=registry,
             dcim_repository=dcim_repository,
             ipam_repository=ipam_repository,
+            ddi_execution_repository=ddi_execution_repository,
+            ddi_executors=ddi_executors,
             audit_repository=audit_repository,
             security_repository=security_repository,
             identity_repository=identity_repository,
@@ -542,12 +560,14 @@ class ApplicationFactory:
         settings: OracleConnectionSettings,
         seed: bool = False,
         edition: str = "enterprise",
+        ddi_executors: tuple[DdiExecutor, ...] | None = None,
     ) -> OpenInfraApplication:
         EditionDatabasePolicy.validate(edition, "oracle")
         store = OracleDocumentStore(settings)
         transaction_manager = OracleTransactionManager(store)
         dcim_repository = JsonDcimRepository(store)
         ipam_repository = JsonIpamRepository(store)
+        ddi_execution_repository = JsonDdiExecutionRepository(store)
         audit_repository = JsonAuditRepository(store)
         security_repository = JsonSecurityRepository(store)
         identity_repository = JsonIdentityRepository(store)
@@ -596,6 +616,8 @@ class ApplicationFactory:
             store=store,
             dcim_repository=dcim_repository,
             ipam_repository=ipam_repository,
+            ddi_execution_repository=ddi_execution_repository,
+            ddi_executors=ddi_executors,
             itam_support_repository=itam_support_repository,
             audit_repository=audit_repository,
             security_repository=security_repository,
@@ -701,6 +723,8 @@ class ApplicationFactory:
         transaction_manager: TransactionManager,
         readiness_probe: ReadinessProbe,
         schema_status_provider: SchemaStatusProvider,
+        ddi_execution_repository: DdiExecutionRepository | None = None,
+        ddi_executors: tuple[DdiExecutor, ...] | None = None,
         runtime_usage_repository: RuntimeUsageRepository | None = None,
         license_repository: LicenseRepository | None = None,
         async_processing_repository: AsyncProcessingRepository | None = None,
@@ -726,6 +750,16 @@ class ApplicationFactory:
         network_config_compliance_repository: NetworkConfigComplianceRepository | None = None,
         itam_support_repository: ItamSupportRepository | None = None,
     ) -> OpenInfraApplication:
+        if ddi_execution_repository is None:
+            if hasattr(store, "data"):
+                ddi_execution_repository = JsonDdiExecutionRepository(store)
+            else:
+                ddi_execution_repository = PostgreSQLDdiExecutionRepository(store)
+        resolved_ddi_executors = (
+            DdiExecutorFactory.from_environment()
+            if ddi_executors is None
+            else ddi_executors
+        )
         if source_of_truth_repository is None:
             if hasattr(store, "data"):
                 source_of_truth_repository = JsonSourceOfTruthRepository(store)
@@ -877,6 +911,13 @@ class ApplicationFactory:
             audit_repository,
             transaction_manager,
             DdiConnectorFactory.default(),
+        )
+        ipam_ddi_sync_service = IpamDdiSynchronizationService(
+            ipam_ddi_service,
+            ddi_execution_repository,
+            audit_repository,
+            transaction_manager,
+            resolved_ddi_executors,
         )
         import_service = GenericImportService(
             import_repository,
@@ -1129,6 +1170,8 @@ class ApplicationFactory:
             ),
             ipam_conflict_service=ipam_conflict_service,
             ipam_ddi_service=ipam_ddi_service,
+            ipam_ddi_sync_service=ipam_ddi_sync_service,
+            ddi_execution_repository=ddi_execution_repository,
             import_service=import_service,
             export_service=export_service,
             discovery_service=discovery_service,

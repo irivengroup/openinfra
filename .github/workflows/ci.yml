@@ -77,13 +77,13 @@ jobs:
             tests/unit/test_oracle_runtime.py
 
       - name: Format check
-        run: ruff format --check src tests scripts docker installers
+        run: ruff format --check src tests scripts docker installers openinfra_build_backend.py
 
       - name: Lint
-        run: ruff check src tests scripts docker installers
+        run: ruff check src tests scripts docker installers openinfra_build_backend.py
 
       - name: Type check
-        run: mypy src/openinfra
+        run: mypy src/openinfra openinfra_build_backend.py
 
       - name: OpenAPI YAML validation
         run: >-

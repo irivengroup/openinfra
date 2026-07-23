@@ -1,4 +1,165 @@
+# Changelog OpenInfra
+
+## 0.34.18 — Alerte explicite de source non autoritative RSOT
+
+- preuve automatisée `TST-RSOTQUAL-048` couvrant une donnée portée par une source non autoritative par service, CLI, API HTTP, audit et portails ;
+- finding `non_authoritative_source` enrichi avec le champ gouverné, la source observée, la source attendue et le nom de la règle autoritative ;
+- résolution des chemins d’attributs imbriqués dans l’évaluation d’autorité, sans modifier le contrat des chemins simples ou globaux ;
+- score d’autorité, nombre total d’anomalies et nombre d’anomalies non autoritatives ajoutés aux événements d’audit qualité ;
+- portails React et runtime enrichis d’un détail accessible des sources observée/attendue et de la règle de gouvernance ;
+- runbook `RSOT_QUALITY_NON_AUTHORITATIVE_SOURCE.md`, OpenAPI, CI, packaging et smoke du wheel synchronisés ;
+- backend de build durci : normalisation atomique des sdists sous `SOURCE_DATE_EPOCH`, wheel et sdist reproductibles bit à bit ;
+- six tests unitaires couvrent la reproductibilité, l’intégration backend et les valeurs invalides de `SOURCE_DATE_EPOCH` ;
+- registre GATE-14 : 31 preuves automatisées, 588 partielles, 48 externes, 44 sélecteurs et 77 fichiers d’évidence ;
+- aucune migration, aucune rupture API/CLI/RBAC et aucune modification de la charte graphique approuvée.
+
+## 0.34.17 — RBAC qualité RSOT et réouverture JSON idempotente
+
+- preuve automatisée `TST-RSOTQUAL-047` couvrant le refus d’un rôle dépourvu de `rsot.quality.read` par service, CLI, API HTTP et portails ;
+- absence vérifiée de fuite de clé, nom, numéro de série, score ou statut de certification dans les réponses refusées ;
+- absence de mutation persistante et d’événement qualité lors des tentatives refusées ;
+- portail React corrigé afin d’exécuter réellement les opérations qualité contre le backend protégé, avec conservation du statut HTTP et sans faux message de succès ;
+- portail runtime enrichi d’une erreur HTTP typée et d’un rendu explicite des refus 401/403 ;
+- réouverture du backend JSON rendue idempotente : les données de démonstration ne sont initialisées qu’à la création du fichier ;
+- runbook `RSOT_QUALITY_RBAC.md`, CI, packaging et smoke du wheel synchronisés ;
+- registre GATE-14 : 30 preuves automatisées, 589 partielles, 48 externes, 43 sélecteurs et 74 fichiers d’évidence ;
+- aucune migration, aucune rupture API/CLI/RBAC et aucune modification de la charte graphique approuvée.
+
+## 0.34.16 — Certification qualité RSOT autoritative
+
+- preuve automatisée `TST-RSOTQUAL-046` couvrant la certification d’un objet RSOT complet, récent et alimenté par une source autoritative ;
+- parcours cohérent service, CLI et API HTTP avec score `>= 90`, statut `certified` et synthèse agrégée ;
+- audit vérifié pour chaque évaluation et synthèse, avec score et statut de certification ;
+- rapport accessible dédié dans les portails React et runtime embarqué, avec dimensions de qualité, anomalies et JSON brut ;
+- runbook `RSOT_QUALITY_CERTIFICATION.md`, CI, packaging et smoke du wheel synchronisés ;
+- registre GATE-14 : 29 preuves automatisées, 590 partielles, 48 externes, 42 sélecteurs et 71 fichiers d’évidence ;
+- aucune migration, aucune rupture API/CLI/RBAC et aucune modification de la charte graphique approuvée.
+
+## 0.34.15 — Assistant RAG gouverné et cité
+
+- preuve automatisée `TST-FUNC-0010` couvrant l’indexation RSOT, la réponse citée et la non-mutation du référentiel par service, CLI et API HTTP ;
+- ajout des références `source_objects` et du contrat `governance` rétrocompatible dans chaque `RagAnswer` ;
+- mode `read-only`, absence de mutation, validation obligatoire avant changement et aucune capacité d’exécution ;
+- audit enrichi par le nombre d’objets sources et les garanties de gouvernance, sans conservation de la question en clair ;
+- rapport accessible dédié dans les portails React et runtime embarqué ;
+- runbook `GOVERNED_RAG_ASSISTANT.md`, OpenAPI, CI, packaging et smoke du wheel synchronisés ;
+- registre GATE-14 : 29 preuves automatisées, 590 partielles, 48 externes, 42 sélecteurs et 71 fichiers d’évidence ;
+- aucune migration et aucune modification de la charte graphique approuvée.
+
 # Changelog
+
+## 0.34.14 — 2026-07-23
+
+### Ajouté
+
+- preuve automatisée `TST-FUNC-0009` couvrant la consultation historique RSOT depuis le snapshot jusqu’à la provenance et aux relations valides à la date demandée ;
+- paramètre borné `relation_limit` sur la commande `openinfra rsot get-object-as-of` et l’endpoint `GET /api/v1/rsot/object-as-of` ;
+- rapport accessible de time travel dans les portails React et runtime embarqué ;
+- runbook `docs/runbooks/RSOT_TIME_TRAVEL.md`, contrat OpenAPI et exécution ciblée dans le workflow GATE-14.
+
+### Cohérence, sécurité et compatibilité
+
+- vérification stricte de la clé, de l’identifiant, de la version et du payload du snapshot ;
+- relations entrantes et sortantes filtrées selon leur fenêtre de validité historique, dédupliquées et triées de manière déterministe ;
+- provenance explicite du système source, de l’acteur, de l’horodatage et de l’identifiant du snapshot ;
+- résultat `complete=false` lorsque la borne relationnelle empêche une restitution exhaustive ;
+- opération en lecture seule, auditée, sans migration ni rupture API/CLI/RBAC.
+
+### Qualité
+
+- registre GATE-14 : 27 preuves automatisées, 592 partielles, 48 externes, 40 sélecteurs et 65 fichiers d’évidence ;
+- aucune suppression fonctionnelle ni modification de la charte graphique approuvée.
+
+## 0.34.13 — 2026-07-23
+
+### Ajouté
+
+- preuve automatisée `TST-FUNC-0005` couvrant l’analyse d’impact d’un changement applicatif depuis le graphe RSOT jusqu’au rapport des services métier, dépendances critiques et risques SPOF ;
+- commande `openinfra graph change-impact`, endpoint `GET /api/v1/graph/change-impact` et opération équivalente dans les portails React et runtime embarqué ;
+- rendu accessible du rapport avec synthèse, tableaux structurés, visualisation du graphe et résultat JSON brut ;
+- opération asynchrone `graph.change-impact` prise en charge par les workers spécialisés ;
+- runbook `docs/runbooks/APPLICATION_CHANGE_IMPACT.md`, contrat OpenAPI et exécution ciblée dans le workflow GATE-14.
+
+### Sécurité, performance et résilience
+
+- parcours borné par profondeur et nombre de nœuds, avec état `complete=false` fail-closed en cas de troncature ;
+- filtrage strict des catégories métier et taille d’échantillon limitée à 200 ;
+- analyse en lecture seule, journalisée et sans mutation RSOT ;
+- calcul déterministe des dominateurs critiques et échantillons triés.
+
+### Qualité et compatibilité
+
+- registre GATE-14 : 26 preuves automatisées, 593 partielles, 48 externes, 39 sélecteurs et 64 fichiers d’évidence ;
+- catalogue runtime porté à 300 opérations uniques ;
+- aucune migration, suppression d’API/CLI/RBAC ou modification de la charte graphique approuvée ;
+- les opérations de graphe, exports, workers et backends existants restent rétrocompatibles.
+
+## 0.34.12 — 2026-07-22
+
+### Ajouté
+
+- preuve automatisée `TST-FUNC-0004` couvrant une découverte distribuée SNMP/SSH depuis la soumission du job jusqu’à la preuve immuable, l’historique et le rapprochement conflict-safe ;
+- commande `openinfra discovery job-result` et endpoint `POST /api/v1/discovery/jobs/result` ;
+- opérations **Soumettre un job distribué** et **Enregistrer le résultat d’un job** dans les portails React et runtime embarqué ;
+- runbook `docs/runbooks/DISTRIBUTED_DISCOVERY_RESULTS.md`, contrat OpenAPI et exécution ciblée dans le workflow GATE-14.
+
+### Sécurité, cohérence et résilience
+
+- résultat accepté uniquement pour le collector assigné, authentifié par certificat, compatible avec la source et titulaire du bail actif ;
+- preuve et complétion du job persistées atomiquement avec SHA-256 commun ;
+- rejeu strictement identique idempotent, rejeu divergent et charge contenant des secrets rejetés ;
+- observations successives conservées sans écrasement et conflits multi-sources bloquant l’écriture RSOT.
+
+### Qualité et compatibilité
+
+- registre GATE-14 : 25 preuves automatisées, 594 partielles, 48 externes, 38 sélecteurs et 63 fichiers d’évidence ;
+- catalogue runtime porté à 299 opérations uniques ;
+- aucune migration, suppression d’API/CLI/RBAC ou modification de la charte graphique approuvée ;
+- les jobs Discovery, collectors, preuves et rapprochements existants restent rétrocompatibles.
+
+## 0.34.11 — 2026-07-22
+
+### Ajouté
+
+- preuve automatisée `TST-FUNC-0003` couvrant l’import massif CSV/XLSX depuis l’API jusqu’au worker spécialisé, au checkpoint persistant et à la création RSOT ;
+- dépôt binaire en streaming jusqu’à 512 Mio pour CSV et 50 Mio pour XLSX, sans chargement intégral du fichier en mémoire ;
+- endpoints `POST /api/v1/imports/async-bulk-datasets` et `GET /api/v1/imports/async-bulk-status`, protégés par jeton Bearer ;
+- opérations correspondantes dans les portails React et runtime embarqué, avec transfert binaire brut et suivi du résultat ;
+- runbook `docs/runbooks/ASYNC_BULK_IMPORTS.md`, contrat OpenAPI, preuve frontend et exécution ciblée dans le workflow GATE-14.
+
+### Sécurité, performance et résilience
+
+- identité idempotente d’un artefact fondée sur sa clé, son SHA-256, sa taille et son type, indépendamment de son horodatage ;
+- matérialisation atomique et vérifiée des artefacts locaux/S3, avec reprise sans dépendance à l’arbre source ;
+- limites de taille spécifiques au format, rejet des archives XLSX chiffrées, surdimensionnées ou à expansion excessive ;
+- disponibilité de l’API interactive vérifiée pendant le traitement bloquant du worker et reprise contrôlée par checkpoint.
+
+### Corrigé
+
+- `openinfra auth policy` valide désormais la politique directement, sans instancier le stockage JSON ni créer de fichier `.openinfra.json` ;
+- le wheel embarque obligatoirement `ASYNC_BULK_IMPORTS.md` et le smoke installé contrôle les métriques GATE-14 `24/595/37/62`.
+
+### Qualité et compatibilité
+
+- registre GATE-14 : 24 preuves automatisées, 595 partielles, 48 externes, 37 sélecteurs et 62 fichiers d’évidence ;
+- aucune migration, suppression d’API/CLI/RBAC ni modification de la charte graphique approuvée ;
+- les imports synchrones existants, les backends JSON/PostgreSQL/Oracle et les licences restent rétrocompatibles.
+
+## 0.34.10 — 2026-07-22
+
+### Ajouté
+
+- preuve automatisée `TST-FUNC-0001` couvrant la localisation physique complète, la fiche d’intervention, le payload de repérage et la parité des portails React/runtime ;
+- opération frontend `dcim-locator-sheet`, recherchable et regroupée sous **DCIM → Localisation & capacité** ;
+- preuve automatisée `TST-FUNC-0002` exécutant 20 réservations IP concurrentes et vérifiant unicité, persistance et rejeu idempotent ;
+- runbook `docs/runbooks/DCIM_LOCATION_IPAM_CONCURRENCY.md` et exécution explicite des deux régressions dans le workflow GATE-14.
+
+### Qualité et compatibilité
+
+- registre GATE-14 : 23 preuves automatisées, 596 partielles, 48 externes, 36 sélecteurs et 61 fichiers d’évidence ;
+- couverture stabilisée par une régression déterministe du publish concurrent identique dans le stockage local d’artefacts ;
+- aucune migration, aucune suppression d’API/CLI/RBAC et aucun changement de charte graphique ;
+- les backends JSON/PostgreSQL conservent leurs mécanismes de sérialisation ; Oracle reste réservé à Enterprise.
 
 ## 0.34.9 — 2026-07-22
 
@@ -196,6 +357,28 @@
 
 # Changelog
 
+## 0.34.14 — 2026-07-23
+
+### Ajouté
+
+- preuve automatisée `TST-FUNC-0009` couvrant la consultation historique RSOT depuis le snapshot jusqu’à la provenance et aux relations valides à la date demandée ;
+- paramètre borné `relation_limit` sur la commande `openinfra rsot get-object-as-of` et l’endpoint `GET /api/v1/rsot/object-as-of` ;
+- rapport accessible de time travel dans les portails React et runtime embarqué ;
+- runbook `docs/runbooks/RSOT_TIME_TRAVEL.md`, contrat OpenAPI et exécution ciblée dans le workflow GATE-14.
+
+### Cohérence, sécurité et compatibilité
+
+- vérification stricte de la clé, de l’identifiant, de la version et du payload du snapshot ;
+- relations entrantes et sortantes filtrées selon leur fenêtre de validité historique, dédupliquées et triées de manière déterministe ;
+- provenance explicite du système source, de l’acteur, de l’horodatage et de l’identifiant du snapshot ;
+- résultat `complete=false` lorsque la borne relationnelle empêche une restitution exhaustive ;
+- opération en lecture seule, auditée, sans migration ni rupture API/CLI/RBAC.
+
+### Qualité
+
+- registre GATE-14 : 27 preuves automatisées, 592 partielles, 48 externes, 40 sélecteurs et 65 fichiers d’évidence ;
+- aucune suppression fonctionnelle ni modification de la charte graphique approuvée.
+
 ## v0.33.5 — P21 / EPIC-2104 Conformité GitOps et filtres multicritères de gestion
 
 - ajout d’états GitOps attendus immuables liés à un commit Git complet, une source, un owner et un environnement ;
@@ -371,6 +554,28 @@
 - Aucun changement de schéma PostgreSQL ni de charte graphique.
 
 # Changelog
+
+## 0.34.14 — 2026-07-23
+
+### Ajouté
+
+- preuve automatisée `TST-FUNC-0009` couvrant la consultation historique RSOT depuis le snapshot jusqu’à la provenance et aux relations valides à la date demandée ;
+- paramètre borné `relation_limit` sur la commande `openinfra rsot get-object-as-of` et l’endpoint `GET /api/v1/rsot/object-as-of` ;
+- rapport accessible de time travel dans les portails React et runtime embarqué ;
+- runbook `docs/runbooks/RSOT_TIME_TRAVEL.md`, contrat OpenAPI et exécution ciblée dans le workflow GATE-14.
+
+### Cohérence, sécurité et compatibilité
+
+- vérification stricte de la clé, de l’identifiant, de la version et du payload du snapshot ;
+- relations entrantes et sortantes filtrées selon leur fenêtre de validité historique, dédupliquées et triées de manière déterministe ;
+- provenance explicite du système source, de l’acteur, de l’horodatage et de l’identifiant du snapshot ;
+- résultat `complete=false` lorsque la borne relationnelle empêche une restitution exhaustive ;
+- opération en lecture seule, auditée, sans migration ni rupture API/CLI/RBAC.
+
+### Qualité
+
+- registre GATE-14 : 27 preuves automatisées, 592 partielles, 48 externes, 40 sélecteurs et 65 fichiers d’évidence ;
+- aucune suppression fonctionnelle ni modification de la charte graphique approuvée.
 
 ## 0.32.2 — 2026-07-12
 

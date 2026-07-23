@@ -86,8 +86,11 @@ jobs:
             tests/integration/test_rsot_quality_services.py \
             tests/integration/test_http_api.py
 
-      - name: Full Python regression and coverage gate
-        run: python -m pytest -n 4 --dist loadfile --cov-fail-under=98
+      - name: Full Python regression and exact coverage gate
+        run: |
+          python -m pytest -n 4 --dist loadfile --cov-fail-under=98
+          python -m coverage json -o coverage.json
+          python scripts/validate_coverage.py --coverage-json coverage.json --minimum 98
 
       - name: Frontend tests, accessibility and build
         working-directory: web
@@ -104,7 +107,7 @@ jobs:
           mkdir -p artifacts/gate13
           openinfra-gate13 \
             --project-root . \
-            --candidate-id "openinfra-0.34.8-${GITHUB_RUN_ID}" \
+            --candidate-id "openinfra-0.34.18-${GITHUB_RUN_ID}" \
             --source-commit "${GITHUB_SHA}" \
             --output artifacts/gate13/report.json \
             --enforce
@@ -123,7 +126,7 @@ jobs:
           set -euo pipefail
           python -m venv /tmp/openinfra-gate13-smoke
           /tmp/openinfra-gate13-smoke/bin/python -m pip install --upgrade pip
-          /tmp/openinfra-gate13-smoke/bin/python -m pip install "dist/openinfra-0.34.8-py3-none-any.whl[postgresql,oracle]"
+          /tmp/openinfra-gate13-smoke/bin/python -m pip install "dist/openinfra-0.34.18-py3-none-any.whl[postgresql,oracle]"
           cd /tmp
           /tmp/openinfra-gate13-smoke/bin/python "$GITHUB_WORKSPACE/scripts/smoke_installed_wheel.py"
 

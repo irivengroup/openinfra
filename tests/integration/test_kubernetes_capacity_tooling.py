@@ -13,7 +13,7 @@ def test_kubernetes_capacity_validator_and_release_tooling_are_integrated() -> N
     assert report["epic"] == "EPIC-2105"
     assert report["max_trend_snapshots"] == 96
     assert report["max_trend_resources"] == 1_000_000
-    assert report["migration_count"] == 59
+    assert report["migration_count"] == 60
 
     workflow = (PROJECT_ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
     quality_gate = (PROJECT_ROOT / "scripts/quality_gate.py").read_text(encoding="utf-8")

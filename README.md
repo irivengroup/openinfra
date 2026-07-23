@@ -1,9 +1,172 @@
-# OpenInfra v0.34.8
+# OpenInfra v0.34.18
 
-OpenInfra 0.34.8 matérialise `TST-FUNC-0007` avec une recommandation DCIM déterministe de placement d’équipements compatible avec l’espace U, les circuits électriques simples ou A/B redondants et la capacité thermique. Le service est disponible en CLI, HTTP et dans le portail, sans réservation implicite ni modification du thème. La canonicalisation RSOT, le licensing runtime offline et GATE-14 restent inchangés dans leurs contrats ; PostgreSQL demeure le backend par défaut et Oracle 19c reste exclusivement disponible pour l’édition Enterprise.
+OpenInfra 0.34.18 ferme la preuve contractuelle `TST-RSOTQUAL-048` : toute donnée portée par une source non autoritative produit un avertissement explicite, structuré et identique par service, CLI, API HTTP, audit et portails. L’incrément prend en charge les chemins d’attributs imbriqués, préserve les contrats historiques des findings qualité et n’effectue aucune mutation de l’objet RSOT évalué.
+
+Le packaging a également été durci : le backend de build normalise les sdists lorsque `SOURCE_DATE_EPOCH` est défini. Le wheel et le sdist sont désormais reproductibles bit à bit, avec métadonnées TAR/PAX, propriétaires et en-tête GZIP déterministes.
+
+## Alerte de source non autoritative RSOT — v0.34.18
+
+- finding stable `non_authoritative_source` avec champ gouverné, source observée, source attendue et règle autoritative ;
+- message opérateur explicite sans suppression ni modification des champs historiques ;
+- résolution déterministe des chemins simples, globaux (`*`) et imbriqués tels que `hardware.serial_number` ;
+- dégradation du score d’autorité et statut `warning` cohérents entre service, CLI, HTTP et synthèse tenant ;
+- audit enrichi par le score d’autorité, le nombre d’anomalies et le nombre d’anomalies non autoritatives ;
+- rendu accessible dans les portails React et runtime, avec échappement des données dynamiques ;
+- preuve GATE-14 `TST-RSOTQUAL-048`, OpenAPI, CI, runbook, packaging et smoke installé synchronisés ;
+- aucune migration, aucune rupture API/CLI/RBAC et aucune modification de la charte graphique approuvée.
+
+Voir `docs/runbooks/RSOT_QUALITY_NON_AUTHORITATIVE_SOURCE.md`.
+
+### Résultats autonomes 0.34.18
+
+- **295/295** fichiers de tests Python et **1 687/1 687** tests réussis ;
+- couverture exacte : **49 396/50 392**, soit **98,023495792983 %** ;
+- **100/100** tests frontend autonomes ;
+- **60/60** migrations PostgreSQL/Oracle ;
+- GATE-14 : **31 automatisées, 588 partielles, 48 externes, 44 sélecteurs et 77 fichiers d’évidence** ;
+- wheel et sdist reproductibles bit à bit ; vérification stricte du contenu et smoke installé local : **PASS** ;
+- promotion final-candidate maintenue en **NO-GO** jusqu’à la fermeture des gates d’outillage, de registres et d’infrastructure externes.
+
+## Contrôle RBAC de la qualité RSOT — v0.34.17
+
+OpenInfra 0.34.17 ferme la preuve contractuelle `TST-RSOTQUAL-047` : un rôle sans permission `rsot.quality.read` ne peut consulter aucun résultat de qualité RSOT par service, CLI, API HTTP ou portail. L’incrément corrige également la réouverture du backend JSON afin qu’elle ne réinjecte jamais les données de démonstration dans un fichier existant.
+
+- contrôle `rsot.quality.read` exécuté avant toute lecture d’objet ou de synthèse ;
+- refus cohérent par service, CLI et API HTTP pour un rôle `dcim:operator` ;
+- aucune donnée métier divulguée dans les sorties refusées ;
+- aucune mutation du fichier d’état ni événement qualité lors d’un refus ;
+- initialisation JSON de démonstration limitée à la création initiale du fichier ;
+- preuve GATE-14 `TST-RSOTQUAL-047` exécutée explicitement dans la CI.
+
+Voir `docs/runbooks/RSOT_QUALITY_RBAC.md`.
+
+### Résultats autonomes 0.34.17
+
+- **293/293** fichiers de tests Python et **1 680/1 680** tests réussis ;
+- couverture exacte : **49 374/50 371**, soit **98,020686506125 %** ;
+- **99/99** tests frontend autonomes ;
+- GATE-14 : **30 automatisées, 589 partielles, 48 externes, 43 sélecteurs et 74 fichiers d’évidence**.
+
+OpenInfra 0.34.16 ferme la preuve contractuelle `TST-RSOTQUAL-046` : un objet RSOT complet, récent et alimenté par une source autoritative obtient un score de qualité supérieur ou égal à 90 et le statut `certified`. Le résultat est identique par service, CLI et API HTTP, audité, puis présenté dans les portails React et runtime sous forme de rapport accessible. L’incrément conserve toutes les preuves qualifiées jusqu’à 0.34.15, n’ajoute aucune migration et ne modifie pas la charte graphique approuvée.
+
+## Certification qualité RSOT autoritative — v0.34.16
+
+- calcul inchangé des dimensions de complétude, fraîcheur, autorité et confiance ;
+- certification réservée aux objets sans erreur ni avertissement et dont le score est `>= 90` ;
+- règle de gouvernance autoritative vérifiée sur l’attribut `serial` ;
+- cohérence du résultat entre service, CLI, API HTTP et synthèse ;
+- audit `rsot.quality.evaluate` et `rsot.quality.summary` contrôlé ;
+- rapport accessible dans les deux portails avec scores par dimension, statut, anomalies et JSON brut ;
+- preuve GATE-14 `TST-RSOTQUAL-046` exécutée explicitement dans la CI ;
+- runbook et contrats de packaging synchronisés ;
+- aucune migration et aucune modification de la charte graphique.
+
+Voir `docs/runbooks/RSOT_QUALITY_CERTIFICATION.md`.
+
+### Résultats autonomes 0.34.16
+
+- **292/292** fichiers de tests Python et **1 679/1 679** tests réussis ;
+- couverture exacte : **49 373/50 370**, soit **98,020647210641 %** ;
+- **97/97** tests frontend autonomes ;
+- **60/60** migrations PostgreSQL/Oracle ;
+- GATE-14 : **29 automatisées, 590 partielles, 48 externes, 42 sélecteurs et 71 fichiers d’évidence** ;
+- promotion final-candidate maintenue en **NO-GO** jusqu’à la fermeture des gates d’outillage et d’infrastructure externes.
+
+## Assistant RAG gouverné et cité — v0.34.15
+
+- réponses extractives fondées uniquement sur les sources autorisées du tenant ;
+- références `source_objects` dédupliquées avec clé RSOT, URI, document, fragment et score ;
+- contrat `governance.mode=read-only` et `source_data_mutation_performed=false` ;
+- validation distincte obligatoire avant tout changement avec `change_validation_required=true` ;
+- absence de capacités d’exécution dans `execution_capabilities=[]` ;
+- audit du nombre d’objets sources et de la garantie de non-mutation, sans question en clair ;
+- rapport accessible dans les portails React et runtime avec réponse, objets sources, citations et scores ;
+- preuve GATE-14 `TST-FUNC-0010` exécutée explicitement dans la CI ;
+- aucune migration et aucune modification de la charte graphique.
+
+Voir `docs/runbooks/GOVERNED_RAG_ASSISTANT.md`.
+
+## Consultation historique RSOT « time travel » — v0.34.14
+
+- résolution du snapshot applicable à une date ISO-8601 ;
+- provenance explicite du système source, de l’acteur, de l’horodatage et de l’identifiant du snapshot ;
+- relations entrantes et sortantes filtrées par leurs fenêtres de validité historiques ;
+- invariants de cohérence vérifiés entre clé, identifiant, version et payload ;
+- restitution bornée par `relation_limit`, avec `complete=false` lorsque la cartographie n’est pas exhaustive ;
+- commande CLI `openinfra rsot get-object-as-of`, endpoint `GET /api/v1/rsot/object-as-of` et rapport accessible dans les deux portails ;
+- lecture seule et audit `rsot.object.time-travel.read` ;
+- preuve GATE-14 `TST-FUNC-0009` exécutée explicitement dans la CI ;
+- aucune migration et aucune modification de la charte graphique.
+
+Voir `docs/runbooks/RSOT_TIME_TRAVEL.md`.
+
+## Analyse d’impact d’un changement applicatif — v0.34.13
+
+- parcours borné du graphe RSOT depuis la ressource modifiée ;
+- classification configurable des applications, services, bases et ressources métier ;
+- rapport des dépendances dominatrices critiques, des services affectés et du risque SPOF racine ;
+- résultats déterministes, auditables et explicitement marqués incomplets lorsque `max_nodes` est atteint ;
+- commande CLI `openinfra graph change-impact`, endpoint `GET /api/v1/graph/change-impact` et opération équivalente dans les deux portails ;
+- rendu accessible avec synthèse, tableaux des services et dépendances, puis visualisation et JSON brut ;
+- exécution synchrone ou via le worker spécialisé `graph.change-impact` ;
+- preuve GATE-14 `TST-FUNC-0005` exécutée explicitement dans la CI ;
+- aucune migration et aucune modification de la charte graphique.
+
+Voir `docs/runbooks/APPLICATION_CHANGE_IMPACT.md`.
+
+## Découverte distribuée SNMP/SSH — v0.34.12
+
+- publication atomique du résultat d’un job et de sa preuve immuable ;
+- authentification du collector par empreinte de certificat, validation du worker, du bail et du jeton de fencing ;
+- compatibilité stricte entre le type du collector et la source SNMP, SSH ou WinRM ;
+- identifiant de preuve déterministe lié au job, rejeu identique accepté et rejeu divergent rejeté ;
+- historique conservé sans écrasement silencieux et SHA-256 de preuve rattaché au job complété ;
+- rapprochement multi-source bloquant l’écriture RSOT lorsqu’un attribut diverge ;
+- commande CLI `openinfra discovery job-result`, endpoint `POST /api/v1/discovery/jobs/result` et opérations dans les deux portails ;
+- preuve GATE-14 `TST-FUNC-0004` exécutée explicitement dans la CI ;
+- aucune migration et aucune modification de la charte graphique.
+
+Voir `docs/runbooks/DISTRIBUTED_DISCOVERY_RESULTS.md`.
+
+## Import massif asynchrone CSV/XLSX — v0.34.11
+
+- dépôt HTTP binaire en streaming, sans chargement intégral en mémoire ;
+- limite de 512 Mio pour CSV et de 50 Mio pour XLSX ;
+- protections contre archives XLSX chiffrées, surdimensionnées, trop nombreuses ou à expansion XML excessive ;
+- soumission idempotente du job `imports.bulk-dataset`, suivi HTTP et reprise par checkpoint persistant ;
+- traitement par worker spécialisé avec création RSOT et disponibilité maintenue de l’API interactive ;
+- opérations équivalentes dans les portails React et runtime embarqué ;
+- preuve GATE-14 `TST-FUNC-0003` exécutée explicitement dans la CI ;
+- commande déclarative `openinfra auth policy` sans création d’état local `.openinfra.json`.
+
+Voir `docs/runbooks/ASYNC_BULK_IMPORTS.md`.
+
+## Localisation DCIM et réservation IP concurrente — v0.34.10
+
+- localisation structurée jusqu’au site, bâtiment, étage, salle, grille, zone, rack, position U, face et coordonnées ;
+- fiche d’intervention JSON/HTML et payload compact de repérage accessibles par CLI, API et portails ;
+- opération **Fiche d’intervention équipement** recherchable sous **DCIM → Localisation & capacité** ;
+- allocation IP atomique sous concurrence, persistance transactionnelle et rejeu idempotent ;
+- preuves GATE-14 `TST-FUNC-0001` et `TST-FUNC-0002` exécutées dans la CI ;
+- aucune migration et aucune modification de la charte graphique.
+
+Voir `docs/runbooks/DCIM_LOCATION_IPAM_CONCURRENCY.md`.
+
+## Synchronisation IPAM vers DNS/DHCP — v0.34.9
+
+- journal durable, idempotent et verrouillé par tenant et clé d’exécution ;
+- adaptateurs BIND/nsupdate, PowerDNS et Kea sans shell, avec TLS vérifié et délais bornés ;
+- prélecture fournisseur et rollback exact de l’état antérieur ;
+- compensation inverse et état fail-closed `compensation_failed` lorsque le résultat est incertain ;
+- permission dédiée `ipam.ddi.sync`, CLI `openinfra ipam ddi-sync` et API `POST /api/v1/ipam/ddi-sync` ;
+- migration additive `0060_ipam_ddi_execution_journal.sql`, catalogues PostgreSQL/Oracle alignés 60/60 ;
+- `TST-FUNC-0008` promu en preuve GATE-14 automatisée ;
+- compatibilité préservée pour `ddi-preview`, les réservations IPAM et les fonctionnalités existantes.
+
+Voir `docs/runbooks/IPAM_DDI_SYNCHRONIZATION.md`.
 
 
-## Recommandation de placement DCIM — v0.34.8
+## Recommandation de placement DCIM — v0.34.9
 
 - sélection des racks actifs d’une salle avec filtrage optionnel de zone et de face ;
 - calcul des blocs U contigus en tenant compte des équipements et panneaux de brassage ;
@@ -19,9 +182,9 @@ Voir `docs/runbooks/DCIM_PLACEMENT_RECOMMENDATIONS.md`.
 
 - CDC 4.12.0 : 861 exigences, 667 tests, 861 lignes de traçabilité et 529 entités ;
 - roadmap 2.5.0 : P25, REL-15, EPIC-2501 à EPIC-2504 et GATE-14 ;
-- registre exhaustif de 667 preuves : 20 automatisées, 599 partielles et 48 externes ;
-- 28 sélecteurs pytest réels, validés par analyse AST, rattachés aux preuves automatisées ;
-- 55 fichiers d’évidence distincts, aucun test sans preuve et aucune exigence N1 non classifiée ;
+- registre exhaustif de 667 preuves : 31 automatisées, 588 partielles et 48 externes ;
+- 44 sélecteurs pytest réels, validés par analyse AST, rattachés aux preuves automatisées ;
+- 77 fichiers d’évidence distincts, aucun test sans preuve et aucune exigence N1 non classifiée ;
 - scanner d’hygiène contextuel : les règles de détection sont exclues par chemin exact, tandis que les sources produit restent contrôlées ;
 - packaging du registre, de la politique, du runbook et du validateur dans le wheel et le sdist ;
 - workflow GitHub Actions complet : formatage, lint, typage, tests, couverture, sécurité, frontend, build, vérification et smoke isolé.
@@ -60,7 +223,7 @@ Voir `docs/runbooks/OFFLINE_RUNTIME_LICENSING.md`.
 
 ## Parité PostgreSQL / Oracle — P22 / GATE-11
 
-- catalogue Oracle complet `0001` à `0059`, aligné sur les noms, versions et fonctionnalités du catalogue PostgreSQL ;
+- catalogue Oracle complet `0001` à `0060`, aligné sur les noms, versions et fonctionnalités du catalogue PostgreSQL ;
 - convertisseur déterministe PostgreSQL → Oracle 19c, limité aux constructions réellement utilisées par OpenInfra et bloquant toute syntaxe PostgreSQL résiduelle ;
 - manifeste `installers/migrations/oracle/manifest.json` avec empreintes SHA-256 source/cible et nombre d’instructions ;
 - adaptation des types, UUID, JSON, CLOB/BLOB, identités, contraintes, index fonctionnels, partitionnement hash, `MERGE`, DML et blocs PL/SQL ;
@@ -70,7 +233,7 @@ Voir `docs/runbooks/OFFLINE_RUNTIME_LICENSING.md`.
 - migration `0058_oracle_document_shards.sql` et persistance Oracle segmentée par collection métier, avec reprise transparente depuis l’ancien document global ;
 - contrôle optimiste par segment : une collision sur un domaine est refusée sans bloquer les écritures d’un autre domaine dans les autres processus ;
 - garde d’édition centralisée : toute sélection Oracle en Lite ou Pro échoue avant chargement du pilote, connexion ou migration ;
-- readiness Oracle exigeant les shards et l’application cohérente des 59 migrations ;
+- readiness Oracle exigeant les shards et l’application cohérente des 60 migrations ;
 - GATE-11 bloquant dans les workflows CI avant lint, typage, sécurité, build et promotion ;
 - packaging du catalogue PostgreSQL, du catalogue Oracle et du manifeste dans le wheel et le sdist ;
 - aucune modification du thème, d’une route API, d’une commande CLI métier ou d’une permission RBAC.
@@ -685,3 +848,10 @@ Les preuves acceptées sont JPEG, PNG, WebP ou PDF, limitées à 2 Mio. Les paqu
 
 
 - [SBOM, vulnérabilités et exposition contextualisée](docs/operations/sbom-vulnerabilities-exposure.md)
+
+## Imports massifs asynchrones CSV/XLSX
+
+Les inventaires volumineux peuvent être déposés en flux binaire sur `/api/v1/imports/async-bulk-datasets`, puis traités par le worker spécialisé `imports` sans bloquer l’API interactive. La soumission est idempotente, les artefacts sont vérifiés par SHA-256, les lots et checkpoints sont persistants et la reprise est exposée par `resume_job_id`. Les deux portails fournissent la soumission et le suivi consolidé.
+
+Les limites sont de 512 Mio pour CSV et 50 Mio pour XLSX, avec protections contre les archives chiffrées, le nombre excessif d’entrées et la décompression XML anormale. Le runbook opératoire complet est disponible dans [`docs/runbooks/ASYNC_BULK_IMPORTS.md`](docs/runbooks/ASYNC_BULK_IMPORTS.md).
+

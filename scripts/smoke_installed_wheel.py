@@ -29,7 +29,7 @@ class InstalledWheelSmokeError(RuntimeError):
 
 
 class InstalledWheelSmoke:
-    EXPECTED_VERSION = "0.34.8"
+    EXPECTED_VERSION = "0.34.18"
     EXPECTED_ASYNC_ROUTES = (
         "/api/v1/async/jobs",
         "/api/v1/async/jobs/get",
@@ -240,9 +240,10 @@ class InstalledWheelSmoke:
         "/api/v1/kubernetes/topologies/capacity-trend",
         "/api/v1/kubernetes/topologies/capacity-export",
         "/api/v1/kubernetes/topologies/latest-capacity-export",
+        "/api/v1/ipam/ddi-sync",
     )
-    EXPECTED_LAST_MIGRATION = "0059_runtime_offline_licensing.sql"
-    EXPECTED_MIGRATION_COUNT = 59
+    EXPECTED_LAST_MIGRATION = "0060_ipam_ddi_execution_journal.sql"
+    EXPECTED_MIGRATION_COUNT = 60
     EXPECTED_ASSETS = (
         "openinfra-web.js",
         "openinfra-web.css",
@@ -443,10 +444,49 @@ class InstalledWheelSmoke:
         placement_runbook_path = (
             package_root / "docs" / "runbooks" / "DCIM_PLACEMENT_RECOMMENDATIONS.md"
         )
+        location_ipam_runbook_path = (
+            package_root / "docs" / "runbooks" / "DCIM_LOCATION_IPAM_CONCURRENCY.md"
+        )
+        async_import_runbook_path = (
+            package_root / "docs" / "runbooks" / "ASYNC_BULK_IMPORTS.md"
+        )
+        distributed_discovery_runbook_path = (
+            package_root / "docs" / "runbooks" / "DISTRIBUTED_DISCOVERY_RESULTS.md"
+        )
+        change_impact_runbook_path = (
+            package_root / "docs" / "runbooks" / "APPLICATION_CHANGE_IMPACT.md"
+        )
+        time_travel_runbook_path = (
+            package_root / "docs" / "runbooks" / "RSOT_TIME_TRAVEL.md"
+        )
+        governed_rag_runbook_path = (
+            package_root / "docs" / "runbooks" / "GOVERNED_RAG_ASSISTANT.md"
+        )
+        rsot_quality_runbook_path = (
+            package_root / "docs" / "runbooks" / "RSOT_QUALITY_CERTIFICATION.md"
+        )
+        rsot_quality_rbac_runbook_path = (
+            package_root / "docs" / "runbooks" / "RSOT_QUALITY_RBAC.md"
+        )
+        rsot_quality_non_authoritative_runbook_path = (
+            package_root
+            / "docs"
+            / "runbooks"
+            / "RSOT_QUALITY_NON_AUTHORITATIVE_SOURCE.md"
+        )
         if (
             not registry_path.is_file()
             or not runbook_path.is_file()
             or not placement_runbook_path.is_file()
+            or not location_ipam_runbook_path.is_file()
+            or not async_import_runbook_path.is_file()
+            or not distributed_discovery_runbook_path.is_file()
+            or not change_impact_runbook_path.is_file()
+            or not time_travel_runbook_path.is_file()
+            or not governed_rag_runbook_path.is_file()
+            or not rsot_quality_runbook_path.is_file()
+            or not rsot_quality_rbac_runbook_path.is_file()
+            or not rsot_quality_non_authoritative_runbook_path.is_file()
         ):
             raise InstalledWheelSmokeError(
                 "installed wheel is missing GATE-14 registry or promotion runbook"
@@ -466,11 +506,11 @@ class InstalledWheelSmoke:
             )
         if (
             policy.expected_metrics.contractual_tests != 667
-            or policy.expected_metrics.automated_proofs != 20
-            or policy.expected_metrics.partial_proofs != 599
+            or policy.expected_metrics.automated_proofs != 31
+            or policy.expected_metrics.partial_proofs != 588
             or policy.expected_metrics.external_proofs != 48
-            or policy.expected_metrics.pytest_selectors != 28
-            or policy.expected_metrics.evidence_files != 55
+            or policy.expected_metrics.pytest_selectors != 44
+            or policy.expected_metrics.evidence_files != 77
         ):
             raise InstalledWheelSmokeError(
                 "installed contractual completeness metrics are inconsistent"
@@ -741,7 +781,7 @@ class InstalledWheelSmoke:
     def _assert_release_security_contract(package_root: Path) -> None:
         controls = ReleaseSecurityControlCatalog.build(
             package_root,
-            image_ref="openinfra/runtime:0.34.8",
+            image_ref="openinfra/runtime:0.34.18",
             api_base_url="http://127.0.0.1:8080",
             web_base_url="http://127.0.0.1:2006",
         )
@@ -773,9 +813,11 @@ class InstalledWheelSmoke:
             package_root / "migrations" / "oracle" / "0057_federated_identity_team_sync.sql",
             package_root / "migrations" / "oracle" / "0058_oracle_document_shards.sql",
             package_root / "migrations" / "oracle" / "0059_runtime_offline_licensing.sql",
+            package_root / "migrations" / "oracle" / "0060_ipam_ddi_execution_journal.sql",
             package_root / "migrations" / "oracle" / "manifest.json",
             package_root / "docs" / "runbooks" / "RUNTIME_NATIVE.md",
             package_root / "docs" / "runbooks" / "ADVANCED_IDENTITY_ORACLE_SYSTEMD.md",
+            package_root / "docs" / "runbooks" / "IPAM_DDI_SYNCHRONIZATION.md",
             package_root / "docs" / "release" / "advanced-identity-oracle-promotion-policy.json",
             package_root / "systemd" / "openinfra-runtime-secrets.service",
             package_root / "systemd" / "openinfra-migrate.service",

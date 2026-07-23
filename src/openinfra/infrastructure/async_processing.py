@@ -6,6 +6,7 @@ import json
 import os
 import re
 from collections import Counter
+from collections.abc import Iterable
 from datetime import UTC, datetime
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -33,6 +34,8 @@ from openinfra.infrastructure.json_store import JsonDocumentStore
 
 
 class LocalArtifactStore(ArtifactStore):
+    _COPY_CHUNK_SIZE = 1024 * 1024
+
     def __init__(self, root: Path) -> None:
         self._root = root
 
@@ -47,32 +50,69 @@ class LocalArtifactStore(ArtifactStore):
         content: bytes,
         media_type: str,
     ) -> ArtifactReference:
-        normalized_purpose = self._normalize_purpose(purpose)
         payload = bytes(content)
-        digest = hashlib.sha256(payload).hexdigest()
+        return self.write_stream(
+            tenant_id,
+            purpose,
+            (payload,),
+            media_type,
+            max_size_bytes=max(1, len(payload)),
+        )
+
+    def write_stream(
+        self,
+        tenant_id: TenantId,
+        purpose: str,
+        chunks: Iterable[bytes],
+        media_type: str,
+        *,
+        max_size_bytes: int,
+    ) -> ArtifactReference:
+        if max_size_bytes <= 0:
+            raise ValidationError("max_size_bytes must be positive")
+        normalized_purpose = self._normalize_purpose(purpose)
+        staging = self._resolve(f"{tenant_id.value}/.staging/{normalized_purpose}")
+        staging.mkdir(parents=True, exist_ok=True)
+        digest_builder = hashlib.sha256()
+        size_bytes = 0
+        with NamedTemporaryFile("wb", dir=staging, delete=False) as handle:
+            temporary = Path(handle.name)
+            try:
+                for chunk in chunks:
+                    payload = bytes(chunk)
+                    if not payload:
+                        continue
+                    size_bytes += len(payload)
+                    if size_bytes > max_size_bytes:
+                        raise ValidationError("artifact stream exceeds configured size limit")
+                    digest_builder.update(payload)
+                    handle.write(payload)
+                handle.flush()
+                os.fsync(handle.fileno())
+            except Exception:
+                temporary.unlink(missing_ok=True)
+                raise
+        digest = digest_builder.hexdigest()
         extension = self._extension(media_type)
         object_key = f"{tenant_id.value}/{normalized_purpose}/{digest[:2]}/{digest}{extension}"
         target = self._resolve(object_key)
         target.parent.mkdir(parents=True, exist_ok=True)
-        if target.exists():
-            self._verify_existing(target, payload, digest)
-        else:
-            with NamedTemporaryFile("wb", dir=target.parent, delete=False) as handle:
-                handle.write(payload)
-                handle.flush()
-                os.fsync(handle.fileno())
-                temporary = Path(handle.name)
-            try:
+        try:
+            if target.exists():
+                self._verify_existing_file(target, digest, size_bytes)
+            else:
+                # Recheck immediately before publication: another writer may have
+                # materialized the same content after the first existence check.
                 if target.exists():
-                    self._verify_existing(target, payload, digest)
+                    self._verify_existing_file(target, digest, size_bytes)
                 else:
                     temporary.replace(target)
-            finally:
-                temporary.unlink(missing_ok=True)
+        finally:
+            temporary.unlink(missing_ok=True)
         return ArtifactReference.create(
             object_key=object_key,
             sha256=digest,
-            size_bytes=len(payload),
+            size_bytes=size_bytes,
             media_type=media_type,
         )
 
@@ -89,6 +129,41 @@ class LocalArtifactStore(ArtifactStore):
             raise ConflictError("artifact integrity verification failed")
         return payload
 
+    def materialize(
+        self,
+        tenant_id: TenantId,
+        reference: ArtifactReference,
+        target: Path,
+    ) -> None:
+        if not reference.object_key.startswith(tenant_id.value + "/"):
+            raise ConflictError("artifact does not belong to the requested tenant")
+        source = self._resolve(reference.object_key)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        digest_builder = hashlib.sha256()
+        size_bytes = 0
+        try:
+            with source.open("rb") as reader, NamedTemporaryFile(
+                "wb", dir=target.parent, delete=False
+            ) as writer:
+                temporary = Path(writer.name)
+                while True:
+                    chunk = reader.read(self._COPY_CHUNK_SIZE)
+                    if not chunk:
+                        break
+                    digest_builder.update(chunk)
+                    size_bytes += len(chunk)
+                    writer.write(chunk)
+                writer.flush()
+                os.fsync(writer.fileno())
+        except OSError as exc:
+            raise ConflictError("artifact content is unavailable") from exc
+        try:
+            if digest_builder.hexdigest() != reference.sha256 or size_bytes != reference.size_bytes:
+                raise ConflictError("artifact integrity verification failed")
+            temporary.replace(target)
+        finally:
+            temporary.unlink(missing_ok=True)
+
     def _resolve(self, object_key: str) -> Path:
         target = (self._root / object_key).resolve()
         root = self._root.resolve()
@@ -96,10 +171,21 @@ class LocalArtifactStore(ArtifactStore):
             raise ValidationError("artifact path escapes configured root")
         return target
 
-    @staticmethod
-    def _verify_existing(target: Path, payload: bytes, digest: str) -> None:
-        existing = target.read_bytes()
-        if hashlib.sha256(existing).hexdigest() != digest or existing != payload:
+    @classmethod
+    def _verify_existing_file(cls, target: Path, digest: str, size_bytes: int) -> None:
+        builder = hashlib.sha256()
+        actual_size = 0
+        try:
+            with target.open("rb") as handle:
+                while True:
+                    chunk = handle.read(cls._COPY_CHUNK_SIZE)
+                    if not chunk:
+                        break
+                    builder.update(chunk)
+                    actual_size += len(chunk)
+        except OSError as exc:
+            raise ConflictError("artifact object key is unreadable") from exc
+        if builder.hexdigest() != digest or actual_size != size_bytes:
             raise ConflictError("artifact object key already contains different content")
 
     @staticmethod
@@ -115,7 +201,9 @@ class LocalArtifactStore(ArtifactStore):
         return {
             "application/json": ".json",
             "text/csv": ".csv",
+            "application/csv": ".csv",
             "text/plain": ".txt",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx",
             "application/zip": ".zip",
             "application/octet-stream": ".bin",
         }.get(normalized, ".bin")
@@ -210,6 +298,65 @@ class S3ArtifactStore(ArtifactStore):
             media_type=media_type,
         )
 
+    def write_stream(
+        self,
+        tenant_id: TenantId,
+        purpose: str,
+        chunks: Iterable[bytes],
+        media_type: str,
+        *,
+        max_size_bytes: int,
+    ) -> ArtifactReference:
+        if max_size_bytes <= 0:
+            raise ValidationError("max_size_bytes must be positive")
+        normalized_purpose = LocalArtifactStore._normalize_purpose(purpose)
+        digest_builder = hashlib.sha256()
+        size_bytes = 0
+        with NamedTemporaryFile("w+b", delete=False) as handle:
+            temporary = Path(handle.name)
+            try:
+                for chunk in chunks:
+                    payload = bytes(chunk)
+                    if not payload:
+                        continue
+                    size_bytes += len(payload)
+                    if size_bytes > max_size_bytes:
+                        raise ValidationError("artifact stream exceeds configured size limit")
+                    digest_builder.update(payload)
+                    handle.write(payload)
+                handle.flush()
+                os.fsync(handle.fileno())
+            except Exception:
+                temporary.unlink(missing_ok=True)
+                raise
+        digest = digest_builder.hexdigest()
+        extension = LocalArtifactStore._extension(media_type)
+        object_key = f"{tenant_id.value}/{normalized_purpose}/{digest[:2]}/{digest}{extension}"
+        try:
+            with temporary.open("rb") as reader:
+                response = self._request_with_hash(
+                    "PUT",
+                    object_key,
+                    self._file_chunks(reader),
+                    digest,
+                    {
+                        "content-type": media_type.strip().lower(),
+                        "content-length": str(size_bytes),
+                        "x-amz-meta-sha256": digest,
+                        "x-amz-meta-size": str(size_bytes),
+                    },
+                )
+        finally:
+            temporary.unlink(missing_ok=True)
+        if response.status_code not in {200, 201, 204}:
+            raise ConflictError(f"S3 artifact write failed with status {response.status_code}")
+        return ArtifactReference.create(
+            object_key=object_key,
+            sha256=digest,
+            size_bytes=size_bytes,
+            media_type=media_type,
+        )
+
     def read(self, tenant_id: TenantId, reference: ArtifactReference) -> bytes:
         if not reference.object_key.startswith(tenant_id.value + "/"):
             raise ConflictError("artifact does not belong to the requested tenant")
@@ -231,6 +378,65 @@ class S3ArtifactStore(ArtifactStore):
             raise ConflictError("artifact metadata verification failed")
         return payload
 
+    def materialize(
+        self,
+        tenant_id: TenantId,
+        reference: ArtifactReference,
+        target: Path,
+    ) -> None:
+        if not reference.object_key.startswith(tenant_id.value + "/"):
+            raise ConflictError("artifact does not belong to the requested tenant")
+        url, request_headers = self._signed_request(
+            "GET", reference.object_key, hashlib.sha256(b"").hexdigest(), {}
+        )
+        target.parent.mkdir(parents=True, exist_ok=True)
+        temporary: Path | None = None
+        try:
+            with self._client.stream("GET", url, headers=request_headers) as response:
+                if response.status_code == 404:
+                    raise ConflictError("artifact content is unavailable")
+                if response.status_code != 200:
+                    raise ConflictError(
+                        f"S3 artifact read failed with status {response.status_code}"
+                    )
+                metadata_hash = response.headers.get("x-amz-meta-sha256")
+                metadata_size = response.headers.get("x-amz-meta-size")
+                digest_builder = hashlib.sha256()
+                size_bytes = 0
+                with NamedTemporaryFile("wb", dir=target.parent, delete=False) as writer:
+                    temporary = Path(writer.name)
+                    for chunk in response.iter_bytes():
+                        if not chunk:
+                            continue
+                        digest_builder.update(chunk)
+                        size_bytes += len(chunk)
+                        writer.write(chunk)
+                    writer.flush()
+                    os.fsync(writer.fileno())
+                if (
+                    digest_builder.hexdigest() != reference.sha256
+                    or size_bytes != reference.size_bytes
+                ):
+                    raise ConflictError("artifact integrity verification failed")
+                if metadata_hash is not None and metadata_hash != reference.sha256:
+                    raise ConflictError("artifact metadata verification failed")
+                if metadata_size is not None and metadata_size != str(reference.size_bytes):
+                    raise ConflictError("artifact metadata verification failed")
+                temporary.replace(target)
+        except httpx.HTTPError as exc:
+            raise ConflictError("S3 artifact request failed") from exc
+        finally:
+            if temporary is not None:
+                temporary.unlink(missing_ok=True)
+
+    @staticmethod
+    def _file_chunks(handle: Any, chunk_size: int = 1024 * 1024) -> Iterable[bytes]:
+        while True:
+            chunk = handle.read(chunk_size)
+            if not chunk:
+                return
+            yield chunk
+
     def _request(
         self,
         method: str,
@@ -238,9 +444,39 @@ class S3ArtifactStore(ArtifactStore):
         payload: bytes,
         headers: dict[str, str],
     ) -> httpx.Response:
-        now = datetime.now(UTC)
         payload_hash = hashlib.sha256(payload).hexdigest()
-        canonical_uri = "/" + quote(self._bucket, safe="") + "/" + quote(object_key, safe="/-_.~")
+        return self._request_with_hash(method, object_key, payload, payload_hash, headers)
+
+    def _request_with_hash(
+        self,
+        method: str,
+        object_key: str,
+        payload: bytes | Iterable[bytes],
+        payload_hash: str,
+        headers: dict[str, str],
+    ) -> httpx.Response:
+        url, request_headers = self._signed_request(method, object_key, payload_hash, headers)
+        try:
+            return self._client.request(
+                method,
+                url,
+                content=payload if method == "PUT" else None,
+                headers=request_headers,
+            )
+        except httpx.HTTPError as exc:
+            raise ConflictError("S3 artifact request failed") from exc
+
+    def _signed_request(
+        self,
+        method: str,
+        object_key: str,
+        payload_hash: str,
+        headers: dict[str, str],
+    ) -> tuple[str, dict[str, str]]:
+        now = datetime.now(UTC)
+        canonical_uri = "/" + quote(self._bucket, safe="") + "/" + quote(
+            object_key, safe="/-_.~"
+        )
         url = self._endpoint + canonical_uri
         parsed = urlparse(url)
         signed_headers = {
@@ -253,7 +489,8 @@ class S3ArtifactStore(ArtifactStore):
             signed_headers["x-amz-security-token"] = self._session_token
         canonical_header_names = sorted(signed_headers)
         canonical_headers = "".join(
-            f"{name}:{' '.join(signed_headers[name].split())}\n" for name in canonical_header_names
+            f"{name}:{' '.join(signed_headers[name].split())}\n"
+            for name in canonical_header_names
         )
         signed_header_list = ";".join(canonical_header_names)
         canonical_request = "\n".join(
@@ -288,12 +525,7 @@ class S3ArtifactStore(ArtifactStore):
                 f"SignedHeaders={signed_header_list},Signature={signature}"
             ),
         }
-        try:
-            return self._client.request(
-                method, url, content=payload if method == "PUT" else None, headers=request_headers
-            )
-        except httpx.HTTPError as exc:
-            raise ConflictError("S3 artifact request failed") from exc
+        return url, request_headers
 
     def _signing_key(self, date: str) -> bytes:
         key_date = hmac.new(

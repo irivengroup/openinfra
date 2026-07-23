@@ -81,6 +81,8 @@ class TestHttpApi:
                 "imports": {
                     "dataset": "/api/v1/imports/datasets",
                     "bulk_dataset": "/api/v1/imports/bulk-datasets",
+                    "async_bulk_dataset": "/api/v1/imports/async-bulk-datasets",
+                    "async_bulk_status": "/api/v1/imports/async-bulk-status",
                     "bulk_report": "/api/v1/imports/bulk-report",
                     "bulk_checkpoint": "/api/v1/imports/bulk-checkpoint",
                     "bulk_progress": "/api/v1/imports/bulk-progress",
@@ -252,6 +254,7 @@ class TestHttpApi:
                 "graph": {
                     "traverse": "/api/v1/graph/traverse",
                     "impact": "/api/v1/graph/impact",
+                    "change_impact": "/api/v1/graph/change-impact",
                     "path": "/api/v1/graph/path",
                     "spof": "/api/v1/graph/spof",
                     "export": "/api/v1/graph/export",
@@ -345,6 +348,7 @@ class TestHttpApi:
                     "dhcp_leases": "/api/v1/ipam/dhcp-leases",
                     "conflicts": "/api/v1/ipam/conflicts",
                     "ddi_preview": "/api/v1/ipam/ddi-preview",
+                    "ddi_sync": "/api/v1/ipam/ddi-sync",
                 },
                 "dcim": {
                     "sites": "/api/v1/dcim/sites",
@@ -2154,7 +2158,8 @@ class TestSourceOfTruthHttpApi:
             assert version["payload"]["display_name"] == "API Server 1"
             assert as_of["display_name"] == "API Server 1"
             assert as_of["resolved_version"] == 1
-            assert audit["items"][0]["action"] == "rsot.object.create"
+            assert audit["items"][0]["action"] == "rsot.object.time-travel.read"
+            assert audit["items"][1]["action"] == "rsot.object.create"
             assert relation["relation_type"] == "runs_on"
             assert relations["items"][0]["target_key"] == "device/api-srv-1"
         finally:

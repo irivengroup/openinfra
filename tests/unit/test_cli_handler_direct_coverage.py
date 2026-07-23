@@ -139,6 +139,7 @@ def _args(tmp_path: Path) -> SimpleNamespace:
         actor="pytest",
         admin_token="a" * 40,
         as_of="2026-07-09T00:00:00Z",
+        relation_limit=100,
         backend="json",
         building="BAT-A",
         clear_default=False,
@@ -381,19 +382,19 @@ def test_cli_oracle_migration_handlers_and_runtime_factories(
 
     class FakeOracleExecutor:
         def status_as_dict(self) -> dict[str, object]:
-            return {"backend": "oracle", "pending": 59}
+            return {"backend": "oracle", "pending": 60}
 
         def apply_all(self) -> dict[str, object]:
-            return {"backend": "oracle", "applied": 59}
+            return {"backend": "oracle", "applied": 60}
 
     monkeypatch.setattr(cli_module, "OracleMigrationExecutor", FakeOracleExecutor)
     cli._create_migration_executor = lambda _args: FakeOracleExecutor()  # type: ignore[method-assign]
     args = SimpleNamespace(dry_run=True)
     assert cli._handle_database_apply_migrations(args) == 0
-    assert json.loads(capsys.readouterr().out)["pending"] == 59
+    assert json.loads(capsys.readouterr().out)["pending"] == 60
     args.dry_run = False
     assert cli._handle_database_apply_migrations(args) == 0
-    assert json.loads(capsys.readouterr().out)["applied"] == 59
+    assert json.loads(capsys.readouterr().out)["applied"] == 60
 
     cli = OpenInfraCLI()
 
@@ -463,8 +464,10 @@ def test_cli_application_factory_backend_matrix(
             return self.selected
 
     class Factory:
-        def create_json_application(self, path: Path, *, edition: str) -> tuple[object, ...]:
-            return "json", path, edition
+        def create_json_application(
+            self, path: Path, *, seed: bool, edition: str
+        ) -> tuple[object, ...]:
+            return "json", path, seed, edition
 
         def create_oracle_application(
             self, settings: OracleConnectionSettings, *, seed: bool, edition: str
@@ -493,7 +496,12 @@ def test_cli_application_factory_backend_matrix(
         oracle_user=None,
         postgres_dsn=None,
     )
-    assert cli._create_application(args, enforce_license=False) == ("json", args.data, "pro")
+    assert cli._create_application(args, enforce_license=False) == (
+        "json",
+        args.data,
+        True,
+        "pro",
+    )
     backend.selected = "oracle"
     assert cli._create_application(args, enforce_license=False)[0] == "oracle"
     oracle.value = object()

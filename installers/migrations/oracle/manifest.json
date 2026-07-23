@@ -1,5 +1,5 @@
 {
-  "count": 59,
+  "count": 60,
   "migrations": [
     {
       "filename": "0001_bootstrap.sql",
@@ -413,6 +413,13 @@
       "source_sha256": "7dd9409851b05d43b845f3c27c3a8154ecbce85994aeced47643d7fa54bb2745",
       "statement_count": 3,
       "version": "0059"
+    },
+    {
+      "filename": "0060_ipam_ddi_execution_journal.sql",
+      "oracle_sha256": "8c69dfb76f1554c365e53a4a75903f3b278b87ad3e4c545bd1c379a5eb114ffb",
+      "source_sha256": "3d14d634eb2d9266fdb977015d17936debff4bb372cf082b185bad99c831854d",
+      "statement_count": 4,
+      "version": "0060"
     }
   ],
   "schema": "openinfra.oracle-migration-catalog/v1",

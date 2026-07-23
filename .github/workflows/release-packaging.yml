@@ -39,6 +39,13 @@ jobs:
         shell: bash
         run: echo "value=$(git log -1 --pretty=%ct)" >> "$GITHUB_OUTPUT"
 
+      - name: Validate deterministic build backend
+        run: |
+          ruff format --check openinfra_build_backend.py tests/unit/test_openinfra_build_backend.py
+          ruff check openinfra_build_backend.py tests/unit/test_openinfra_build_backend.py
+          mypy openinfra_build_backend.py
+          python -m pytest -q --no-cov tests/unit/test_openinfra_build_backend.py
+
       - name: Run blocking packaging certification
         env:
           OPENINFRA_RELEASE_SIGNING_PRIVATE_KEY_B64: ${{ secrets.OPENINFRA_RELEASE_SIGNING_PRIVATE_KEY_B64 }}

@@ -60,4 +60,4 @@ def test_sbom_dates_json_validation_and_download_are_real_controls() -> None:
         assert '"type": "json"' in source
         assert "sbom-risk-export" in source and "download" in source
     react = SOURCES[0].read_text(encoding="utf-8")
-    assert "selected.id.startsWith('sbom-')" in react
+    assert "normalized.startsWith('sbom-')" in react

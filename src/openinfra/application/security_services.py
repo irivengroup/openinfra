@@ -113,7 +113,9 @@ class RevokeTokenResult:
 class BuiltinRolePolicy:
     _ROLE_PERMISSIONS: ClassVar[dict[str, frozenset[Permission]]] = {
         "admin": frozenset(Permission),
-        "ipam:operator": frozenset((Permission.IPAM_ALLOCATE, Permission.SCHEMA_READ)),
+        "ipam:operator": frozenset(
+            (Permission.IPAM_ALLOCATE, Permission.IPAM_DDI_SYNC, Permission.SCHEMA_READ)
+        ),
         "dcim:operator": frozenset(
             (
                 Permission.DCIM_LOCATE,

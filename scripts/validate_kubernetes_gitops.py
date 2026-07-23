@@ -126,10 +126,10 @@ class KubernetesGitOpsProjectValidator:
             ("TST-P21-K8S-GITOPS-DRIFT", "GitOps drift"),
         )
         migrations = sorted((self._root / "installers/migrations/postgresql").glob("*.sql"))
-        if len(migrations) != 59 or migrations[-1].name != "0059_runtime_offline_licensing.sql":
+        if len(migrations) != 60 or migrations[-1].name != "0060_ipam_ddi_execution_journal.sql":
             raise KubernetesGitOpsProjectError(
-                "EPIC-2104 requires the 59-migration chain ending with "
-                "0059_runtime_offline_licensing.sql"
+                "EPIC-2104 requires the 60-migration chain ending with "
+                "0060_ipam_ddi_execution_journal.sql"
             )
         return {
             "schema_version": 1,
@@ -148,7 +148,7 @@ class KubernetesGitOpsProjectValidator:
             "transactional_outbox": True,
             "automatic_remediation": False,
             "api_cli_web_parity": True,
-            "migration_count": 59,
+            "migration_count": 60,
         }
 
     def _assert_fragments(self, relative: str, fragments: tuple[str, ...]) -> None:

@@ -1,6 +1,0 @@
-external_group_example,role,scope,edition,priority,conflict_policy,audit_required
-cn=openinfra-superadmins,OpenInfra-SuperAdmin,global,pro_enterprise,N1,deny_explicit_wins,oui
-cn=openinfra-admins,OpenInfra-Admin,tenant_or_site,pro_enterprise,N1,deny_explicit_wins,oui
-cn=openinfra-operators,OpenInfra-Operator,site_or_domain,pro_enterprise,N1,deny_explicit_wins,oui
-cn=openinfra-readonly,OpenInfra-ReadOnly,tenant_or_site,pro_enterprise,N1,deny_explicit_wins,oui
-local-openinfra-admin,OpenInfra-Admin,local_lite,lite,N1,deny_explicit_wins,oui

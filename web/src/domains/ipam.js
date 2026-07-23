@@ -278,6 +278,24 @@ const moduleDefinition = {
       ]
     },
     {
+      "id": "ipam-ddi-sync",
+      "label": "Synchroniser DNS/DHCP",
+      "path": "/v1/ipam/ddi-sync",
+      "method": "POST",
+      "fields": [
+        "Opérateur",
+        "VRF",
+        "Clé réservation",
+        "Clé exécution",
+        "Fournisseurs DDI",
+        "Zone DNS",
+        "Zone DNS inverse",
+        "Adresse MAC",
+        "TTL",
+        "Reprendre une exécution"
+      ]
+    },
+    {
       "id": "network-config-baseline-upsert",
       "label": "Créer ou réviser une golden configuration",
       "path": "/v1/network-config/baselines/upsert",

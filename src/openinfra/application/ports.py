@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import date, datetime
+from pathlib import Path
 from typing import Generic, TypeVar
 
 from openinfra.domain.access_policy import AccessPolicyRule
@@ -20,7 +21,14 @@ from openinfra.domain.certificate_pki import (
     CertificateEndpointObservation,
     CertificateMaterial,
 )
-from openinfra.domain.common import AuditEvent, DomainEvent, EntityId, Pagination, TenantId
+from openinfra.domain.common import (
+    AuditEvent,
+    DomainEvent,
+    EntityId,
+    Pagination,
+    TenantId,
+    ValidationError,
+)
 from openinfra.domain.data_export import ExportJob
 from openinfra.domain.data_import import (
     BulkImportCheckpoint,
@@ -54,6 +62,7 @@ from openinfra.domain.discovery import (
 )
 from openinfra.domain.discovery_jobs import DiscoveryJob
 from openinfra.domain.editions import QuotaResource
+from openinfra.domain.ddi_sync import DdiExecutionJournal, DdiMutationReceipt
 from openinfra.domain.federated_identity import TeamSyncSnapshot
 from openinfra.domain.field_operations import (
     FieldEvidence,
@@ -1210,6 +1219,7 @@ class DdiPreviewContext:
     mac_address: str | None
     ttl: int
     dns_zone: str | None = None
+    reverse_dns_zone: str | None = None
 
 
 class DdiConnector(ABC):
@@ -1222,6 +1232,39 @@ class DdiConnector(ABC):
     def build_preview_changes(
         self, reservation: IpReservation, context: DdiPreviewContext
     ) -> tuple[DdiChange, ...]:
+        raise TypeError("adapter contract invoked directly")
+
+
+class DdiExecutionRepository(ABC):
+    @abstractmethod
+    def acquire_execution_lock(
+        self, tenant_id: TenantId, execution_idempotency_key: str
+    ) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_by_idempotency_key(
+        self, tenant_id: TenantId, execution_idempotency_key: str
+    ) -> DdiExecutionJournal | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save(self, journal: DdiExecutionJournal) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+
+class DdiExecutor(ABC):
+    @property
+    @abstractmethod
+    def provider(self) -> DdiProvider:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def apply(self, sequence: int, change: DdiChange) -> DdiMutationReceipt:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def compensate(self, receipt: DdiMutationReceipt) -> str:
         raise TypeError("adapter contract invoked directly")
 
 
@@ -2898,9 +2941,37 @@ class ArtifactStore(ABC):
     ) -> ArtifactReference:
         raise TypeError("adapter contract invoked directly")
 
+    def write_stream(
+        self,
+        tenant_id: TenantId,
+        purpose: str,
+        chunks: Iterable[bytes],
+        media_type: str,
+        *,
+        max_size_bytes: int,
+    ) -> ArtifactReference:
+        if max_size_bytes <= 0:
+            raise ValidationError("max_size_bytes must be positive")
+        payload = bytearray()
+        for chunk in chunks:
+            normalized = bytes(chunk)
+            if len(payload) + len(normalized) > max_size_bytes:
+                raise ValidationError("artifact stream exceeds configured size limit")
+            payload.extend(normalized)
+        return self.write(tenant_id, purpose, bytes(payload), media_type)
+
     @abstractmethod
     def read(self, tenant_id: TenantId, reference: ArtifactReference) -> bytes:
         raise TypeError("adapter contract invoked directly")
+
+    def materialize(
+        self,
+        tenant_id: TenantId,
+        reference: ArtifactReference,
+        target: Path,
+    ) -> None:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(self.read(tenant_id, reference))
 
 
 class OutboxPublisher(ABC):

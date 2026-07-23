@@ -1,9 +1,0 @@
-flowchart TD
-  ROOT[root execute installer] --> DEPS[Installation dépendances]
-  DEPS --> LVM[Créer ou valider rootvg/openinfra_lv]
-  LVM --> FS[Créer FS et monter /opt/openinfra/]
-  FS --> USER[Créer utilisateur openinfra]
-  USER --> PERM[Permissions openinfra:openinfra]
-  PERM --> DEPLOY[Déployer OpenInfra]
-  DEPLOY --> MIG[Appliquer migrations backend]
-  MIG --> SVC[Démarrer openinfra.service]

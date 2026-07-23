@@ -3,7 +3,7 @@ import './openinfra-theme.css';
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { OpenInfraI18n, localizeOpenInfraCatalog } from './i18n.js';
-import { formCountryCode, inputAttributesForField, inputTypeForField, normalizeFieldDefinition, normalizeFieldValue, validateControl } from './form-fields.js';
+import { fileHelpText, formCountryCode, inputAttributesForField, inputTypeForField, normalizeFieldDefinition, normalizeFieldValue, validateControl, validateFileForField } from './form-fields.js';
 import { MODULES, SIDEBAR_CONTEXTS, loadDomain } from './domain-manifest.js';
 import { OpenInfraQueryCache } from './core/query-cache.js';
 import { installOpenInfraWebVitals } from './core/web-vitals.js';
@@ -168,6 +168,21 @@ function isMegamenuViewport() {
     && window.matchMedia('(min-width: 768px) and (max-width: 1199.98px)').matches;
 }
 
+function isLiveOperationId(operationId) {
+  const normalized = String(operationId || '');
+  return normalized.startsWith('graph-')
+    || normalized.startsWith('field-')
+    || normalized.startsWith('simulation-')
+    || normalized.startsWith('greenops-')
+    || normalized.startsWith('sbom-')
+    || normalized.startsWith('rag-')
+    || normalized.startsWith('kubernetes-')
+    || normalized.startsWith('import-')
+    || normalized.startsWith('export-')
+    || normalized === 'rsot-as-of'
+    || normalized.startsWith('rsot-quality-');
+}
+
 function NavigationTree({
   modules,
   activeNavigationModuleId,
@@ -243,7 +258,7 @@ function OperationField({ entry, index, i18n, language }) {
   const requiredText = field.required ? <span aria-hidden="true"> *</span> : null;
   if (field.type === 'file') {
     const attributes = inputAttributesForField(field);
-    return <div className="col-12"><label className="form-label" htmlFor={fieldId}>{i18n.label(field.label)}{requiredText}</label><input id={fieldId} name={field.name} className="form-control" type="file" required={field.required} {...attributes} onChange={(event) => { event.currentTarget.setCustomValidity(''); event.currentTarget.removeAttribute('aria-invalid'); }} /><p className="form-text">JPEG, PNG, WebP ou PDF — 2 Mio maximum.</p></div>;
+    return <div className="col-12"><label className="form-label" htmlFor={fieldId}>{i18n.label(field.label)}{requiredText}</label><input id={fieldId} name={field.name} className="form-control" type="file" required={field.required} {...attributes} onChange={(event) => { event.currentTarget.setCustomValidity(''); event.currentTarget.removeAttribute('aria-invalid'); }} /><p className="form-text">{fileHelpText(field)}</p></div>;
   }
   if (field.type === 'select' || field.type === 'boolean') {
     const options = field.type === 'boolean' ? ['false', 'true'] : field.options || [];
@@ -275,10 +290,7 @@ function validateOperationForm(form, fields, i18n) {
     if (!control) return;
     if (field.type === 'file') {
       const file = control.files?.[0];
-      const accepted = new Set(['image/jpeg', 'image/png', 'image/webp', 'application/pdf']);
-      let message = '';
-      if (file && file.size > 2 * 1024 * 1024) message = 'Le fichier dépasse la limite de 2 Mio.';
-      else if (file && !accepted.has(file.type)) message = 'Le format de fichier n’est pas autorisé.';
+      const message = validateFileForField(file, field);
       control.setCustomValidity(message);
       if (message) {
         control.setAttribute('aria-invalid', 'true');
@@ -862,8 +874,7 @@ function Dashboard() {
   }
 
   async function execute(form, fields) {
-    const isLiveOperation = selected.id.startsWith('graph-') || selected.id.startsWith('field-') || selected.id.startsWith('simulation-') || selected.id.startsWith('greenops-') || selected.id.startsWith('sbom-') || selected.id.startsWith('rag-') || selected.id.startsWith('kubernetes-');
-    if (!isLiveOperation) {
+    if (!isLiveOperationId(selected.id)) {
       setResult({ tenant_id: tenant, action: selected.id, via: config.apiBaseUrl, trust: config.webBackendTrust });
       return;
     }
@@ -873,29 +884,48 @@ function Dashboard() {
       const query = new URLSearchParams();
       const body = { tenant_id: tenant };
       query.set('tenant_id', tenant);
+      let uploadFile = null;
+      let authorizationToken = '';
       for (const field of fields) {
         if (field.type === 'file') {
           const file = form.querySelector(`[name="${field.name}"]`)?.files?.[0];
           if (!file) continue;
-          body.filename = file.name;
-          body.media_type = file.type;
-          body.content_base64 = await readFileAsBase64(file);
+          if (selected.binaryUpload) uploadFile = file;
+          else {
+            body.filename = file.name;
+            body.media_type = file.type;
+            body.content_base64 = await readFileAsBase64(file);
+          }
           continue;
         }
         const normalized = normalizeFieldValue(field, formData.get(field.name), { countryCode });
         if (normalized === undefined) continue;
-        if (selected.method === 'GET') query.append(field.name, typeof normalized === 'string' ? normalized : JSON.stringify(normalized));
+        if (selected.authField === field.name) {
+          authorizationToken = String(normalized);
+          continue;
+        }
+        if (selected.method === 'GET' || selected.binaryUpload) query.append(field.name, typeof normalized === 'string' ? normalized : JSON.stringify(normalized));
         else body[field.name] = normalized;
       }
       const apiBase = String(config.apiBaseUrl || '/api').replace(/\/$/, '');
-      const requestUrl = selected.method === 'GET' ? `${apiBase}${selected.path}?${query}` : `${apiBase}${selected.path}`;
+      const useQuery = selected.method === 'GET' || selected.binaryUpload;
+      const requestUrl = useQuery ? `${apiBase}${selected.path}?${query}` : `${apiBase}${selected.path}`;
+      const headers = selected.method === 'GET'
+        ? { Accept: selected.download ? '*/*' : 'application/json' }
+        : selected.binaryUpload
+          ? {
+              Accept: 'application/json',
+              'Content-Type': uploadFile?.type || 'application/octet-stream',
+              'X-OpenInfra-Filename': encodeURIComponent(uploadFile?.name || 'dataset'),
+            }
+          : { Accept: 'application/json', 'Content-Type': 'application/json' };
+      if (authorizationToken) headers.Authorization = `Bearer ${authorizationToken}`;
+      if (selected.binaryUpload && !uploadFile) throw new Error('Le fichier source est obligatoire.');
       const response = await fetch(requestUrl, {
         method: selected.method,
         credentials: 'same-origin',
-        headers: selected.method === 'GET'
-          ? { Accept: selected.download ? '*/*' : 'application/json' }
-          : { Accept: 'application/json', 'Content-Type': 'application/json' },
-        body: selected.method === 'GET' ? undefined : JSON.stringify(body),
+        headers,
+        body: selected.method === 'GET' ? undefined : selected.binaryUpload ? uploadFile : JSON.stringify(body),
       });
       if (selected.download) {
         const blob = await response.blob();
@@ -917,19 +947,26 @@ function Dashboard() {
         setResult({ downloaded: true, filename, content_type: blob.type || response.headers.get('content-type'), size_bytes: blob.size });
       } else {
         const payload = await response.json();
-        if (!response.ok) throw new Error(payload.error || JSON.stringify(payload));
+        if (!response.ok) {
+          const operationError = new Error(payload.error || JSON.stringify(payload));
+          operationError.status = response.status;
+          throw operationError;
+        }
         setResult(payload);
       }
       setShouldFocusMain(true);
     } catch (error) {
-      setResult({ error: error.message });
+      setResult({
+        error: error instanceof Error ? error.message : String(error),
+        status: Number.isInteger(error?.status) ? error.status : null,
+      });
       setShouldFocusMain(true);
     }
   }
 
   const displayedVersion = version?.version || config.version || i18n.t('unavailable');
   const filteredModules = MODULES;
-  const submissionCompleted = result !== null;
+  const submissionCompleted = result !== null && !(typeof result === 'object' && result?.error);
   const protectedForms = bffStatus?.protectedForms === 'enabled' ? i18n.t('active') : i18n.t('configure');
   const activeModule = MODULES.find((module) => module.id === activeModuleId) || MODULES[0];
   const activeManagementResource = selected.managementResourceId ? managementResourceById(selected.managementResourceId) : null;
@@ -1021,13 +1058,84 @@ function Dashboard() {
 
 function GraphResultPanel({ i18n, operation, result }) {
   const serialized = result === null ? i18n.t('pendingResult') : (typeof result === 'string' ? result : JSON.stringify(result, null, 2));
+  if (operation.id === 'rsot-as-of' && result !== null && typeof result !== 'string' && !result.error) {
+    return <div className="mt-3"><TimeTravelReport i18n={i18n} result={result} /><RawGraphResult i18n={i18n} value={serialized} /></div>;
+  }
+  if (operation.id === 'rag-query' && result !== null && typeof result !== 'string' && !result.error) {
+    return <div className="mt-3"><GovernedRagReport i18n={i18n} result={result} /><RawGraphResult i18n={i18n} value={serialized} /></div>;
+  }
+  if ((operation.id === 'rsot-quality-object' || operation.id === 'rsot-quality-summary') && result !== null && typeof result !== 'string' && !result.error) {
+    return <div className="mt-3"><RsotQualityReport i18n={i18n} result={result} /><RawGraphResult i18n={i18n} value={serialized} /></div>;
+  }
   if (!operation.id.startsWith('graph-') || result === null || typeof result === 'string' || result.error) {
     return <pre className="openinfra-result mt-3" role="status" aria-live="polite" aria-atomic="true" aria-label={i18n.t('operationResult')}>{serialized}</pre>;
   }
   if (operation.id === 'graph-export') {
     return <><div className="alert alert-success openinfra-download-result mt-3" role="status"><strong>{i18n.t('downloadReady')}</strong><br />{result.filename} · {result.size_bytes || 0} octets</div><RawGraphResult i18n={i18n} value={serialized} /></>;
   }
-  return <div className="mt-3">{operation.id === 'graph-spof' ? <SpofRanking i18n={i18n} result={result} /> : <DependencyGraphVisualization i18n={i18n} result={result} />}<RawGraphResult i18n={i18n} value={serialized} /></div>;
+  const visualization = operation.id === 'graph-spof'
+    ? <SpofRanking i18n={i18n} result={result} />
+    : operation.id === 'graph-change-impact'
+      ? <><ChangeImpactReport i18n={i18n} result={result} /><DependencyGraphVisualization i18n={i18n} result={result} /></>
+      : <DependencyGraphVisualization i18n={i18n} result={result} />;
+  return <div className="mt-3">{visualization}<RawGraphResult i18n={i18n} value={serialized} /></div>;
+}
+
+function RsotQualityReport({ i18n, result }) {
+  const reports = Array.isArray(result.reports) ? result.reports : [result];
+  const certified = Number(result.certified ?? reports.filter((report) => report.certification_status === 'certified').length);
+  const warning = Number(result.warning ?? reports.filter((report) => report.certification_status === 'warning').length);
+  const rejected = Number(result.rejected ?? reports.filter((report) => report.certification_status === 'rejected').length);
+  const averageScore = Number(result.average_score ?? reports.reduce((total, report) => total + Number(report.score || 0), 0) / Math.max(reports.length, 1));
+  const allIssues = reports.flatMap((report) => (Array.isArray(report.issues) ? report.issues.map((issue) => ({ ...issue, key: report.key })) : []));
+  const statusClass = rejected > 0 ? 'text-bg-danger' : warning > 0 ? 'text-bg-warning' : 'text-bg-success';
+  return <section className="openinfra-rsot-quality-report mb-4" aria-labelledby="openinfra-rsot-quality-title">
+    <div className="d-flex flex-wrap justify-content-between gap-2 align-items-start"><h3 id="openinfra-rsot-quality-title" className="h6 mb-1">{i18n.label('Certification qualité RSOT')}</h3><span className={`badge ${statusClass}`}>{rejected > 0 ? i18n.label('Rejeté') : warning > 0 ? i18n.label('Avertissement') : i18n.label('Certifié')}</span></div>
+    <dl className="row g-2 mt-2 openinfra-rsot-quality-summary"><div className="col-sm-6 col-xl-3"><dt>{i18n.label('Objets évalués')}</dt><dd>{Number(result.total ?? reports.length)}</dd></div><div className="col-sm-6 col-xl-3"><dt>{i18n.label('Score moyen')}</dt><dd>{averageScore.toFixed(2)}</dd></div><div className="col-sm-6 col-xl-3"><dt>{i18n.label('Certifiés')}</dt><dd>{certified}</dd></div><div className="col-sm-6 col-xl-3"><dt>{i18n.label('Avertissements / rejets')}</dt><dd>{warning} / {rejected}</dd></div></dl>
+    <div className="table-responsive mt-3"><table className="table table-sm align-middle openinfra-rsot-quality-dimensions"><caption>{i18n.label('Dimensions de qualité')}</caption><thead><tr><th scope="col">{i18n.t('sourceObject')}</th><th scope="col">{i18n.label('Statut')}</th><th scope="col">{i18n.label('Score')}</th><th scope="col">{i18n.label('Complétude')}</th><th scope="col">{i18n.label('Fraîcheur')}</th><th scope="col">{i18n.label('Autorité')}</th><th scope="col">{i18n.label('Confiance')}</th></tr></thead><tbody>{reports.map((report) => <tr key={report.key || report.display_name}><th scope="row">{report.display_name || report.key || '—'}<small className="d-block text-muted">{report.key || '—'} · {report.source || '—'}</small></th><td>{report.certification_status || '—'}</td><td>{Number(report.score || 0)}</td><td>{Number(report.completeness_score || 0)}</td><td>{Number(report.freshness_score || 0)}</td><td>{Number(report.authority_score || 0)}</td><td>{Number(report.confidence_score || 0)}</td></tr>)}</tbody></table></div>
+    <div className="table-responsive mt-3"><table className="table table-sm align-middle openinfra-rsot-quality-issues"><caption>{i18n.label('Anomalies qualité')}</caption><thead><tr><th scope="col">{i18n.t('sourceObject')}</th><th scope="col">{i18n.label('Sévérité')}</th><th scope="col">{i18n.label('Champ')}</th><th scope="col">{i18n.label('Code')}</th><th scope="col">{i18n.label('Message')}</th></tr></thead><tbody>{allIssues.length > 0 ? allIssues.map((issue, index) => <tr key={`${issue.key}-${issue.code}-${issue.field}-${index}`}><td>{issue.key || '—'}</td><td>{issue.severity || '—'}</td><td>{issue.field || '—'}</td><td>{issue.code || '—'}</td><td>{issue.message || '—'}{issue.actual_source || issue.expected_source || issue.governance_rule ? <small className="d-block text-muted">{i18n.label('Source observée')}: {issue.actual_source || '—'} · {i18n.label('Source attendue')}: {issue.expected_source || '—'} · {i18n.label('Règle')}: {issue.governance_rule || '—'}</small> : null}</td></tr>) : <tr><td colSpan="5">{i18n.label('Aucune anomalie qualité')}</td></tr>}</tbody></table></div>
+  </section>;
+}
+
+function GovernedRagReport({ i18n, result }) {
+  const citations = Array.isArray(result.citations) ? result.citations : [];
+  const sourceObjects = Array.isArray(result.source_objects) ? result.source_objects : [];
+  const governance = result.governance && typeof result.governance === 'object' ? result.governance : {};
+  const mutationPerformed = governance.source_data_mutation_performed === true;
+  const validationRequired = governance.change_validation_required !== false;
+  return <section className="openinfra-rag-governance-report mb-4" aria-labelledby="openinfra-rag-governance-title">
+    <div className="d-flex flex-wrap justify-content-between gap-2 align-items-start"><h3 id="openinfra-rag-governance-title" className="h6 mb-1">{i18n.t('resultTitle')}</h3><span className={`badge ${mutationPerformed ? 'text-bg-danger' : 'text-bg-success'}`}>{governance.mode || i18n.t('reads')}</span></div>
+    <dl className="row g-2 mt-2 openinfra-rag-governance-summary"><div className="col-sm-6 col-xl-3"><dt>{i18n.label('Statut')}</dt><dd>{result.status || '—'}</dd></div><div className="col-sm-6 col-xl-3"><dt>{i18n.label('Confiance (0 à 1)')}</dt><dd>{result.confidence || '0'}</dd></div><div className="col-sm-6 col-xl-3"><dt>{i18n.t('mutations')}</dt><dd>{mutationPerformed ? i18n.t('yes') : i18n.t('no')}</dd></div><div className="col-sm-6 col-xl-3"><dt>{i18n.t('required')}</dt><dd>{validationRequired ? i18n.t('yes') : i18n.t('no')}</dd></div></dl>
+    <p className="openinfra-rag-answer" role="status" aria-live="polite">{result.answer || '—'}</p>
+    <div className="table-responsive mt-3"><table className="table table-sm align-middle openinfra-rag-source-objects"><caption>{i18n.t('sourceObject')}</caption><thead><tr><th scope="col">{i18n.t('sourceObject')}</th><th scope="col">{i18n.t('provenance')}</th><th scope="col">{i18n.label('Confiance (0 à 1)')}</th></tr></thead><tbody>{sourceObjects.length > 0 ? sourceObjects.map((source) => <tr key={source.object_key}><th scope="row">{source.title || source.object_key}<small className="d-block text-muted">{source.object_key}</small></th><td>{source.source_uri || '—'}</td><td>{source.score || '0'}</td></tr>) : <tr><td colSpan="3">{i18n.t('noGraphData')}</td></tr>}</tbody></table></div>
+    <div className="table-responsive mt-3"><table className="table table-sm align-middle openinfra-rag-citations"><caption>{i18n.t('provenance')}</caption><thead><tr><th scope="col">{i18n.t('sourceObject')}</th><th scope="col">{i18n.label('Source')}</th><th scope="col">{i18n.label('Confiance (0 à 1)')}</th><th scope="col">{i18n.t('resultTitle')}</th></tr></thead><tbody>{citations.length > 0 ? citations.map((citation) => <tr key={citation.chunk_id}><th scope="row">{citation.title || citation.source_ref}<small className="d-block text-muted">{citation.source_ref}</small></th><td>{citation.source_type || '—'}</td><td>{citation.score || '0'}</td><td>{citation.excerpt || '—'}</td></tr>) : <tr><td colSpan="4">{i18n.t('noGraphData')}</td></tr>}</tbody></table></div>
+  </section>;
+}
+
+function TimeTravelReport({ i18n, result }) {
+  const relations = Array.isArray(result.relations) ? result.relations : [];
+  const provenance = result.provenance && typeof result.provenance === 'object' ? result.provenance : {};
+  const complete = result.complete !== false;
+  const objectKey = String(result.key || result.object_key || '—');
+  return <section className="openinfra-time-travel-report mb-4" aria-labelledby="openinfra-time-travel-title">
+    <div className="d-flex flex-wrap justify-content-between gap-2 align-items-start"><h3 id="openinfra-time-travel-title" className="h6 mb-1">{i18n.t('timeTravelReport')}</h3><span className={`badge ${complete ? 'text-bg-success' : 'text-bg-warning'}`}>{complete ? i18n.t('completeHistoricalState') : i18n.t('boundedHistoricalState')}</span></div>
+    <dl className="row g-2 mt-2 openinfra-time-travel-summary"><div className="col-sm-6 col-xl-3"><dt>{i18n.t('historicalObject')}</dt><dd>{result.display_name || objectKey}<small className="d-block text-muted">{objectKey}</small></dd></div><div className="col-sm-6 col-xl-3"><dt>{i18n.t('requestedAt')}</dt><dd>{result.as_of || '—'}</dd></div><div className="col-sm-6 col-xl-3"><dt>{i18n.t('resolvedVersion')}</dt><dd>{result.resolved_version ?? result.version ?? '—'}</dd></div><div className="col-sm-6 col-xl-3"><dt>{i18n.t('historicalRelations')}</dt><dd>{Number(result.relation_count || relations.length)}</dd></div></dl>
+    <div className="table-responsive mt-3"><table className="table table-sm align-middle openinfra-time-travel-provenance"><caption>{i18n.t('provenance')}</caption><thead><tr><th scope="col">{i18n.t('sourceSystem')}</th><th scope="col">{i18n.t('snapshotChangedBy')}</th><th scope="col">{i18n.t('snapshotChangedAt')}</th><th scope="col">{i18n.t('snapshotIdentifier')}</th></tr></thead><tbody><tr><td>{provenance.source_system || result.source || '—'}</td><td>{provenance.changed_by || result.snapshot_changed_by || '—'}</td><td>{provenance.snapshot_changed_at || result.snapshot_changed_at || '—'}</td><td>{provenance.snapshot_id || result.snapshot_id || '—'}</td></tr></tbody></table></div>
+    <div className="table-responsive mt-3"><table className="table table-sm align-middle openinfra-time-travel-relations"><caption>{i18n.t('historicalRelations')}</caption><thead><tr><th scope="col">{i18n.t('relationType')}</th><th scope="col">{i18n.t('sourceObject')}</th><th scope="col">{i18n.t('targetObject')}</th><th scope="col">{i18n.t('provenance')}</th><th scope="col">{i18n.t('validityWindow')}</th></tr></thead><tbody>{relations.length > 0 ? relations.map((relation) => <tr key={relation.id || `${relation.source_key}-${relation.target_key}-${relation.relation_type}`}><td>{relation.relation_type || '—'}</td><td>{relation.source_key || '—'}</td><td>{relation.target_key || '—'}</td><td>{relation.provenance || '—'}</td><td>{`${relation.valid_from || '—'} → ${relation.valid_to || '∞'}`}</td></tr>) : <tr><td colSpan="5">{i18n.t('noHistoricalRelations')}</td></tr>}</tbody></table></div>
+  </section>;
+}
+
+function ChangeImpactReport({ i18n, result }) {
+  const services = Array.isArray(result.business_services) ? result.business_services : [];
+  const risks = Array.isArray(result.critical_dependencies) ? result.critical_dependencies : [];
+  const complete = result.complete !== false;
+  const rootSpof = result.root_spof_risk === true;
+  return <section className="openinfra-change-impact-report mb-4" aria-labelledby="openinfra-change-impact-title">
+    <div className="d-flex flex-wrap justify-content-between gap-2 align-items-start"><h3 id="openinfra-change-impact-title" className="h6 mb-1">{i18n.t('changeImpactReport')}</h3><span className={`badge ${complete ? 'text-bg-success' : 'text-bg-warning'}`}>{complete ? i18n.t('completeAnalysis') : i18n.t('boundedAnalysis')}</span></div>
+    <dl className="row g-2 mt-2 openinfra-change-impact-summary"><div className="col-sm-6 col-xl-3"><dt>{i18n.t('affectedNodes')}</dt><dd>{Number(result.impacted_count || 0)}</dd></div><div className="col-sm-6 col-xl-3"><dt>{i18n.t('impactedBusinessServices')}</dt><dd>{Number(result.business_service_count || services.length)}</dd></div><div className="col-sm-6 col-xl-3"><dt>{i18n.t('criticalDependencies')}</dt><dd>{Number(result.critical_dependency_count || risks.length)}</dd></div><div className="col-sm-6 col-xl-3"><dt>{i18n.t('rootSpofRisk')}</dt><dd>{rootSpof ? i18n.t('yes') : i18n.t('no')}</dd></div></dl>
+    <div className="table-responsive mt-3"><table className="table table-sm align-middle openinfra-change-impact-services"><caption>{i18n.t('impactedBusinessServices')}</caption><thead><tr><th scope="col">{i18n.t('impactedBusinessServices')}</th><th scope="col">{i18n.label('Type de ressource')}</th><th scope="col">{i18n.t('graphDepth')}</th></tr></thead><tbody>{services.length > 0 ? services.map((service) => <tr key={service.key}><th scope="row">{service.display_name || service.key}<small className="d-block text-muted">{service.key}</small></th><td>{service.resource_type || service.kind || '—'}</td><td>{service.depth ?? '—'}</td></tr>) : <tr><td colSpan="3">{i18n.t('noGraphData')}</td></tr>}</tbody></table></div>
+    <div className="table-responsive mt-3"><table className="table table-sm align-middle openinfra-change-impact-dependencies"><caption>{i18n.t('criticalDependencies')}</caption><thead><tr><th scope="col">{i18n.t('criticalDependencies')}</th><th scope="col">{i18n.t('riskLevel')}</th><th scope="col">{i18n.t('impactedBusinessServices')}</th><th scope="col">{i18n.t('affectedNodes')}</th><th scope="col">{i18n.t('affectedSample')}</th></tr></thead><tbody>{risks.length > 0 ? risks.map((risk) => { const node = risk.node || {}; const sample = Array.isArray(risk.affected_business_service_keys) ? risk.affected_business_service_keys.join(', ') : ''; return <tr key={node.key || sample}><th scope="row">{node.display_name || node.key || '—'}<small className="d-block text-muted">{node.key || ''}</small></th><td>{String(risk.risk_level || '—').toUpperCase()}</td><td>{Number(risk.affected_business_service_count || 0)}</td><td>{Number(risk.affected_node_count || 0)}</td><td>{sample || '—'}</td></tr>; }) : <tr><td colSpan="5">{i18n.t('noGraphData')}</td></tr>}</tbody></table></div>
+  </section>;
 }
 
 function RawGraphResult({ i18n, value }) {

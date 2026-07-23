@@ -222,6 +222,7 @@ class TestDependencyGraphInterfaces:
             assert discovery["documentation"]["graph"] == {
                 "traverse": "/api/v1/graph/traverse",
                 "impact": "/api/v1/graph/impact",
+                "change_impact": "/api/v1/graph/change-impact",
                 "path": "/api/v1/graph/path",
                 "spof": "/api/v1/graph/spof",
                 "export": "/api/v1/graph/export",
@@ -230,6 +231,7 @@ class TestDependencyGraphInterfaces:
             unauthorized_routes = (
                 "/api/v1/graph/traverse?tenant_id=default&root_key=application%2Fweb",
                 "/api/v1/graph/impact?tenant_id=default&root_key=server%2Fapp-01",
+                "/api/v1/graph/change-impact?tenant_id=default&root_key=server%2Fapp-01",
                 (
                     "/api/v1/graph/path?tenant_id=default&source_key=application%2Fweb"
                     "&target_key=server%2Fapp-01"
@@ -315,6 +317,7 @@ def test_runtime_openapi_documents_dependency_graph_contract() -> None:
     for route in (
         "/api/v1/graph/traverse:",
         "/api/v1/graph/impact:",
+        "/api/v1/graph/change-impact:",
         "/api/v1/graph/path:",
         "/api/v1/graph/spof:",
         "/api/v1/graph/export:",
@@ -322,6 +325,7 @@ def test_runtime_openapi_documents_dependency_graph_contract() -> None:
         assert route in openapi
     assert "operationId: traverseDependencyGraph" in openapi
     assert "operationId: analyzeDependencyImpact" in openapi
+    assert "operationId: analyzeApplicationChangeImpact" in openapi
     assert "operationId: findDependencyPath" in openapi
     assert "operationId: analyzeDependencySinglePointsOfFailure" in openapi
     assert "operationId: exportDependencyGraph" in openapi

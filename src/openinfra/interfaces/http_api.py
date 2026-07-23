@@ -7,13 +7,14 @@ import inspect
 import json
 import os
 import sys
+from collections.abc import Iterator
 from datetime import date, datetime
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from socketserver import BaseServer
 from typing import Any
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, quote, unquote, urlparse
 
 import uvicorn
 
@@ -43,6 +44,7 @@ from openinfra.application.async_processing_services import (
     ReplayAsyncJobCommand,
     ReplayOutboxEventCommand,
     StoreAsyncArtifactCommand,
+    StoreAsyncArtifactStreamCommand,
     SubmitAsyncJobCommand,
 )
 from openinfra.application.audit_services import (
@@ -60,6 +62,7 @@ from openinfra.application.certificate_pki_services import (
     RetireCertificateCommand,
 )
 from openinfra.application.container import ApplicationFactory, OpenInfraApplication
+from openinfra.application.ddi_sync_services import SyncDdiReservationCommand
 from openinfra.application.dcim_services import (
     ConnectDcimCableCommand,
     CreateDcimBuildingCommand,
@@ -112,6 +115,7 @@ from openinfra.application.dcim_services import (
     VerifyEquipmentScanCommand,
 )
 from openinfra.application.dependency_graph_services import (
+    AnalyzeChangeImpactCommand,
     AnalyzeDependencyImpactCommand,
     AnalyzeDependencySpofCommand,
     ExportDependencyGraphCommand,
@@ -144,6 +148,7 @@ from openinfra.application.discovery_services import (
     ListDiscoveryProtocolProfilesCommand,
     ListDiscoveryReconciliationsCommand,
     ReconcileDiscoveryEvidenceCommand,
+    RecordDiscoveryJobResultCommand,
     RegisterCollectorCommand,
     RenewDiscoveryJobLeaseCommand,
     ReplayDiscoveryDeadLetterJobCommand,
@@ -423,6 +428,7 @@ from openinfra.application.source_of_truth_services import (
 )
 from openinfra.domain.access_policy import AccessRequestContext
 from openinfra.domain.common import AccessDeniedError, OpenInfraError, ValidationError
+from openinfra.domain.data_import import ImportFormat
 from openinfra.domain.countries import CountryCatalog
 from openinfra.domain.editions import EditionDatabasePolicy
 from openinfra.domain.federated_identity import FederatedProvider
@@ -583,6 +589,9 @@ class ApiDocumentationRenderer:
 
 class OpenInfraRequestHandler(BaseHTTPRequestHandler):
     server: OpenInfraApiRuntime
+    _MAX_STREAM_CSV_UPLOAD_BYTES = 512 * 1024 * 1024
+    _MAX_STREAM_XLSX_UPLOAD_BYTES = 50 * 1024 * 1024
+    _STREAM_CHUNK_BYTES = 1024 * 1024
 
     def log_message(self, _format: str, *args: object) -> None:
         return None
@@ -3099,6 +3108,43 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             except (ValueError, OpenInfraError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
+        if route == "/api/v1/graph/change-impact":
+            try:
+                query = parse_qs(parsed.query)
+                defaults = AnalyzeChangeImpactCommand(
+                    tenant_id=self._first_query_value(query, "tenant_id"),
+                    admin_token="unused",
+                    root_key=self._first_query_value(query, "root_key"),
+                )
+                result = self.server.application.dependency_graph_service.analyze_change_impact(
+                    AnalyzeChangeImpactCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        root_key=self._first_query_value(query, "root_key"),
+                        direction=self._first_query_value(query, "direction", "incoming"),
+                        max_depth=int(self._first_query_value(query, "max_depth", "8")),
+                        max_nodes=int(self._first_query_value(query, "max_nodes", "2000")),
+                        relation_types=tuple(query.get("relation_type", [])),
+                        as_of=query.get("as_of", [None])[0],
+                        business_service_kinds=(
+                            tuple(query.get("business_service_kind", []))
+                            or defaults.business_service_kinds
+                        ),
+                        business_service_resource_types=(
+                            tuple(query.get("business_service_resource_type", []))
+                            or defaults.business_service_resource_types
+                        ),
+                        affected_sample_limit=int(
+                            self._first_query_value(query, "affected_sample_limit", "25")
+                        ),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
         if route == "/api/v1/graph/path":
             try:
                 query = parse_qs(parsed.query)
@@ -3282,6 +3328,9 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         admin_token=self._bearer_token(),
                         key=self._first_query_value(query, "key"),
                         as_of=self._first_query_value(query, "as_of"),
+                        relation_limit=int(
+                            self._first_query_value(query, "relation_limit", "100")
+                        ),
                     )
                 )
                 responder.send(HTTPStatus.OK, result)
@@ -4003,6 +4052,42 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
+        if route == "/api/v1/imports/async-bulk-status":
+            try:
+                query = parse_qs(parsed.query)
+                tenant_id = self._first_query_value(query, "tenant_id")
+                job_id = self._first_query_value(query, "job_id")
+                token = self._bearer_token()
+                job = self.server.application.async_processing_service.get_job(
+                    GetAsyncJobCommand(tenant_id, token, job_id)
+                )
+                result_payload: dict[str, object] | None = None
+                if job.state.status.value == "completed":
+                    artifact = self.server.application.async_processing_service.get_artifact(
+                        GetAsyncArtifactCommand(tenant_id, token, job_id, "result")
+                    )
+                    decoded = json.loads(artifact.content.decode("utf-8"))
+                    if not isinstance(decoded, dict):
+                        raise ValidationError("async import result must be a JSON object")
+                    result_payload = {str(key): value for key, value in decoded.items()}
+                responder.send(
+                    HTTPStatus.OK,
+                    {
+                        "job": job.as_dict(),
+                        "result": result_payload,
+                    },
+                )
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (
+                UnicodeDecodeError,
+                json.JSONDecodeError,
+                OpenInfraError,
+                ValueError,
+            ) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
         if route == "/api/v1/async/jobs":
             try:
                 query = parse_qs(parsed.query)
@@ -4128,7 +4213,8 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         responder = JsonHttpResponder(self)
-        route = urlparse(self.path).path
+        parsed = urlparse(self.path)
+        route = parsed.path
         result: Any
         rule: Any
 
@@ -4221,6 +4307,119 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
             except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/imports/async-bulk-datasets":
+            try:
+                query = parse_qs(parsed.query)
+                tenant_id = self._first_query_value(query, "tenant_id")
+                actor = self._first_query_value(query, "actor", "api")
+                import_format = ImportFormat.from_value(
+                    self._first_query_value(query, "format")
+                )
+                if import_format not in {ImportFormat.CSV, ImportFormat.XLSX}:
+                    raise ValidationError(
+                        "asynchronous bulk upload supports only CSV and XLSX"
+                    )
+                raw_mapping = json.loads(self._first_query_value(query, "mapping_json"))
+                if not isinstance(raw_mapping, dict):
+                    raise ValidationError("mapping_json must contain a JSON object")
+                mapping = {str(key): str(value) for key, value in raw_mapping.items()}
+                filename = unquote(self.headers.get("X-OpenInfra-Filename", "dataset")).strip()
+                if not filename or len(filename) > 255 or any(
+                    character in filename for character in ("/", "\\", "\x00")
+                ):
+                    raise ValidationError("upload filename is invalid")
+                expected_suffix = ".csv" if import_format is ImportFormat.CSV else ".xlsx"
+                if not filename.lower().endswith(expected_suffix):
+                    raise ValidationError(
+                        f"upload filename must end with {expected_suffix}"
+                    )
+                media_type = (
+                    "text/csv"
+                    if import_format is ImportFormat.CSV
+                    else (
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    )
+                )
+                upload_limit = (
+                    self._MAX_STREAM_CSV_UPLOAD_BYTES
+                    if import_format is ImportFormat.CSV
+                    else self._MAX_STREAM_XLSX_UPLOAD_BYTES
+                )
+                source = self.server.application.async_processing_service.store_artifact_stream(
+                    StoreAsyncArtifactStreamCommand(
+                        tenant_id=tenant_id,
+                        admin_token=self._bearer_token(),
+                        actor=actor,
+                        purpose="imports-source",
+                        chunks=self._read_binary_chunks(upload_limit),
+                        media_type=media_type,
+                        max_size_bytes=upload_limit,
+                    )
+                )
+                resume_job_id = self._optional_query_value(query, "resume_job_id")
+                job = self.server.application.async_processing_service.submit_job(
+                    SubmitAsyncJobCommand(
+                        tenant_id=tenant_id,
+                        admin_token=self._bearer_token(),
+                        actor=actor,
+                        specialization="imports",
+                        operation="imports.bulk-dataset",
+                        idempotency_key=self._first_query_value(query, "idempotency_key"),
+                        payload={
+                            "source_artifact": source.as_locator_dict(),
+                            "source_filename": filename,
+                            "format": import_format.value,
+                            "mapping": mapping,
+                            "dry_run": not self._query_bool(query, "apply", False),
+                            "batch_size": int(
+                                self._first_query_value(query, "batch_size", "5000")
+                            ),
+                            "checkpoint_interval": int(
+                                self._first_query_value(
+                                    query, "checkpoint_interval", "25000"
+                                )
+                            ),
+                            "resume_job_id": resume_job_id,
+                            "sample_limit": int(
+                                self._first_query_value(query, "sample_limit", "100")
+                            ),
+                        },
+                        max_attempts=int(
+                            self._first_query_value(query, "max_attempts", "3")
+                        ),
+                    )
+                )
+                responder.send(
+                    HTTPStatus.ACCEPTED,
+                    {
+                        "job": job.as_dict(),
+                        "source_artifact": source.as_dict(),
+                        "status_url": (
+                            "/api/v1/imports/async-bulk-status?tenant_id="
+                            + quote(tenant_id, safe="")
+                            + "&job_id="
+                            + quote(job.id.value, safe="")
+                        ),
+                        "result_url": (
+                            "/api/v1/async/artifacts/get?tenant_id="
+                            + quote(tenant_id, safe="")
+                            + "&kind=result&job_id="
+                            + quote(job.id.value, safe="")
+                        ),
+                    },
+                )
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (
+                KeyError,
+                TypeError,
+                json.JSONDecodeError,
+                OpenInfraError,
+                ValueError,
+            ) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
@@ -8499,6 +8698,39 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
+        if route == "/api/v1/discovery/jobs/result":
+            try:
+                payload = self._read_json_body()
+                raw_evidence_payload = payload["payload"]
+                if not isinstance(raw_evidence_payload, dict):
+                    raise OpenInfraError("payload must be a JSON object")
+                receipt = self.server.application.discovery_service.record_job_result(
+                    RecordDiscoveryJobResultCommand(
+                        tenant_id=str(payload["tenant_id"]),
+                        collector_id=str(payload["collector_id"]),
+                        certificate_fingerprint=str(payload["certificate_fingerprint"]),
+                        job_id=str(payload["job_id"]),
+                        worker_id=str(payload["worker_id"]),
+                        lease_token=int(payload["lease_token"]),
+                        object_key=str(payload["object_key"]),
+                        object_kind=str(payload["object_kind"]),
+                        confidence=float(payload["confidence"]),
+                        payload={str(key): value for key, value in raw_evidence_payload.items()},
+                        observed_at=(
+                            None
+                            if payload.get("observed_at") is None
+                            else str(payload["observed_at"])
+                        ),
+                    )
+                )
+                status = HTTPStatus.OK if receipt.idempotent_replay else HTTPStatus.CREATED
+                responder.send(status, receipt.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError, TypeError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
         if route == "/api/v1/discovery/jobs/fail":
             try:
                 payload = self._read_json_body()
@@ -8895,6 +9127,53 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
+        if route == "/api/v1/ipam/ddi-sync":
+            try:
+                payload = self._read_json_body()
+                tenant_id = str(payload["tenant_id"])
+                principal = self._authenticate(tenant_id, Permission.IPAM_DDI_SYNC)
+                self.server.application.access_policy_service.authorize(
+                    principal,
+                    AccessRequestContext.create(
+                        principal.tenant_id, Permission.IPAM_DDI_SYNC, None, None
+                    ),
+                )
+                journal = self.server.application.ipam_ddi_sync_service.synchronize(
+                    SyncDdiReservationCommand(
+                        tenant_id=tenant_id,
+                        actor=principal.subject,
+                        vrf=str(payload["vrf"]),
+                        reservation_idempotency_key=str(
+                            payload["reservation_idempotency_key"]
+                        ),
+                        execution_idempotency_key=str(
+                            payload["execution_idempotency_key"]
+                        ),
+                        providers=self._tuple_payload(payload, "providers", ("all",)),
+                        dns_zone=(
+                            str(payload["dns_zone"]) if payload.get("dns_zone") else None
+                        ),
+                        reverse_dns_zone=(
+                            str(payload["reverse_dns_zone"])
+                            if payload.get("reverse_dns_zone")
+                            else None
+                        ),
+                        mac_address=(
+                            str(payload["mac_address"])
+                            if payload.get("mac_address")
+                            else None
+                        ),
+                        ttl=int(payload.get("ttl", 300)),
+                        resume=bool(payload.get("resume", False)),
+                    )
+                )
+                responder.send(HTTPStatus.OK, journal.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
         if route == "/api/v1/ipam/ddi-preview":
             try:
                 payload = self._read_json_body()
@@ -8911,6 +9190,11 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         ),
                         ttl=int(payload.get("ttl", 300)),
                         dry_run=not bool(payload.get("apply_preview", False)),
+                        reverse_dns_zone=(
+                            str(payload["reverse_dns_zone"])
+                            if payload.get("reverse_dns_zone")
+                            else None
+                        ),
                     )
                 )
                 responder.send(HTTPStatus.OK, preview.as_dict())
@@ -9098,6 +9382,21 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             return AuthProxyTeamSyncSource()
         raise ValidationError("unsupported Team Sync provider: " + provider.value)
 
+    def _read_binary_chunks(self, max_size_bytes: int) -> Iterator[bytes]:
+        try:
+            content_length = int(self.headers.get("Content-Length", "0"))
+        except ValueError as exc:
+            raise OpenInfraError("invalid content length") from exc
+        if content_length <= 0 or content_length > max_size_bytes:
+            raise OpenInfraError("invalid content length")
+        remaining = content_length
+        while remaining > 0:
+            chunk = self.rfile.read(min(self._STREAM_CHUNK_BYTES, remaining))
+            if not chunk:
+                raise OpenInfraError("incomplete binary request body")
+            remaining -= len(chunk)
+            yield chunk
+
     def _read_json_body(self) -> dict[str, Any]:
         content_length = int(self.headers.get("Content-Length", "0"))
         if content_length <= 0 or content_length > 1_048_576:
@@ -9159,6 +9458,8 @@ class OpenInfraApiRuntime(BaseServer):
                 "imports": {
                     "dataset": "/api/v1/imports/datasets",
                     "bulk_dataset": "/api/v1/imports/bulk-datasets",
+                    "async_bulk_dataset": "/api/v1/imports/async-bulk-datasets",
+                    "async_bulk_status": "/api/v1/imports/async-bulk-status",
                     "bulk_report": "/api/v1/imports/bulk-report",
                     "bulk_checkpoint": "/api/v1/imports/bulk-checkpoint",
                     "bulk_progress": "/api/v1/imports/bulk-progress",
@@ -9383,6 +9684,7 @@ class OpenInfraApiRuntime(BaseServer):
                 "graph": {
                     "traverse": "/api/v1/graph/traverse",
                     "impact": "/api/v1/graph/impact",
+                    "change_impact": "/api/v1/graph/change-impact",
                     "path": "/api/v1/graph/path",
                     "spof": "/api/v1/graph/spof",
                     "export": "/api/v1/graph/export",
@@ -9446,6 +9748,7 @@ class OpenInfraApiRuntime(BaseServer):
                     "dhcp_leases": "/api/v1/ipam/dhcp-leases",
                     "conflicts": "/api/v1/ipam/conflicts",
                     "ddi_preview": "/api/v1/ipam/ddi-preview",
+                    "ddi_sync": "/api/v1/ipam/ddi-sync",
                 },
                 "dcim": {
                     "sites": "/api/v1/dcim/sites",

@@ -74,6 +74,14 @@ const SEARCH_INDEX = [
   {
     "moduleId": "rsot",
     "moduleLabel": "RSOT",
+    "id": "graph-change-impact",
+    "label": "Analyser l’impact d’un changement applicatif",
+    "method": "GET",
+    "path": "/v1/graph/change-impact"
+  },
+  {
+    "moduleId": "rsot",
+    "moduleLabel": "RSOT",
     "id": "graph-path",
     "label": "Trouver le chemin le plus court",
     "method": "GET",
@@ -422,6 +430,14 @@ const SEARCH_INDEX = [
     "label": "Prévisualiser DDI",
     "method": "POST",
     "path": "/v1/ipam/ddi-preview"
+  },
+  {
+    "moduleId": "ipam",
+    "moduleLabel": "IPAM",
+    "id": "ipam-ddi-sync",
+    "label": "Synchroniser DNS/DHCP",
+    "method": "POST",
+    "path": "/v1/ipam/ddi-sync"
   },
   {
     "moduleId": "ipam",
@@ -862,6 +878,14 @@ const SEARCH_INDEX = [
     "label": "Localiser un équipement",
     "method": "POST",
     "path": "/v1/dcim/locations"
+  },
+  {
+    "moduleId": "dcim",
+    "moduleLabel": "DCIM",
+    "id": "dcim-locator-sheet",
+    "label": "Fiche d’intervention équipement",
+    "method": "GET",
+    "path": "/v1/dcim/locator-sheet"
   },
   {
     "moduleId": "dcim",
@@ -1863,151 +1887,148 @@ const SEARCH_INDEX = [
     "method": "GET",
     "path": "/v1/sbom/comparisons/get"
   },
-{
-  "id": "itsm-providers",
-  "label": "Politiques connecteurs ITSM",
-  "method": "GET",
-  "path": "/v1/integrations/itsm/providers"
-},
-{
-  "id": "servicenow-validate",
-  "label": "Valider connecteur ServiceNow",
-  "method": "POST",
-  "path": "/v1/integrations/itsm/servicenow/validate"
-},
-{
-  "id": "servicenow-ci-sync-plan",
-  "label": "Plan synchro CI ServiceNow",
-  "method": "POST",
-  "path": "/v1/integrations/itsm/servicenow/ci-sync-plan"
-},
-{
-  "id": "jira-validate",
-  "label": "Valider connecteur Jira Assets",
-  "method": "POST",
-  "path": "/v1/integrations/itsm/jira/validate"
-},
-{
-  "id": "jira-asset-sync-plan",
-  "label": "Plan synchro Assets Jira",
-  "method": "POST",
-  "path": "/v1/integrations/itsm/jira/asset-sync-plan"
-},
-{
-  "id": "glpi-validate",
-  "label": "Valider connecteur GLPI Inventory",
-  "method": "POST",
-  "path": "/v1/integrations/itsm/glpi/validate"
-},
-{
-  "id": "glpi-asset-sync-plan",
-  "label": "Plan synchro inventaire GLPI",
-  "method": "POST",
-  "path": "/v1/integrations/itsm/glpi/asset-sync-plan"
-},
-{
-  "id": "freshservice-validate",
-  "label": "Valider connecteur Freshservice Assets",
-  "method": "POST",
-  "path": "/v1/integrations/itsm/freshservice/validate"
-},
-{
-  "id": "freshservice-asset-sync-plan",
-  "label": "Plan synchro Assets Freshservice",
-  "method": "POST",
-  "path": "/v1/integrations/itsm/freshservice/asset-sync-plan"
-}
-,
-{
-  "moduleId": "discovery",
-  "moduleLabel": "Discovery",
-  "id": "kubernetes-gitops-states-list",
-  "label": "Lister les états attendus GitOps Kubernetes",
-  "method": "GET",
-  "path": "/v1/kubernetes/gitops-states"
-},
-{
-  "moduleId": "discovery",
-  "moduleLabel": "Discovery",
-  "id": "kubernetes-gitops-state-get",
-  "label": "Consulter un état attendu GitOps Kubernetes",
-  "method": "GET",
-  "path": "/v1/kubernetes/gitops-states/get"
-},
-{
-  "moduleId": "discovery",
-  "moduleLabel": "Discovery",
-  "id": "kubernetes-gitops-state-latest",
-  "label": "Consulter le dernier état attendu GitOps",
-  "method": "GET",
-  "path": "/v1/kubernetes/gitops-states/latest"
-},
-{
-  "moduleId": "discovery",
-  "moduleLabel": "Discovery",
-  "id": "kubernetes-gitops-drift-snapshot",
-  "label": "Évaluer la dérive GitOps entre deux états",
-  "method": "GET",
-  "path": "/v1/kubernetes/gitops-states/drift"
-},
-{
-  "moduleId": "discovery",
-  "moduleLabel": "Discovery",
-  "id": "kubernetes-gitops-drift-latest",
-  "label": "Évaluer la dérive GitOps actuelle du cluster",
-  "method": "GET",
-  "path": "/v1/kubernetes/gitops-states/latest-drift"
-},
-{
-  "moduleId": "discovery",
-  "moduleLabel": "Discovery",
-  "id": "kubernetes-gitops-state-import",
-  "label": "Importer un état attendu GitOps Kubernetes",
-  "method": "POST",
-  "path": "/v1/kubernetes/gitops-states/import"
-}
-,
-{
-  "moduleId": "discovery",
-  "moduleLabel": "Discovery",
-  "id": "kubernetes-capacity-latest",
-  "label": "Analyser la capacité actuelle du cluster",
-  "method": "GET",
-  "path": "/v1/kubernetes/topologies/latest-capacity"
-},
-{
-  "moduleId": "discovery",
-  "moduleLabel": "Discovery",
-  "id": "kubernetes-capacity-snapshot",
-  "label": "Analyser la capacité d’un instantané Kubernetes",
-  "method": "GET",
-  "path": "/v1/kubernetes/topologies/capacity"
-},
-{
-  "moduleId": "discovery",
-  "moduleLabel": "Discovery",
-  "id": "kubernetes-capacity-trend",
-  "label": "Afficher la tendance de capacité Kubernetes",
-  "method": "GET",
-  "path": "/v1/kubernetes/topologies/capacity-trend"
-},
-{
-  "moduleId": "discovery",
-  "moduleLabel": "Discovery",
-  "id": "kubernetes-capacity-export",
-  "label": "Exporter la capacité d’un instantané Kubernetes",
-  "method": "GET",
-  "path": "/v1/kubernetes/topologies/capacity-export"
-},
-{
-  "moduleId": "discovery",
-  "moduleLabel": "Discovery",
-  "id": "kubernetes-capacity-latest-export",
-  "label": "Exporter la capacité actuelle du cluster",
-  "method": "GET",
-  "path": "/v1/kubernetes/topologies/latest-capacity-export"
-}
-
+  {
+    "id": "itsm-providers",
+    "label": "Politiques connecteurs ITSM",
+    "method": "GET",
+    "path": "/v1/integrations/itsm/providers"
+  },
+  {
+    "id": "servicenow-validate",
+    "label": "Valider connecteur ServiceNow",
+    "method": "POST",
+    "path": "/v1/integrations/itsm/servicenow/validate"
+  },
+  {
+    "id": "servicenow-ci-sync-plan",
+    "label": "Plan synchro CI ServiceNow",
+    "method": "POST",
+    "path": "/v1/integrations/itsm/servicenow/ci-sync-plan"
+  },
+  {
+    "id": "jira-validate",
+    "label": "Valider connecteur Jira Assets",
+    "method": "POST",
+    "path": "/v1/integrations/itsm/jira/validate"
+  },
+  {
+    "id": "jira-asset-sync-plan",
+    "label": "Plan synchro Assets Jira",
+    "method": "POST",
+    "path": "/v1/integrations/itsm/jira/asset-sync-plan"
+  },
+  {
+    "id": "glpi-validate",
+    "label": "Valider connecteur GLPI Inventory",
+    "method": "POST",
+    "path": "/v1/integrations/itsm/glpi/validate"
+  },
+  {
+    "id": "glpi-asset-sync-plan",
+    "label": "Plan synchro inventaire GLPI",
+    "method": "POST",
+    "path": "/v1/integrations/itsm/glpi/asset-sync-plan"
+  },
+  {
+    "id": "freshservice-validate",
+    "label": "Valider connecteur Freshservice Assets",
+    "method": "POST",
+    "path": "/v1/integrations/itsm/freshservice/validate"
+  },
+  {
+    "id": "freshservice-asset-sync-plan",
+    "label": "Plan synchro Assets Freshservice",
+    "method": "POST",
+    "path": "/v1/integrations/itsm/freshservice/asset-sync-plan"
+  },
+  {
+    "moduleId": "discovery",
+    "moduleLabel": "Discovery",
+    "id": "kubernetes-gitops-states-list",
+    "label": "Lister les états attendus GitOps Kubernetes",
+    "method": "GET",
+    "path": "/v1/kubernetes/gitops-states"
+  },
+  {
+    "moduleId": "discovery",
+    "moduleLabel": "Discovery",
+    "id": "kubernetes-gitops-state-get",
+    "label": "Consulter un état attendu GitOps Kubernetes",
+    "method": "GET",
+    "path": "/v1/kubernetes/gitops-states/get"
+  },
+  {
+    "moduleId": "discovery",
+    "moduleLabel": "Discovery",
+    "id": "kubernetes-gitops-state-latest",
+    "label": "Consulter le dernier état attendu GitOps",
+    "method": "GET",
+    "path": "/v1/kubernetes/gitops-states/latest"
+  },
+  {
+    "moduleId": "discovery",
+    "moduleLabel": "Discovery",
+    "id": "kubernetes-gitops-drift-snapshot",
+    "label": "Évaluer la dérive GitOps entre deux états",
+    "method": "GET",
+    "path": "/v1/kubernetes/gitops-states/drift"
+  },
+  {
+    "moduleId": "discovery",
+    "moduleLabel": "Discovery",
+    "id": "kubernetes-gitops-drift-latest",
+    "label": "Évaluer la dérive GitOps actuelle du cluster",
+    "method": "GET",
+    "path": "/v1/kubernetes/gitops-states/latest-drift"
+  },
+  {
+    "moduleId": "discovery",
+    "moduleLabel": "Discovery",
+    "id": "kubernetes-gitops-state-import",
+    "label": "Importer un état attendu GitOps Kubernetes",
+    "method": "POST",
+    "path": "/v1/kubernetes/gitops-states/import"
+  },
+  {
+    "moduleId": "discovery",
+    "moduleLabel": "Discovery",
+    "id": "kubernetes-capacity-latest",
+    "label": "Analyser la capacité actuelle du cluster",
+    "method": "GET",
+    "path": "/v1/kubernetes/topologies/latest-capacity"
+  },
+  {
+    "moduleId": "discovery",
+    "moduleLabel": "Discovery",
+    "id": "kubernetes-capacity-snapshot",
+    "label": "Analyser la capacité d’un instantané Kubernetes",
+    "method": "GET",
+    "path": "/v1/kubernetes/topologies/capacity"
+  },
+  {
+    "moduleId": "discovery",
+    "moduleLabel": "Discovery",
+    "id": "kubernetes-capacity-trend",
+    "label": "Afficher la tendance de capacité Kubernetes",
+    "method": "GET",
+    "path": "/v1/kubernetes/topologies/capacity-trend"
+  },
+  {
+    "moduleId": "discovery",
+    "moduleLabel": "Discovery",
+    "id": "kubernetes-capacity-export",
+    "label": "Exporter la capacité d’un instantané Kubernetes",
+    "method": "GET",
+    "path": "/v1/kubernetes/topologies/capacity-export"
+  },
+  {
+    "moduleId": "discovery",
+    "moduleLabel": "Discovery",
+    "id": "kubernetes-capacity-latest-export",
+    "label": "Exporter la capacité actuelle du cluster",
+    "method": "GET",
+    "path": "/v1/kubernetes/topologies/latest-capacity-export"
+  }
 ];
 
 export default SEARCH_INDEX;

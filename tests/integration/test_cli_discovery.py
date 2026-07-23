@@ -930,3 +930,154 @@ def test_cli_discovery_evidence_reconciliation_lifecycle(tmp_path: Path, capsys:
     resolved = json.loads(capsys.readouterr().out)
     assert resolved["status"] == "resolved"
     assert resolved["rsot_write_executed"] is False
+
+
+def test_cli_discovery_job_result_records_immutable_evidence(
+    tmp_path: Path,
+    capsys: object,
+) -> None:
+    data = tmp_path / "state.json"
+    token = "r" * 40
+    cli = OpenInfraCLI()
+    assert (
+        cli.run(
+            [
+                "security",
+                "bootstrap-token",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--subject",
+                "discovery-result-admin",
+                "--role",
+                "admin",
+                "--token",
+                token,
+            ]
+        )
+        == 0
+    )
+    capsys.readouterr()
+    assert (
+        cli.run(
+            [
+                "discovery",
+                "collector-register",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--admin-token",
+                token,
+                "--name",
+                "CLI SSH collector",
+                "--kind",
+                "ssh",
+                "--certificate-fingerprint",
+                FINGERPRINT,
+                "--scope",
+                "site/par1",
+                "--version",
+                "0.34.18",
+            ]
+        )
+        == 0
+    )
+    collector = json.loads(capsys.readouterr().out)
+    assert (
+        cli.run(
+            [
+                "discovery",
+                "job-submit",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--actor",
+                "pytest",
+                "--admin-token",
+                token,
+                "--collector-id",
+                str(collector["id"]),
+                "--requested-scope",
+                "site/par1",
+                "--job-type",
+                "ssh-inventory",
+                "--target",
+                "10.20.30.10",
+                "--idempotency-key",
+                "cli-discovery-result-001",
+            ]
+        )
+        == 0
+    )
+    submitted = json.loads(capsys.readouterr().out)
+    assert (
+        cli.run(
+            [
+                "discovery",
+                "job-claim",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--collector-id",
+                str(collector["id"]),
+                "--certificate-fingerprint",
+                FINGERPRINT,
+                "--worker-id",
+                "cli-worker-ssh",
+            ]
+        )
+        == 0
+    )
+    claimed = json.loads(capsys.readouterr().out)
+    assert claimed["id"] == submitted["id"]
+    payload = json.dumps(
+        {
+            "hostname": "srv-cli-discovery",
+            "serial_number": "CLI-SERIAL-001",
+            "os_version": "9.4",
+        },
+        sort_keys=True,
+    )
+    assert (
+        cli.run(
+            [
+                "discovery",
+                "job-result",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--collector-id",
+                str(collector["id"]),
+                "--certificate-fingerprint",
+                FINGERPRINT,
+                "--job-id",
+                str(claimed["id"]),
+                "--worker-id",
+                "cli-worker-ssh",
+                "--lease-token",
+                str(claimed["lease_token"]),
+                "--object-key",
+                "server/srv-cli-discovery",
+                "--object-kind",
+                "server",
+                "--confidence",
+                "0.97",
+                "--observed-at",
+                "2026-07-22T19:00:00+00:00",
+                "--payload-json",
+                payload,
+            ]
+        )
+        == 0
+    )
+    receipt = json.loads(capsys.readouterr().out)
+    assert receipt["job"]["status"] == "completed"
+    assert receipt["evidence"]["id"] == receipt["job"]["id"]
+    assert receipt["evidence"]["source"] == "ssh"
+    assert receipt["evidence"]["payload"]["serial_number"] == "CLI-SERIAL-001"
+    assert receipt["idempotent_replay"] is False

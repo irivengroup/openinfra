@@ -303,6 +303,35 @@ class CompleteDiscoveryJobCommand:
 
 
 @dataclass(frozen=True, slots=True)
+class RecordDiscoveryJobResultCommand:
+    tenant_id: str
+    collector_id: str
+    certificate_fingerprint: str
+    job_id: str
+    worker_id: str
+    lease_token: int
+    object_key: str
+    object_kind: str
+    confidence: float
+    payload: dict[str, Any]
+    observed_at: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class DiscoveryJobResultReceipt:
+    job: DiscoveryJob
+    evidence: DiscoveryEvidence
+    idempotent_replay: bool
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "job": self.job.as_dict(),
+            "evidence": self.evidence.as_dict(),
+            "idempotent_replay": self.idempotent_replay,
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class FailDiscoveryJobCommand:
     tenant_id: str
     collector_id: str
@@ -588,6 +617,112 @@ class DiscoveryCollectorService:
             return job
         return self._save_worker_job(completed, "discovery.job.completed")
 
+    def record_job_result(
+        self, command: RecordDiscoveryJobResultCommand
+    ) -> DiscoveryJobResultReceipt:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        collector = self._authenticate_collector(
+            tenant_id,
+            command.collector_id,
+            command.certificate_fingerprint,
+        )
+        self._require_distributed_discovery(
+            tenant_id,
+            "collector:" + collector.id.value,
+            collector.id.value,
+        )
+        with self._transaction_manager.begin() as unit_of_work:
+            job = self._discovery_repository.get_job(tenant_id, command.job_id)
+            if job is None:
+                raise ValidationError("discovery job is not registered")
+            if job.collector_id != collector.id:
+                raise ValidationError("discovery job is assigned to another collector")
+            decision = DiscoveryJobAuthorization.decide(
+                tenant_id=tenant_id,
+                collector=collector,
+                collector_id=collector.id.value,
+                certificate_fingerprint=command.certificate_fingerprint,
+                requested_scope=job.requested_scope.value,
+                job_type=job.job_type,
+                target=job.target,
+            )
+            if not decision.authorized:
+                raise ValidationError(
+                    "discovery worker operation rejected: " + ",".join(decision.reasons)
+                )
+            source = self._job_result_source(job)
+            self._validate_collector_result_source(collector, source)
+            existing_evidence = self._discovery_repository.get_evidence(
+                tenant_id,
+                job.id.value,
+            )
+            now = (
+                job.completed_at
+                if job.status is DiscoveryJobStatus.COMPLETED and job.completed_at is not None
+                else datetime.now(UTC)
+            )
+            observed_at = self._parse_optional_datetime(command.observed_at, "observed_at")
+            if observed_at is None:
+                observed_at = (
+                    existing_evidence.observed_at if existing_evidence is not None else now
+                )
+            received_at = (
+                existing_evidence.received_at if existing_evidence is not None else now
+            )
+            evidence = DiscoveryEvidence.create(
+                tenant_id=tenant_id,
+                source=source,
+                external_id=job.target,
+                confidence=command.confidence,
+                payload=command.payload,
+                object_key=command.object_key,
+                object_kind=command.object_kind,
+                scope=job.requested_scope.value,
+                source_ref=self._job_result_source_ref(collector, job),
+                observed_at=observed_at,
+                evidence_id=job.id,
+                received_at=received_at,
+            )
+            idempotent_replay = job.status is DiscoveryJobStatus.COMPLETED
+            completed = job.complete(
+                worker_id=command.worker_id,
+                lease_token=command.lease_token,
+                result_hash=evidence.payload_hash,
+                now=now,
+            )
+            self._discovery_repository.save_evidence(evidence)
+            self._discovery_repository.save_job(completed)
+            if not idempotent_replay:
+                self._audit_repository.append(
+                    AuditEvent.record(
+                        tenant_id=tenant_id,
+                        actor="collector:" + collector.id.value,
+                        action="discovery.job.result-recorded",
+                        target_type="discovery_job",
+                        target_id=completed.id.value,
+                        metadata={
+                            "collector_id": collector.id.value,
+                            "worker_id": command.worker_id,
+                            "lease_token": command.lease_token,
+                            "evidence_id": evidence.id.value,
+                            "source": evidence.source.value,
+                            "source_ref": evidence.source_ref,
+                            "scope": evidence.scope.value,
+                            "object_key": evidence.object_key,
+                            "object_kind": evidence.object_kind,
+                            "payload_hash": evidence.payload_hash,
+                            "immutable": True,
+                            "rsot_write_executed": False,
+                        },
+                    )
+                )
+            unit_of_work.commit()
+        return DiscoveryJobResultReceipt(
+            job=completed,
+            evidence=evidence,
+            idempotent_replay=idempotent_replay,
+        )
+
     def fail_job(self, command: FailDiscoveryJobCommand) -> DiscoveryJob:
         tenant_id = TenantId.from_value(command.tenant_id)
         job = self._get_worker_job(
@@ -746,6 +881,47 @@ class DiscoveryCollectorService:
             and existing.idempotency_key == candidate.idempotency_key
             and existing.max_attempts == candidate.max_attempts
         )
+
+    @staticmethod
+    def _job_result_source(job: DiscoveryJob) -> DiscoverySource:
+        protocol = job.job_type.split("-", maxsplit=1)[0].split(".", maxsplit=1)[0]
+        try:
+            source = DiscoverySource.from_value(protocol)
+        except ValidationError as exc:
+            raise ValidationError(
+                "discovery job result requires an SNMP, SSH or WinRM job type"
+            ) from exc
+        if source not in {
+            DiscoverySource.SNMP,
+            DiscoverySource.SSH,
+            DiscoverySource.WINRM,
+        }:
+            raise ValidationError(
+                "discovery job result requires an SNMP, SSH or WinRM job type"
+            )
+        return source
+
+    @staticmethod
+    def _validate_collector_result_source(
+        collector: DiscoveryCollector, source: DiscoverySource
+    ) -> None:
+        direct_kinds = {
+            DiscoverySource.SNMP: CollectorKind.SNMP,
+            DiscoverySource.SSH: CollectorKind.SSH,
+            DiscoverySource.WINRM: CollectorKind.WINRM,
+        }
+        expected_kind = direct_kinds[source]
+        if collector.kind in {expected_kind, CollectorKind.GENERIC} or collector.kind.is_proxy:
+            return
+        raise ValidationError(
+            "discovery collector kind cannot publish the claimed protocol result"
+        )
+
+    @staticmethod
+    def _job_result_source_ref(
+        collector: DiscoveryCollector, job: DiscoveryJob
+    ) -> str:
+        return f"collector:{collector.id.value}/job:{job.id.value}"
 
     def _save_worker_job(self, job: DiscoveryJob, action: str) -> DiscoveryJob:
         with self._transaction_manager.begin() as unit_of_work:

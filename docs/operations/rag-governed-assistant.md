@@ -2,7 +2,7 @@
 
 ## Objectif
 
-Le module **RSOT → Assistant gouverné** recherche dans un index documentaire contrôlé, puis produit une réponse extractive accompagnée de citations. Il ne remplace pas le RSOT, ne modifie aucune ressource et ne peut déclencher aucune action d’infrastructure.
+Le module **RSOT → Assistant gouverné** recherche dans un index documentaire contrôlé, puis produit une réponse extractive accompagnée de citations et de références d’objets RSOT. Il ne remplace pas le RSOT, ne modifie aucune ressource et ne peut déclencher aucune action d’infrastructure. Le contrat `governance` expose explicitement le mode `read-only`, l’absence de mutation et l’obligation de validation avant tout changement distinct.
 
 ## Modèle de sécurité
 
@@ -52,3 +52,7 @@ Les 13 routes sont publiées sous `/api/v1/rag`. Le bearer token est obligatoire
 - pas de remédiation automatique ;
 - pas de mutation RSOT/DCIM/IPAM ;
 - résultat dépendant exclusivement des sources actives et autorisées.
+
+## Preuve contractuelle
+
+Le scénario `TST-FUNC-0010` et ses commandes de qualification sont documentés dans `docs/runbooks/GOVERNED_RAG_ASSISTANT.md`.

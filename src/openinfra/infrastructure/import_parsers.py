@@ -17,12 +17,21 @@ from openinfra.domain.data_import import ImportFormat
 
 class ImportDatasetParser:
     _MAX_BYTES = 50 * 1024 * 1024
+    _MAX_XLSX_ENTRIES = 1024
+    _MAX_XLSX_XML_BYTES = 64 * 1024 * 1024
+    _MAX_XLSX_TOTAL_UNCOMPRESSED_BYTES = 128 * 1024 * 1024
 
     def parse(self, path: Path, import_format: ImportFormat) -> tuple[dict[str, str], ...]:
         return tuple(self.iter_rows(path, import_format))
 
-    def iter_rows(self, path: Path, import_format: ImportFormat) -> Iterator[dict[str, str]]:
-        self._assert_safe_file(path)
+    def iter_rows(
+        self,
+        path: Path,
+        import_format: ImportFormat,
+        *,
+        max_bytes: int | None = None,
+    ) -> Iterator[dict[str, str]]:
+        self._assert_safe_file(path, max_bytes=max_bytes)
         if import_format == ImportFormat.CSV:
             yield from self._iter_csv(path)
             return
@@ -34,17 +43,19 @@ class ImportDatasetParser:
             return
         raise ValidationError("unsupported import format")
 
-    def _assert_safe_file(self, path: Path) -> None:
+    def _assert_safe_file(self, path: Path, *, max_bytes: int | None = None) -> None:
         if not path.is_file():
             raise ValidationError("import file does not exist: " + str(path))
         size = path.stat().st_size
         if size <= 0:
             raise ValidationError("import file is empty")
-        if size > self._MAX_BYTES:
-            raise ValidationError("import file exceeds 50 MiB limit")
-
-    def _parse_csv(self, path: Path) -> tuple[dict[str, str], ...]:
-        return tuple(self._iter_csv(path))
+        effective_max = self._MAX_BYTES if max_bytes is None else int(max_bytes)
+        if effective_max <= 0:
+            raise ValidationError("import file size limit must be positive")
+        if size > effective_max:
+            raise ValidationError(
+                f"import file exceeds {effective_max // (1024 * 1024)} MiB limit"
+            )
 
     def _iter_csv(self, path: Path) -> Iterator[dict[str, str]]:
         with path.open("r", encoding="utf-8-sig", newline="") as handle:
@@ -73,9 +84,13 @@ class ImportDatasetParser:
     def _parse_xlsx(self, path: Path) -> tuple[dict[str, str], ...]:
         try:
             with zipfile.ZipFile(path) as workbook:
+                self._assert_safe_workbook(workbook)
                 shared_strings = self._xlsx_shared_strings(workbook)
                 sheet_name = self._first_sheet_name(workbook)
-                xml = workbook.read(sheet_name)
+                sheet_info = workbook.getinfo(sheet_name)
+                if sheet_info.file_size > self._MAX_XLSX_XML_BYTES:
+                    raise ValidationError("XLSX worksheet exceeds safe XML size limit")
+                xml = workbook.read(sheet_info)
         except (KeyError, zipfile.BadZipFile) as exc:
             raise ValidationError("XLSX import file is invalid") from exc
         worksheet = self._parse_xml(xml, "XLSX worksheet XML is invalid")
@@ -96,11 +111,24 @@ class ImportDatasetParser:
                 parsed.append(row)
         return tuple(parsed)
 
+    def _assert_safe_workbook(self, workbook: zipfile.ZipFile) -> None:
+        entries = workbook.infolist()
+        if len(entries) > self._MAX_XLSX_ENTRIES:
+            raise ValidationError("XLSX archive contains too many entries")
+        total_size = sum(max(0, entry.file_size) for entry in entries)
+        if total_size > self._MAX_XLSX_TOTAL_UNCOMPRESSED_BYTES:
+            raise ValidationError("XLSX archive exceeds safe uncompressed size limit")
+        if any(entry.flag_bits & 0x1 for entry in entries):
+            raise ValidationError("encrypted XLSX archives are not supported")
+
     def _xlsx_shared_strings(self, workbook: zipfile.ZipFile) -> tuple[str, ...]:
         try:
-            xml = workbook.read("xl/sharedStrings.xml")
+            info = workbook.getinfo("xl/sharedStrings.xml")
         except KeyError:
             return ()
+        if info.file_size > self._MAX_XLSX_XML_BYTES:
+            raise ValidationError("XLSX shared strings exceed safe XML size limit")
+        xml = workbook.read(info)
         root = self._parse_xml(xml, "XLSX shared strings XML is invalid")
         values: list[str] = []
         for item in root.iter():

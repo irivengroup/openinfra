@@ -1,3 +1,109 @@
+# Traçabilité OpenInfra
+
+## v0.34.18 — Source non autoritative et qualité RSOT
+
+| Exigence | Implémentation | Vérification |
+|---|---|---|
+| `TST-RSOTQUAL-048` — alerte visible sur source non autoritative | finding structuré `non_authoritative_source` avec champ, source observée, source attendue et règle de gouvernance | `tests/integration/test_contract_rsot_quality_non_authoritative.py` |
+| Gouvernance sur chemins imbriqués | résolution déterministe des chemins d’attributs, dégradation du score d’autorité et statut `warning` | service, CLI, HTTP et synthèse tenant |
+| Audit et non-mutation | score d’autorité et compteurs d’anomalies audités ; collection `source_objects` inchangée | preuve JSON persistante et événements `rsot.quality.*` |
+| Portails et packaging | détail accessible React/runtime, OpenAPI et runbook embarqué | `web/tests/rsot-quality-non-authoritative.test.mjs`, vérificateur d’artefacts et smoke installé |
+| Promotion | 667 tests contractuels : 31 automatisés, 588 partiels, 48 externes | 44 sélecteurs pytest, 77 fichiers d’évidence, zéro manque |
+
+- Aucune migration ni modification de la charte graphique approuvée.
+- Les champs historiques des findings qualité restent inchangés ; les métadonnées de gouvernance sont ajoutées de façon rétrocompatible.
+
+## v0.34.17 — RBAC qualité RSOT et réouverture JSON idempotente
+
+| Exigence | Implémentation | Vérification |
+|---|---|---|
+| `TST-RSOTQUAL-047` — refus sans `rsot.quality.read` | contrôle d’autorisation avant lecture d’objet ou synthèse, sans fuite de données métier | service, CLI, HTTP et portails |
+| Non-mutation et audit | aucune écriture d’état ni événement qualité lors d’un refus | empreinte persistante et journal d’audit |
+| Réouverture JSON | données de démonstration créées uniquement lors de l’initialisation d’un nouveau fichier | test de réouverture idempotente |
+| Promotion | 667 tests contractuels : 30 automatisés, 589 partiels, 48 externes | 43 sélecteurs pytest, 74 fichiers d’évidence, zéro manque |
+
+- Runbook : `docs/runbooks/RSOT_QUALITY_RBAC.md`.
+- Aucune migration ni modification de la charte graphique approuvée.
+
+## v0.34.16 — Certification qualité RSOT autoritative
+
+| Exigence | Implémentation | Vérification |
+|---|---|---|
+| `TST-RSOTQUAL-046` — objet complet, récent et autoritatif certifié | scores de complétude, fraîcheur, autorité et confiance ; seuil de certification `>= 90` | service, CLI, HTTP et synthèse |
+| Audit et portails | événements `rsot.quality.*` et rapport accessible React/runtime | tests Python et Node, runbook embarqué |
+| Promotion | 667 tests contractuels : 29 automatisés, 590 partiels, 48 externes | 42 sélecteurs pytest, 71 fichiers d’évidence, zéro manque |
+
+- Runbook : `docs/runbooks/RSOT_QUALITY_CERTIFICATION.md`.
+- Aucune migration ni modification de la charte graphique approuvée.
+
+## v0.34.15 — Assistant RAG gouverné sur le référentiel
+
+| Exigence | Implémentation | Vérification |
+|---|---|---|
+| `TST-FUNC-0010` — réponse citant les objets sources | `RagAnswer.source_object_citations`, URI RSOT, scores et citations autorisées | `tests/integration/test_contract_functional_rag_assistant.py` |
+| Absence de mutation sans validation | contrat `governance` lecture seule, aucune capacité d’exécution et comparaison SHA-256 du référentiel | service, CLI, HTTP, audit et `web/tests/rag-governance.test.mjs` |
+| Interfaces et packaging | rapport accessible React/runtime, OpenAPI, CI et runbook embarqué | `GOVERNED_RAG_ASSISTANT.md`, vérificateur d’artefacts et smoke installé |
+
+- Aucune migration ni modification de la charte graphique approuvée.
+- La persistance des réponses et audits RAG ne modifie aucune collection métier source.
+
+## v0.34.14 — Consultation historique RSOT « time travel »
+
+| Besoin | Implémentation | Preuves |
+|---|---|---|
+| `TST-FUNC-0009` — état historique cohérent et horodaté | `SourceObjectTimeTravelReport`, `SourceOfTruthService.get_object_as_of`, CLI/API et portails | `tests/integration/test_contract_functional_time_travel.py`, `web/tests/time-travel.test.mjs` |
+| Provenance et relations historiquement valides | snapshot versionné, acteur/source, fenêtres `valid_from`/`valid_to`, borne `relation_limit` | runbook `RSOT_TIME_TRAVEL.md`, OpenAPI principal/CDC |
+| Promotion | 667 tests : 30 automatisés, 589 partiels, 48 externes | 43 sélecteurs pytest, 74 fichiers d’évidence, zéro manque |
+
+## v0.34.13 — Analyse d’impact d’un changement applicatif
+
+| Exigence | Implémentation | Vérification |
+|---|---|---|
+| `TST-FUNC-0005` — rapport d’impact applicatif | parcours RSOT borné, services métier, dominateurs critiques et risque SPOF racine | `tests/integration/test_contract_functional_change_impact.py` |
+| Interfaces | CLI `graph change-impact`, API `GET /api/v1/graph/change-impact`, portails React/runtime et OpenAPI | tests Python et Node, catalogue runtime à 300 opérations |
+| Promotion | 667 tests : 30 automatisés, 589 partiels, 48 externes | 43 sélecteurs pytest, 74 fichiers d’évidence, zéro manque |
+
+- Runbook : `docs/runbooks/APPLICATION_CHANGE_IMPACT.md`.
+- Le rapport est en lecture seule, déterministe et fail-closed lorsque la projection est tronquée.
+- Aucune migration ni modification de la charte graphique approuvée.
+
+## v0.34.12 — Découverte distribuée SNMP/SSH historisée
+
+| Exigence | Implémentation | Vérification |
+|---|---|---|
+| `TST-FUNC-0004` — découverte distribuée | collectors SNMP/SSH, jobs persistés, baux avec fencing et publication atomique `record_job_result` | `tests/integration/test_contract_functional_distributed_discovery.py` |
+| Preuve immuable et historique | identifiant de preuve lié au job, payload SHA-256, source/référence collector et observations successives conservées | rejeu idempotent, divergence rejetée, historique de trois observations |
+| Absence d’écrasement silencieux | rapprochement multi-source explicite, état `conflict` et `rsot_write_executed=false` | conflit de numéro de série SNMP/SSH automatisé |
+| Interfaces opérateur | CLI `discovery job-result`, API `POST /api/v1/discovery/jobs/result`, portails React/runtime et OpenAPI | tests CLI/HTTP/frontend et validateurs OpenAPI |
+| Promotion | registre GATE-14 à 25 automatisées, 594 partielles, 48 externes, 38 sélecteurs et 63 fichiers | workflow `contract-completeness.yml`, GATE-14 fail-closed |
+
+- Runbook : `docs/runbooks/DISTRIBUTED_DISCOVERY_RESULTS.md`.
+- Aucune migration ni modification de la charte graphique approuvée.
+
+## v0.34.11 — Localisation DCIM et réservation IP concurrente
+
+| Contrat | Implémentation | Preuves exécutables |
+|---|---|---|
+| `TST-FUNC-0001` — localisation physique non ambiguë | chemin site/bâtiment/étage/salle/grille/zone/rack/U/face/coordonnées, fiche d’intervention JSON/HTML et payload compact vérifiable | `tests/integration/test_contract_functional_physical_location.py`, API, CLI et portails React/runtime |
+| `TST-FUNC-0002` — réservation IP concurrente sans doublon | verrou dans l’unité de travail, allocation atomique, persistance et clé d’idempotence | `tests/integration/test_contract_functional_ipam_concurrency.py`, assistant IPAM CLI/API/portails |
+| GATE-14 | 667 contrats : 25 automatisés, 594 partiels, 48 externes | 38 sélecteurs pytest, 63 fichiers d’évidence, zéro manque |
+
+- Aucun changement de schéma ou de charte graphique.
+- La fiche d’intervention est ajoutée aux catalogues, manifestes et index de recherche des deux portails.
+- Runbook : `docs/runbooks/DCIM_LOCATION_IPAM_CONCURRENCY.md`.
+
+## v0.34.9 — Synchronisation transactionnelle IPAM vers DNS/DHCP
+
+| Exigence | Implémentation | Interfaces | Preuves |
+|---|---|---|---|
+| `TST-FUNC-0008` — synchronisation IPAM vers DNS/DHCP | saga durable `IpamDdiSynchronizationService`, journal idempotent, adaptateurs BIND/nsupdate, PowerDNS et Kea, compensation exacte et réconciliation fail-closed des résultats incertains | CLI `ipam ddi-sync`, HTTP `POST /api/v1/ipam/ddi-sync`, portail IPAM et OpenAPI | tests domaine, adaptateurs, persistance JSON/PostgreSQL, CLI/HTTP, migration `0060_ipam_ddi_execution_journal.sql` et registre GATE-14 |
+
+- La synchronisation exige la permission `ipam.ddi.sync` et ne réutilise jamais une clé d’idempotence pour une requête différente.
+- Les secrets fournisseurs restent externalisés ; TLS, délais bornés et exécution sans shell sont imposés.
+- PostgreSQL et Oracle restent alignés sur 60 migrations ; Oracle demeure réservé à l’édition Enterprise.
+- Cette évolution reste rattachée à P25, REL-15 et GATE-14 ; aucune phase de roadmap supplémentaire n’est inventée.
+- La charte graphique approuvée n’est pas modifiée.
+
 ## v0.34.8 — Recommandation de placement DCIM
 
 | Exigence | Implémentation | Interfaces | Preuves |
@@ -11,7 +117,7 @@ La recommandation est déterministe, auditée et sans réservation implicite. Au
 | Domaine | Contrat | Preuves exécutables |
 |---|---|---|
 | Gouvernance contractuelle | CDC 4.12.0, roadmap 2.5.0, P25, REL-15 et politique GATE-14 | validateurs CDC/roadmap, `openinfra-gate14`, registre exhaustif et tests de résolution AST |
-| Classification | 667 tests : 19 automatisés, 600 partiels, 48 externes | 27 sélecteurs pytest, 54 fichiers d’évidence, 0 preuve manquante |
+| Classification | 667 tests : 25 automatisés, 594 partiels, 48 externes | 38 sélecteurs pytest, 63 fichiers d’évidence, 0 preuve manquante |
 | Hygiène | exclusions contextuelles limitées aux définitions de règles | scanner GATE-14, security gate et quality gate |
 | Packaging | wheel et sdist contiennent module, politique, registre, runbook et workflow | `verify_artifact.py` et smoke du wheel installé |
 

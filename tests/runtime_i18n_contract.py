@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 from typing import Final
 
@@ -8,7 +9,7 @@ SOURCE_I18N: Final = PROJECT_ROOT / "web/src/i18n.js"
 RUNTIME_I18N: Final = (
     PROJECT_ROOT / "src/openinfra/interfaces/rendering/static/assets/openinfra-i18n.js"
 )
-GENERATED_HEADER: Final = "// Generated from web/src/i18n.js by Rolldown. Do not edit.\n"
+GENERATED_HEADER_PREFIX: Final = "// Generated from web/src/i18n.js by Rolldown. Source SHA-256: "
 
 
 def assert_runtime_i18n_contract(*required_tokens: str) -> None:
@@ -22,7 +23,9 @@ def assert_runtime_i18n_contract(*required_tokens: str) -> None:
     source = SOURCE_I18N.read_text(encoding="utf-8")
     runtime = RUNTIME_I18N.read_text(encoding="utf-8")
 
-    assert runtime.startswith(GENERATED_HEADER)
+    source_digest = hashlib.sha256(source.encode("utf-8")).hexdigest()
+    generated_header = f"{GENERATED_HEADER_PREFIX}{source_digest}. Do not edit.\n"
+    assert runtime.startswith(generated_header)
     assert len(runtime.encode("utf-8")) < len(source.encode("utf-8"))
     for token in required_tokens:
         assert token in source

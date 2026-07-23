@@ -85,6 +85,39 @@ const moduleDefinition = {
       ]
     },
     {
+      "id": "discovery-job-submit",
+      "label": "Soumettre un job distribué",
+      "path": "/v1/discovery/jobs",
+      "method": "POST",
+      "fields": [
+        "Opérateur",
+        "ID agent proxy",
+        "Scope demandé",
+        "Type de job",
+        "Cible",
+        "Clé d’idempotence",
+        "Tentatives maximales"
+      ]
+    },
+    {
+      "id": "discovery-job-result",
+      "label": "Enregistrer le résultat d’un job",
+      "path": "/v1/discovery/jobs/result",
+      "method": "POST",
+      "fields": [
+        "ID agent proxy",
+        "Empreinte certificat",
+        "ID job",
+        "ID worker",
+        "Jeton de fencing",
+        "Clé objet",
+        "Type objet",
+        "Confiance",
+        "Observé le",
+        "Résultat JSON sans secret"
+      ]
+    },
+    {
       "id": "local-discovery-plan",
       "label": "Plan discovery locale Lite/Pro",
       "path": "/v1/discovery/local-plan",

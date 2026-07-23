@@ -111,11 +111,18 @@ def test_itrm_quality_rejects_incomplete_and_warns_non_authoritative_source(tmp_
         EvaluateRsotObjectQualityCommand("default", token, "device/rsot-quality-002")
     )
     codes = {issue["code"] for issue in report["issues"]}
+    non_authoritative_issue = next(
+        issue for issue in report["issues"] if issue["code"] == "non_authoritative_source"
+    )
 
     assert report["certification_status"] == "rejected"
     assert "required_attribute_missing" in codes
     assert "non_authoritative_source" in codes
     assert "no_tags" in codes
+    assert non_authoritative_issue["field"] == "serial"
+    assert non_authoritative_issue["expected_source"] == "discovery-core"
+    assert non_authoritative_issue["actual_source"] == "manual"
+    assert non_authoritative_issue["governance_rule"] == "serial-authority"
 
 
 def test_itrm_quality_requires_dedicated_read_permission(tmp_path: Path) -> None:

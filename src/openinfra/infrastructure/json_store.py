@@ -493,6 +493,7 @@ class JsonDocumentStore:
             "bgp_peers": {},
             "dns_observations": {},
             "dhcp_leases": {},
+            "ipam_ddi_executions": {},
             "audit_events": [],
             "security_tokens": {},
             "identity_users": {},

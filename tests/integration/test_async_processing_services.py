@@ -6,6 +6,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from openinfra.application.audit_services import ListAuditEventsCommand
 from openinfra.application.async_processing_services import (
     AsyncProcessingService,
     ClaimAsyncJobCommand,
@@ -26,6 +27,7 @@ from openinfra.application.async_processing_services import (
     ReplayAsyncJobCommand,
     ReplayOutboxEventCommand,
     StoreAsyncArtifactCommand,
+    StoreAsyncArtifactStreamCommand,
     SubmitAsyncJobCommand,
 )
 from openinfra.application.container import ApplicationFactory
@@ -518,6 +520,32 @@ def test_workers_convert_processing_and_publication_failures_to_retries(tmp_path
     assert failed_event is not None and failed_event.state.status is WorkStatus.RETRY_WAIT
 
 
+def test_streamed_artifact_storage_is_authorized_audited_and_readable(tmp_path) -> None:
+    app, token = build_app(tmp_path)
+
+    reference = app.async_processing_service.store_artifact_stream(
+        StoreAsyncArtifactStreamCommand(
+            tenant_id="default",
+            admin_token=token,
+            actor="pytest",
+            purpose="imports-source",
+            chunks=(b"asset_key,kind\n", b"device/1,device\n"),
+            media_type="text/csv",
+            max_size_bytes=128,
+        )
+    )
+
+    assert app.artifact_store.read(TenantId.from_value("default"), reference) == (
+        b"asset_key,kind\ndevice/1,device\n"
+    )
+    page = app.audit_service.list_events(
+        ListAuditEventsCommand("default", token, limit=100, action="async.artifact.stored")
+    )
+    stored = page.items[0]
+    assert stored.event.metadata["streamed"] is True
+    assert stored.event.metadata["size_bytes"] == reference.size_bytes
+
+
 def test_specialized_operations_artifact_storage_and_worker_roles(tmp_path) -> None:
     app, token = build_app(tmp_path)
     reference = app.async_processing_service.store_artifact(
@@ -537,6 +565,7 @@ def test_specialized_operations_artifact_storage_and_worker_roles(tmp_path) -> N
         "graph": (
             "graph.traverse",
             "graph.impact",
+            "graph.change-impact",
             "graph.path",
             "graph.spof",
             "graph.export",

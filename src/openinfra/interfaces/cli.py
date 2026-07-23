@@ -47,7 +47,10 @@ from openinfra.application.audit_services import (
     ListAuditEventsCommand,
     VerifyAuditIntegrityCommand,
 )
-from openinfra.application.authentication_services import AuthProviderPolicyCommand
+from openinfra.application.authentication_services import (
+    AuthProviderPolicyCommand,
+    AuthProviderPolicyService,
+)
 from openinfra.application.certificate_pki_services import (
     AssessCertificatesCommand,
     GetCertificateCommand,
@@ -58,6 +61,7 @@ from openinfra.application.certificate_pki_services import (
     RetireCertificateCommand,
 )
 from openinfra.application.container import ApplicationFactory, OpenInfraApplication
+from openinfra.application.ddi_sync_services import SyncDdiReservationCommand
 from openinfra.application.dcim_services import (
     ConnectDcimCableCommand,
     CreateDcimBuildingCommand,
@@ -110,6 +114,7 @@ from openinfra.application.dcim_services import (
     VerifyEquipmentScanCommand,
 )
 from openinfra.application.dependency_graph_services import (
+    AnalyzeChangeImpactCommand,
     AnalyzeDependencyImpactCommand,
     AnalyzeDependencySpofCommand,
     ExportDependencyGraphCommand,
@@ -142,6 +147,7 @@ from openinfra.application.discovery_services import (
     ListDiscoveryProtocolProfilesCommand,
     ListDiscoveryReconciliationsCommand,
     ReconcileDiscoveryEvidenceCommand,
+    RecordDiscoveryJobResultCommand,
     RegisterCollectorCommand,
     RenewDiscoveryJobLeaseCommand,
     ReplayDiscoveryDeadLetterJobCommand,
@@ -2247,6 +2253,24 @@ class OpenInfraCLI:
         job_complete.add_argument("--result-hash", required=True)
         job_complete.set_defaults(handler=self._handle_discovery_job_complete)
 
+        job_result = discovery_subparsers.add_parser(
+            "job-result",
+            help="record immutable collector evidence and complete a leased discovery job",
+        )
+        self._add_backend_arguments(job_result)
+        job_result.add_argument("--tenant", required=True)
+        job_result.add_argument("--collector-id", required=True)
+        job_result.add_argument("--certificate-fingerprint", required=True)
+        job_result.add_argument("--job-id", required=True)
+        job_result.add_argument("--worker-id", required=True)
+        job_result.add_argument("--lease-token", type=int, required=True)
+        job_result.add_argument("--object-key", required=True)
+        job_result.add_argument("--object-kind", required=True)
+        job_result.add_argument("--confidence", type=float, required=True)
+        job_result.add_argument("--payload-json", required=True)
+        job_result.add_argument("--observed-at")
+        job_result.set_defaults(handler=self._handle_discovery_job_result)
+
         job_fail = discovery_subparsers.add_parser(
             "job-fail", help="schedule retry or dead-letter an exhausted discovery job"
         )
@@ -2411,6 +2435,22 @@ class OpenInfraCLI:
         self._add_graph_common_arguments(impact, default_direction="incoming", default_depth=6)
         impact.add_argument("--root-key", required=True)
         impact.set_defaults(handler=self._handle_graph_impact)
+
+        change_impact = graph_subparsers.add_parser(
+            "change-impact",
+            help="report impacted business services, critical dependencies and SPOF risks",
+        )
+        self._add_backend_arguments(change_impact)
+        self._add_graph_common_arguments(
+            change_impact, default_direction="incoming", default_depth=8
+        )
+        change_impact.add_argument("--root-key", required=True)
+        change_impact.add_argument("--business-service-kind", action="append", default=[])
+        change_impact.add_argument(
+            "--business-service-resource-type", action="append", default=[]
+        )
+        change_impact.add_argument("--affected-sample-limit", type=int, default=25)
+        change_impact.set_defaults(handler=self._handle_graph_change_impact)
 
         path = graph_subparsers.add_parser(
             "path", help="find the shortest dependency path between two RSOT objects"
@@ -4015,6 +4055,7 @@ class OpenInfraCLI:
         get_as_of.add_argument("--admin-token", required=True)
         get_as_of.add_argument("--key", required=True)
         get_as_of.add_argument("--as-of", required=True)
+        get_as_of.add_argument("--relation-limit", type=int, default=100)
         get_as_of.set_defaults(handler=self._handle_rsot_get_object_as_of)
         list_object_audit = rsot_subparsers.add_parser(
             "list-object-audit", help=f"list audit records for a {short_label} object"
@@ -4417,10 +4458,35 @@ class OpenInfraCLI:
             default=[],
         )
         ddi_preview.add_argument("--dns-zone")
+        ddi_preview.add_argument("--reverse-dns-zone")
         ddi_preview.add_argument("--mac-address")
         ddi_preview.add_argument("--ttl", type=int, default=300)
         ddi_preview.add_argument("--apply-preview", action="store_true")
         ddi_preview.set_defaults(handler=self._handle_ipam_ddi_preview)
+
+        ddi_sync = ipam_subparsers.add_parser(
+            "ddi-sync",
+            help="apply DNS/DHCP changes transactionally for an existing IPAM reservation",
+        )
+        self._add_backend_arguments(ddi_sync)
+        ddi_sync.add_argument("--tenant", required=True)
+        ddi_sync.add_argument("--actor", default="cli")
+        ddi_sync.add_argument("--auth-token", required=True)
+        ddi_sync.add_argument("--vrf", required=True)
+        ddi_sync.add_argument("--reservation-idempotency-key", required=True)
+        ddi_sync.add_argument("--execution-idempotency-key", required=True)
+        ddi_sync.add_argument(
+            "--provider",
+            choices=("all", "bind", "powerdns", "kea"),
+            action="append",
+            default=[],
+        )
+        ddi_sync.add_argument("--dns-zone")
+        ddi_sync.add_argument("--reverse-dns-zone")
+        ddi_sync.add_argument("--mac-address")
+        ddi_sync.add_argument("--ttl", type=int, default=300)
+        ddi_sync.add_argument("--resume", action="store_true")
+        ddi_sync.set_defaults(handler=self._handle_ipam_ddi_sync)
 
     def _add_dcim_field_operation_commands(self, commands: Any) -> None:
         list_sheets = commands.add_parser(
@@ -5475,8 +5541,7 @@ class OpenInfraCLI:
                 size_limit=args.size_limit,
                 nested_group_depth=args.nested_group_depth,
             )
-        application = self._create_application(args)
-        payload = application.auth_provider_policy_service.validate(
+        payload = AuthProviderPolicyService().validate(
             AuthProviderPolicyCommand(
                 edition=args.edition,
                 mode=args.mode,
@@ -6989,6 +7054,27 @@ class OpenInfraCLI:
             )
         )
         print(json.dumps(job.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_discovery_job_result(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        payload = self._parse_json_object(args.payload_json, "payload-json")
+        receipt = app.discovery_service.record_job_result(
+            RecordDiscoveryJobResultCommand(
+                tenant_id=args.tenant,
+                collector_id=args.collector_id,
+                certificate_fingerprint=args.certificate_fingerprint,
+                job_id=args.job_id,
+                worker_id=args.worker_id,
+                lease_token=args.lease_token,
+                object_key=args.object_key,
+                object_kind=args.object_kind,
+                confidence=args.confidence,
+                payload=payload,
+                observed_at=args.observed_at,
+            )
+        )
+        print(json.dumps(receipt.as_dict(), indent=2, sort_keys=True))
         return 0
 
     def _handle_discovery_job_fail(self, args: argparse.Namespace) -> int:
@@ -8667,6 +8753,39 @@ class OpenInfraCLI:
         print(json.dumps(result.as_dict(), sort_keys=True))
         return 0
 
+    def _handle_graph_change_impact(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        defaults = AnalyzeChangeImpactCommand(
+            tenant_id=args.tenant,
+            admin_token=args.admin_token,
+            root_key=args.root_key,
+        )
+        result = application.dependency_graph_service.analyze_change_impact(
+            AnalyzeChangeImpactCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                root_key=args.root_key,
+                direction=args.direction,
+                max_depth=args.max_depth,
+                max_nodes=args.max_nodes,
+                relation_types=tuple(args.relation_type),
+                as_of=args.as_of,
+                business_service_kinds=(
+                    tuple(args.business_service_kind)
+                    if args.business_service_kind
+                    else defaults.business_service_kinds
+                ),
+                business_service_resource_types=(
+                    tuple(args.business_service_resource_type)
+                    if args.business_service_resource_type
+                    else defaults.business_service_resource_types
+                ),
+                affected_sample_limit=args.affected_sample_limit,
+            )
+        )
+        print(json.dumps(result.as_dict(), sort_keys=True))
+        return 0
+
     def _handle_graph_spof(self, args: argparse.Namespace) -> int:
         application = self._create_application(args)
         result = application.dependency_graph_service.analyze_spof(
@@ -8818,6 +8937,7 @@ class OpenInfraCLI:
                 admin_token=args.admin_token,
                 key=args.key,
                 as_of=args.as_of,
+                relation_limit=args.relation_limit,
             )
         )
         print(json.dumps(result, sort_keys=True))
@@ -9259,9 +9379,41 @@ class OpenInfraCLI:
                 mac_address=args.mac_address,
                 ttl=args.ttl,
                 dry_run=not args.apply_preview,
+                reverse_dns_zone=args.reverse_dns_zone,
             )
         )
         print(json.dumps(preview.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_ipam_ddi_sync(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        principal = application.security_service.authenticate_token(
+            AuthenticateTokenCommand(
+                args.tenant, args.auth_token, Permission.IPAM_DDI_SYNC
+            )
+        )
+        application.access_policy_service.authorize(
+            principal,
+            AccessRequestContext.create(
+                principal.tenant_id, Permission.IPAM_DDI_SYNC, None, None
+            ),
+        )
+        journal = application.ipam_ddi_sync_service.synchronize(
+            SyncDdiReservationCommand(
+                tenant_id=args.tenant,
+                actor=principal.subject,
+                vrf=args.vrf,
+                reservation_idempotency_key=args.reservation_idempotency_key,
+                execution_idempotency_key=args.execution_idempotency_key,
+                providers=tuple(args.provider or ["all"]),
+                dns_zone=args.dns_zone,
+                reverse_dns_zone=args.reverse_dns_zone,
+                mac_address=args.mac_address,
+                ttl=args.ttl,
+                resume=args.resume,
+            )
+        )
+        print(json.dumps(journal.as_dict(), sort_keys=True))
         return 0
 
     def _handle_dcim_field_sheet_list(self, args: argparse.Namespace) -> int:
@@ -10830,7 +10982,12 @@ class OpenInfraCLI:
         edition = getattr(args, "edition", os.environ.get("OPENINFRA_EDITION", "enterprise"))
         backend = RuntimeDatabaseBackendResolver().resolve(explicit_backend, str(edition))
         if backend == "json":
-            application = ApplicationFactory().create_json_application(args.data, edition=edition)
+            data_path = Path(args.data)
+            application = ApplicationFactory().create_json_application(
+                data_path,
+                seed=not data_path.exists(),
+                edition=edition,
+            )
         elif backend == "oracle":
             settings = RuntimeOracleSettingsResolver().resolve(
                 explicit_dsn=getattr(args, "oracle_dsn", None),

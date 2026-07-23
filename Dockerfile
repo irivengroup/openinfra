@@ -13,7 +13,7 @@ RUN groupadd --gid "${OPENINFRA_GID}" openinfra \
 
 WORKDIR /app
 
-COPY pyproject.toml README.md LICENSE VERSION ./
+COPY pyproject.toml README.md LICENSE VERSION MANIFEST.in openinfra_build_backend.py ./
 COPY src ./src
 COPY installers ./installers
 COPY docs/api ./docs/api

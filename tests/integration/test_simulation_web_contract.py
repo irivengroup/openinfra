@@ -47,7 +47,7 @@ def test_simulation_forms_are_typed_and_execute_against_backend() -> None:
         assert '"type": "json"' in source
         assert "max_depth" in source
         assert "max_nodes" in source
-    assert "selected.id.startsWith('simulation-')" in react
+    assert "normalized.startsWith('simulation-')" in react
 
 
 def test_simulation_web_catalog_is_bilingual_and_runtime_i18n_is_generated() -> None:

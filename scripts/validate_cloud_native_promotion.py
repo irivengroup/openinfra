@@ -86,10 +86,10 @@ class CloudNativePromotionProjectValidator:
             ("TST-P21-K8S-SCALE-GATE", "50 000 ressources/snapshot"),
         )
         migrations = sorted((self._root / "installers/migrations/postgresql").glob("*.sql"))
-        if len(migrations) != 59 or migrations[-1].name != "0059_runtime_offline_licensing.sql":
+        if len(migrations) != 60 or migrations[-1].name != "0060_ipam_ddi_execution_journal.sql":
             raise CloudNativePromotionProjectError(
-                "EPIC-2106 must preserve the 59-migration chain ending with "
-                "0059_runtime_offline_licensing.sql"
+                "EPIC-2106 must preserve the 60-migration chain ending with "
+                "0060_ipam_ddi_execution_journal.sql"
             )
         return {
             "schema_version": 1,
@@ -113,7 +113,7 @@ class CloudNativePromotionProjectValidator:
             "required_evidence_count": 7,
             "max_resources_per_snapshot": 50_000,
             "minimum_cluster_count": 3,
-            "migration_count": 59,
+            "migration_count": 60,
         }
 
     def _assert_fragments(self, relative: str, fragments: tuple[str, ...]) -> None:

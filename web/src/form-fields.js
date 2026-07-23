@@ -82,6 +82,7 @@ export function inferValidationKind(field) {
 export function inputTypeForField(field) {
   const normalized = normalizeFieldDefinition(field);
   if (String(normalized.type || '').toLowerCase() === 'file') return 'file';
+  if (String(normalized.type || '').toLowerCase() === 'password') return 'password';
   switch (normalized.validation) {
     case 'date': return 'date';
     case 'datetime': return 'datetime-local';
@@ -91,6 +92,38 @@ export function inputTypeForField(field) {
     case 'number': return 'number';
     default: return 'text';
   }
+}
+
+export function fileHelpText(field) {
+  const normalized = normalizeFieldDefinition(field);
+  if (normalized.help) return String(normalized.help);
+  const maximum = Number(normalized.maxSizeBytes || 2 * 1024 * 1024);
+  const mebibytes = Math.max(1, Math.floor(maximum / (1024 * 1024)));
+  return `JPEG, PNG, WebP ou PDF — ${mebibytes} Mio maximum.`;
+}
+
+export function validateFileForField(file, field) {
+  if (!file) return '';
+  const normalized = normalizeFieldDefinition(field);
+  const maximum = Number(normalized.maxSizeBytes || 2 * 1024 * 1024);
+  if (!Number.isFinite(maximum) || maximum <= 0) return 'La limite du fichier est invalide.';
+  if (file.size > maximum) {
+    const mebibytes = Math.max(1, Math.floor(maximum / (1024 * 1024)));
+    return `Le fichier dépasse la limite de ${mebibytes} Mio.`;
+  }
+  const accepted = String(normalized.accept || 'image/jpeg,image/png,image/webp,application/pdf')
+    .split(',')
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+  if (accepted.length === 0) return '';
+  const mediaType = String(file.type || '').trim().toLowerCase();
+  const filename = String(file.name || '').trim().toLowerCase();
+  const allowed = accepted.some((candidate) => {
+    if (candidate.startsWith('.')) return filename.endsWith(candidate);
+    if (candidate.endsWith('/*')) return mediaType.startsWith(candidate.slice(0, -1));
+    return mediaType === candidate;
+  });
+  return allowed ? '' : 'Le format de fichier n’est pas autorisé.';
 }
 
 export function inputAttributesForField(field) {

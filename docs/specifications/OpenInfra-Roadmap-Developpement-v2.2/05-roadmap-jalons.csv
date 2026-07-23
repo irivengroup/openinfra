@@ -1,0 +1,16 @@
+id,jalon,phase,periode_relative,description
+M00,Roadmap v2 validée,P00,T0+1 mois,Roadmap alignée CDC v4.8.1 approuvée.
+M01,Pipeline foundation vert,P01,T0+3 mois,"CI/CD, tests, packaging et API baseline opérationnels."
+M02,Edition model gelé,P02,T0+4 mois,"Lite/Pro/Entreprise, quotas et feature gates stabilisés."
+M03,Installer autonomous alpha,P03,T0+5 mois,installers/ hors src avec install.ini par scope.
+M04,Runtime systemd canonique,P04,T0+6 mois,"openinfra.service, openinfra-web.service, openinfra-agent.service validés."
+M05,PGDATA et migrations validés,P05,T0+7 mois,"/data/openinfra/ actif, symlink, migrations backend passées."
+M06,PostgreSQL HA validé,P06,T0+9 mois,Synchronisation quasi temps réel et failover testés.
+M07,Lite MVP utilisable,P11,T0+16 mois,Lite all-in-one RSOT/DCIM/IPAM opérationnel.
+M08,Pro MVP utilisable,P13,T0+18 mois,"Pro avec LDAP/IPA, RBAC, web séparé et ITSM connectors."
+M09,Enterprise foundation utilisable,P17,T0+30 mois,"Cluster, agents, multisite, DR opérationnels."
+M10,GA signée,P18,T0+34 mois,Release GA complète et validée.
+M11,Socle haute performance disponible,P19,T0+3 mois,"OpenInfra 0.30.x ASGI avec pools bornés, streaming, rollback et CI validés."
+M12,Scale-out Pro/Entreprise validé,P20,T0+9 mois,"PgBouncer, réplicas, curseurs, workers/outbox, frontend modulaire et charge réelles validés."
+M13,Kubernetes & Cloud-native qualifié,P21,T0+38 mois,"Inventaire, topologie physique, exposition, sécurité, GitOps et capacité cloud-native validés."
+M14,Identité avancée et Oracle qualifiés,P22,T0+40 mois,"SAML, LDAP avancé, Team Sync, Oracle optionnel Enterprise et déploiement systemd certifiés."

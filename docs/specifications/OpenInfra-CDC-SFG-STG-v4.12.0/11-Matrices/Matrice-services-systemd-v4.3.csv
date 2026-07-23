@@ -1,0 +1,8 @@
+service,role,lite,pro,enterprise,edition_name_allowed,notes
+openinfra.service,"backend API, PostgreSQL géré, migrations et monolithe Lite",oui,oui,oui,non,Service canonique unique pour backend/all-in-one
+openinfra-web.service,frontend React Bootstrap 5,non,oui,oui,non,Consomme uniquement API backend
+openinfra-agent.service,collecteur discovery distribue,non,non,oui,non,Suffixe fonctionnel -agent
+openinfra-worker.service,workers asynchrones,non,oui,oui,non,Traitements longs
+openinfra-scheduler.service,planification,non,oui,oui,non,Jobs planifiés
+openinfra-connector.service,connecteurs externes,non,oui,oui,non,Inclut connecteurs ITSM externes si activés
+openinfra-exporter.service,metriques,non,option,oui,non,Prometheus exporter

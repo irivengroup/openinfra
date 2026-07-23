@@ -1,5 +1,17 @@
 # Traçabilité OpenInfra
 
+## v0.34.19 — Intégrité du contexte Docker et du packaging
+
+| Exigence | Implémentation | Vérification |
+|---|---|---|
+| Le build Docker doit contenir toutes les ressources du wheel | `COPY docs ./docs` et validateur croisant les `COPY` avec `force-include` | `tests/unit/test_docker_build_context_validation.py`, `test_docker_build_context_contains_all_forced_wheel_resources` |
+| Une source qualifiée incomplète doit échouer tôt et explicitement | rapport JSON avec `missing_sources`/`uncovered_sources`, message de restauration | test de source incomplète et exécution CI avant `python -m build` |
+| Aucun résidu après échec du staging | prévalidation complète avant toute copie sous `src/openinfra` | `TestPackageAssetStager::test_rejects_all_missing_sources_before_mutating_package_tree` |
+| Source et distributions cohérentes | `.dockerignore`, script, runbooks et assets inclus dans sdist/wheel | vérification d’artefacts et smoke installé |
+
+- Aucun changement de schéma, d’API, de CLI, de RBAC ou de thème.
+- Le contrôle strict du packaging est conservé ; le correctif ne fabrique jamais une documentation manquante.
+
 ## v0.34.18 — Source non autoritative et qualité RSOT
 
 | Exigence | Implémentation | Vérification |

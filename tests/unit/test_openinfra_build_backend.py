@@ -9,7 +9,11 @@ from pathlib import Path
 import pytest
 
 import openinfra_build_backend
-from openinfra_build_backend import OpenInfraBuildBackend, ReproducibleSdistNormalizer
+from openinfra_build_backend import (
+    OpenInfraBuildBackend,
+    PackageAssetStager,
+    ReproducibleSdistNormalizer,
+)
 
 
 def _write_sdist(path: Path, *, member_mtime: float, content: bytes = b"payload\n") -> None:
@@ -124,3 +128,47 @@ class TestReproducibleSdistNormalizer:
         assert result == artifact_name
         with tarfile.open(tmp_path / artifact_name, mode="r:gz") as archive:
             assert all(member.mtime == 1_704_067_200 for member in archive.getmembers())
+
+
+class TestPackageAssetStager:
+    @staticmethod
+    def _write_configuration(root: Path, mapping: dict[str, str]) -> None:
+        lines = ["[tool.hatch.build.targets.wheel.force-include]"]
+        lines.extend(f'"{source}" = "{destination}"' for source, destination in mapping.items())
+        (root / "pyproject.toml").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    def test_rejects_all_missing_sources_before_mutating_package_tree(self, tmp_path: Path) -> None:
+        existing = tmp_path / "docs" / "existing.md"
+        existing.parent.mkdir(parents=True)
+        existing.write_text("existing\n", encoding="utf-8")
+        (tmp_path / "src" / "openinfra").mkdir(parents=True)
+        self._write_configuration(
+            tmp_path,
+            {
+                "docs/existing.md": "openinfra/docs/existing.md",
+                "docs/missing.md": "openinfra/docs/missing.md",
+            },
+        )
+
+        with pytest.raises(RuntimeError, match="Restore the complete qualified source archive"):
+            with PackageAssetStager(tmp_path):
+                pass
+
+        assert not (tmp_path / "src" / "openinfra" / "docs").exists()
+
+    def test_stages_and_atomically_cleans_external_assets(self, tmp_path: Path) -> None:
+        source_file = tmp_path / "docs" / "required.md"
+        source_file.parent.mkdir(parents=True)
+        source_file.write_text("required\n", encoding="utf-8")
+        (tmp_path / "src" / "openinfra").mkdir(parents=True)
+        destination = tmp_path / "src" / "openinfra" / "docs" / "required.md"
+        self._write_configuration(
+            tmp_path,
+            {"docs/required.md": "openinfra/docs/required.md"},
+        )
+
+        with PackageAssetStager(tmp_path):
+            assert destination.read_text(encoding="utf-8") == "required\n"
+
+        assert not destination.exists()
+        assert not destination.parent.exists()

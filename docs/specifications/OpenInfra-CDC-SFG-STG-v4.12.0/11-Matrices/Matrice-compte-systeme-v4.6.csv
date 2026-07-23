@@ -1,0 +1,9 @@
+attribute,default_value,mandatory,edition_scope,validation,acceptance
+user,openinfra,oui,toutes,getent passwd openinfra,Le compte système existe après installation
+group,openinfra,oui,toutes,getent group openinfra,Le groupe système existe après installation
+home,/opt/openinfra/,oui,toutes,getent passwd openinfra,Le home correspond au mountpoint applicatif
+shell,/usr/sbin/nologin,oui,toutes,getent passwd openinfra,Le compte ne peut pas ouvrir de session interactive
+created_by,root,oui,toutes,audit installer,L'installation refuse une création non root
+owns_mountpoint,openinfra:openinfra,oui,toutes,stat /opt/openinfra,Le mountpoint appartient à openinfra
+can_execute_openinfra_cli,oui,oui,toutes,test CLI,Le compte exécute les commandes OpenInfra autorisées
+root_global_privilege,non,oui,toutes,sudo -l audit,Aucun shell root global n'est accordé

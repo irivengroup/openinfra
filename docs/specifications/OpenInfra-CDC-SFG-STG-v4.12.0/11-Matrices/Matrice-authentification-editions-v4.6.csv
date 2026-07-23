@@ -1,0 +1,4 @@
+edition,local_auth,ldap,ldaps,ipa_freeipa,group_rbac,break_glass,notes
+lite,oui,non,non,non,local,option,Authentification locale autonome sans annuaire obligatoire
+pro,oui,oui,oui,oui,oui,oui,LDAP/IPA avec mapping groupes vers RBAC
+enterprise,oui,oui,oui,oui,oui,oui,LDAP/IPA multi-tenant avec politiques avancées

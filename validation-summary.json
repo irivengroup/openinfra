@@ -1,5 +1,5 @@
 {
-  "candidate_id": "openinfra-0.34.18-qualification-candidate",
+  "candidate_id": "openinfra-0.34.19-qualification-candidate",
   "certification_date": "2026-07-23",
   "contracts": {
     "cdc": "4.12.0",
@@ -19,16 +19,16 @@
     "traceability_rows": 861
   },
   "coverage": {
-    "coverage_data_files": 1,
+    "coverage_data_files": 296,
     "covered": 49396,
     "missing": 996,
     "percent": 98.02349579298301,
     "rounding_regression": "97.99 percent is rejected",
     "statements": 50392,
     "status": "passed",
-    "strategy": "one successful full-suite coverage run followed by an exact integer-ratio gate",
+    "strategy": "296 isolated test-file executions with parallel coverage fragments combined into one exact integer-ratio gate",
     "threshold": 98.0,
-    "workers": 1
+    "workers": 4
   },
   "database": {
     "last_migration": "0060_ipam_ddi_execution_journal.sql",
@@ -63,11 +63,18 @@
     "async_bulk_import_runbook_in_wheel": "passed",
     "auth_policy_side_effect_free": "passed",
     "distributed_discovery_runbook_in_wheel": "passed",
+    "docker_build_context_missing_assets": 0,
+    "docker_build_context_preflight": "passed-and-ci-blocking",
+    "docker_build_context_required_assets": 29,
+    "docker_build_context_uncovered_assets": 0,
     "governed_rag_runbook_in_wheel": "required-and-tested",
     "installed_wheel_gate14_metrics": "31/588/44/77 required",
     "json_backend_reopen_seed_free": "passed",
     "license_directory_exact_mode": "passed",
+    "new_docker_packaging_regression_tests": 5,
     "new_sdist_reproducibility_tests": 6,
+    "package_asset_staging": "transactional-prevalidated-and-cleaned",
+    "qualified_source_sdist_context_smoke": "passed",
     "rsot_quality_non_authoritative_runbook_in_wheel": "required-and-tested",
     "rsot_quality_rbac_runbook_in_wheel": "required-and-tested",
     "rsot_quality_runbook_in_wheel": "required-and-tested",
@@ -127,10 +134,12 @@
   },
   "packaging": {
     "artifact_content": "passed",
+    "docker_context_validation": "passed-29-required-assets",
     "final_reproducible_source": "verified-by-deterministic-checkpoint-build",
     "hash_manifest": "external qualification bundle SHA256SUMS",
     "installed_wheel_smoke": "passed-content-with-local-runtime-outside-source-tree",
     "sdist_build": "passed-reproducible-bit-for-bit-with-source-date-epoch-normalization",
+    "sdist_rebuild_smoke": "passed-from-extracted-sdist",
     "strict_wheel_smoke": "blocked-defusedxml-unresolvable",
     "twine_check": "blocked-tool-unavailable",
     "wheel_build": "passed-reproducible-bit-for-bit"
@@ -168,6 +177,7 @@
     "service_cli_http_portal_parity": "passed"
   },
   "schema_version": 1,
-  "tests": 1687,
-  "version": "0.34.18"
+  "test_files": 296,
+  "tests": 1692,
+  "version": "0.34.19"
 }

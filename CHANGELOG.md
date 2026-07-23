@@ -1,5 +1,15 @@
 # Changelog OpenInfra
 
+## 0.34.19 — Contexte Docker et packaging transactionnel
+
+- correction du build Compose lorsque l’arbre local omet une ressource documentaire exigée par le packaging ;
+- Dockerfile aligné sur le contrat documentaire complet avec `COPY docs ./docs` ;
+- nouveau validateur `scripts/validate_docker_build_context.py` exécuté avant `pip install` et dans la CI ;
+- détection structurée des sources `force-include` absentes ou non couvertes par les instructions `COPY` ;
+- staging du backend de build rendu transactionnel afin d’éviter tout résidu partiel sous `src/openinfra` après une erreur ;
+- `.dockerignore`, sdist, tests, documentation et workflow GitHub Actions synchronisés ;
+- aucune migration, aucune rupture fonctionnelle et aucune modification du thème approuvé.
+
 ## 0.34.18 — Alerte explicite de source non autoritative RSOT
 
 - preuve automatisée `TST-RSOTQUAL-048` couvrant une donnée portée par une source non autoritative par service, CLI, API HTTP, audit et portails ;

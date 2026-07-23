@@ -138,9 +138,12 @@ class TestRuntimeEnvironment:
                 missing.append(source)
 
         assert missing == []
-        assert "COPY docs/ga ./docs/ga" in dockerfile
-        assert "COPY docs/release ./docs/release" in dockerfile
-        assert "COPY docs/runbooks ./docs/runbooks" in dockerfile
+        assert "COPY docs ./docs" in dockerfile
+        assert (
+            "COPY scripts/validate_docker_build_context.py "
+            "./scripts/validate_docker_build_context.py"
+        ) in dockerfile
+        assert "RUN python scripts/validate_docker_build_context.py --project-root ." in dockerfile
 
     def test_minimal_docker_context_can_build_runtime_wheel(self, tmp_path: Path) -> None:
         project_root = Path.cwd()
@@ -179,7 +182,7 @@ class TestRuntimeEnvironment:
         )
 
         assert result.returncode == 0, result.stdout + result.stderr
-        assert list((tmp_path / "wheelhouse").glob("openinfra-0.34.18-*.whl"))
+        assert list((tmp_path / "wheelhouse").glob("openinfra-0.34.19-*.whl"))
 
     def test_all_runtime_services_share_the_local_image_build(self) -> None:
         compose = yaml.safe_load(Path("compose.yaml").read_text(encoding="utf-8"))
@@ -194,7 +197,7 @@ class TestRuntimeEnvironment:
         ):
             service = compose["services"][service_name]
             assert service["build"] == expected_build
-            assert service["image"] == "openinfra/runtime:0.34.18"
+            assert service["image"] == "openinfra/runtime:0.34.19"
             assert service["pull_policy"] == "build"
 
     def test_runtime_user_matches_prometheus_tmpfs_owner(self) -> None:

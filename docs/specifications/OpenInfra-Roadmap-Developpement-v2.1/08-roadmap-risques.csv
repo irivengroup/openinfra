@@ -1,0 +1,18 @@
+id,risk,severity,mitigation,owner_stream
+RSK-001,Incohérence éditions/feature gates,High,Tests de conformité éditions en CI; matrice capacités versionnée.,STR-ED
+RSK-002,Installateur trop complexe pour opérateur non expert,High,"install.ini strict, dry-run, messages explicites, rollback, auto-dépendances.",STR-PKG
+RSK-003,Erreur PGDATA ou ownership PostgreSQL,High,Validation LVM/symlink/PGDATA; résolution gestionnaire PostgreSQL; tests multi-OS.,STR-DATA
+RSK-004,ancien service backend obsolète réintroduit,Medium,Test bloquant de noms systemd; grep artefacts et packages.,STR-SRE
+RSK-005,Synchronisation quasi temps réel dégrade les performances,High,"Mode strict optionnel, seuils lag, benchmarks, tuning par édition.",STR-DATA
+RSK-006,LDAP/IPA mal mappé vers RBAC,High,"Tests groupes, refus, audit, cache et expiration sessions.",STR-SEC
+RSK-007,Frontend contourne API backend,High,Architecture tests; interdiction dépendances DB; revue code.,STR-FE
+RSK-008,ITSM intégré par dérive fonctionnelle,Medium,Connecteurs uniquement; tests absence objets tickets natifs.,STR-PROD
+RSK-009,Full table scans sur tables massives,High,"EXPLAIN CI, partitions, index, pagination obligatoire.",STR-DATA
+RSK-010,Agents découvrent trop vite et saturent réseau,High,"Rate limiting, fenêtres, quotas, backpressure, segmentation.",STR-DISC
+RSK-011,Multisite sans DR démontré,High,"Tests chaos multisite, failover, runbooks, RPO/RTO mesurés.",STR-MSITE
+RSK-012,Support constructeur écrasé par support tiers,Medium,Modèle séparé et tests de non-régression imports/API/discovery.,STR-BE
+RSK-013,Explosion du nombre de connexions par multiplication workers/réplicas,Critical,"Budget global, pool borné, PgBouncer, startup validation, métriques et alertes.",STR-DATA
+RSK-014,Fausse impression d’asynchronisme avec services synchrones non bornés,High,"Threadpool contrôlé, profiling, migration progressive des adaptateurs I/O et backpressure.",STR-ARCH
+RSK-015,Réplicas de lecture trop en retard,High,"Lag gate, fallback primaire, sticky read-after-write et alertes.",STR-DATA
+RSK-016,Frontend découpé mais régressions d’accessibilité ou requêtes en cascade,High,"Budgets, tests WCAG, query cache, préchargement contrôlé et observabilité RUM.",STR-FE
+RSK-017,Microservices prématurés augmentant la complexité,High,"Monolithe modulaire par défaut ; extraction seulement sur métriques, ownership et ADR.",STR-ARCH

@@ -16,13 +16,12 @@ WORKDIR /app
 COPY pyproject.toml README.md LICENSE VERSION MANIFEST.in openinfra_build_backend.py ./
 COPY src ./src
 COPY installers ./installers
-COPY docs/api ./docs/api
-COPY docs/ga ./docs/ga
-COPY docs/release ./docs/release
-COPY docs/runbooks ./docs/runbooks
+COPY docs ./docs
 COPY web ./web
+COPY scripts/validate_docker_build_context.py ./scripts/validate_docker_build_context.py
 
-RUN python -m pip install --upgrade "pip>=26.0" \
+RUN python scripts/validate_docker_build_context.py --project-root . \
+    && python -m pip install --upgrade "pip>=26.0" \
     && python -m pip install '.[postgresql]' \
     && chown -R openinfra:openinfra /app
 

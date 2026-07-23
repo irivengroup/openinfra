@@ -1,0 +1,12 @@
+phase,responsible_scope,required,description,acceptance
+discover,server,oui,Détecter version schéma et migrations disponibles,Version initiale identifiée
+lock,server,oui,Prendre un verrou de migration,Aucune migration concurrente possible
+backup,server,oui,Déclencher sauvegarde ou snapshot avant migration critique,Preuve de sauvegarde disponible
+apply,server,oui,Appliquer toutes les migrations manquantes,Version cible atteinte
+verify_constraints,server,oui,Valider contraintes et clés uniques,Aucune contrainte critique absente
+verify_indexes,server,oui,Valider index critiques,Index attendus présents
+verify_partitions,server,oui,Valider partitions des tables massives,Partitions attendues présentes
+report,server,oui,Produire rapport de migration,Rapport signé ou hashé
+start_service,server,oui,Démarrer backend uniquement après validation,Service actif et ready
+forbidden_web,web,oui,Interdire migrations depuis frontend,Aucune migration exécutée
+forbidden_agent,agent,oui,Interdire migrations depuis agent,Aucune migration exécutée

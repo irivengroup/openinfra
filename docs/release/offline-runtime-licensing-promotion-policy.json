@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "gate_id": "GATE-12",
+  "release_id": "REL-13",
+  "required_controls": [
+    "license-domain-cryptography",
+    "storage-parity",
+    "runtime-enforcement",
+    "cli-http-contracts",
+    "installer-offline-bootstrap",
+    "operator-notifications",
+    "private-authority-key-exclusion"
+  ]
+}

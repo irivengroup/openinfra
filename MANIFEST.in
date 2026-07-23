@@ -1,6 +1,6 @@
 include openinfra_build_backend.py
 include pyproject.toml
-include README.md LICENSE VERSION CHANGELOG.md VALIDATION-REPORT.md compose.yaml Dockerfile .env.example
+include README.md LICENSE VERSION CHANGELOG.md VALIDATION-REPORT.md compose.yaml Dockerfile .dockerignore .env.example
 recursive-include src *.py *.js *.jsx *.css *.html *.json *.yaml *.yml *.sql *.md *.service *.timer
 recursive-include tests *.py *.json *.yaml *.yml *.csv *.md
 recursive-include scripts *.py *.sh *.ps1 *.json *.yaml *.yml

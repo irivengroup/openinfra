@@ -1,0 +1,9 @@
+control,lite,pro,enterprise,acceptance
+Installer hors src,oui,oui,oui,Dossier installers présent hors src
+Installation dépendances automatique,oui,oui,oui,Dépendances installées ou erreur bloquante
+Backend migrations,oui,oui,oui,Toutes migrations appliquées par server
+Cluster backend,non,optionnel,oui,VIP et health checks validés
+Cluster frontend,non,non,oui,Frontend disponible via VIP
+Cluster agent,non,non,oui,Jobs repris après panne agent
+Inventaire minimal réseau,non_cluster,oui,oui,FQDN IP masque VIP passerelle DNS suffisent
+Rapport installation,oui,oui,oui,Rapport horodaté et hashé

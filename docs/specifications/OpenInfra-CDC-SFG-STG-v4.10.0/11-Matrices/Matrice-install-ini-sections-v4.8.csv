@@ -1,0 +1,8 @@
+section,all_in_one,server,web,agent,description
+storage,obligatoire,obligatoire,interdit,interdit,Vgname lvname lvsize PostgreSQL uniquement
+api,interdit,obligatoire,obligatoire,obligatoire,Endpoint backend sans central_endpoint ni ports internes
+identity,interdit,obligatoire,interdit,interdit,Peer nodes backend cluster optionnels sans protocole ni port
+auth,interdit,obligatoire,obligatoire,interdit,Mode standard et références PostgreSQL nécessaires
+operations,interdit,interdit,interdit,interdit,Opérations normales traitées en interne
+network,interdit,interdit,interdit,interdit,Réseau/VIP/ports traités par installateur et OS
+edition_scope_service,interdit,interdit,interdit,interdit,Edition scope et service déduits de l'arborescence installateurs

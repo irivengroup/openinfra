@@ -1,8 +1,19 @@
-# OpenInfra v0.34.18
+# OpenInfra v0.34.19
 
-OpenInfra 0.34.18 ferme la preuve contractuelle `TST-RSOTQUAL-048` : toute donnée portée par une source non autoritative produit un avertissement explicite, structuré et identique par service, CLI, API HTTP, audit et portails. L’incrément prend en charge les chemins d’attributs imbriqués, préserve les contrats historiques des findings qualité et n’effectue aucune mutation de l’objet RSOT évalué.
+OpenInfra 0.34.19 corrige la matérialisation du contexte de build Docker observée lorsque le runbook `RSOT_QUALITY_NON_AUTHORITATIVE_SOURCE.md` manque dans l’arbre local alors que le backend de packaging l’exige. Le contrôle strict n’est pas contourné : la source qualifiée est complète, le Dockerfile embarque désormais l’ensemble de `docs/`, et un préflight déterministe bloque immédiatement toute source incomplète avant l’installation Python.
 
-Le packaging a également été durci : le backend de build normalise les sdists lorsque `SOURCE_DATE_EPOCH` est défini. Le wheel et le sdist sont désormais reproductibles bit à bit, avec métadonnées TAR/PAX, propriétaires et en-tête GZIP déterministes.
+## Correctif du contexte Docker et du packaging — v0.34.19
+
+- copie atomique de l’arborescence documentaire complète par `COPY docs ./docs` ;
+- validation préalable de chaque source `force-include` déclarée dans `pyproject.toml` ;
+- diagnostic explicite des fichiers absents et des sources non couvertes par les instructions `COPY` ;
+- backend de packaging rendu transactionnel : aucune ressource partiellement stagée lorsqu’une source requise manque ;
+- `.dockerignore` versionné et inclus dans le sdist afin de stabiliser le contexte Docker sans exclure les ressources runtime ;
+- tests unitaires et d’intégration couvrant source incomplète, ressource non copiée, staging/cleanup et build de wheel en contexte minimal ;
+- quality gate GitHub Actions dédié avant la construction des distributions ;
+- aucune migration, aucune rupture API/CLI/RBAC et aucune modification de la charte graphique approuvée.
+
+Voir `docs/runbooks/RUNTIME_DOCKER.md`.
 
 ## Alerte de source non autoritative RSOT — v0.34.18
 

@@ -29,7 +29,7 @@ ROOT = Path(__file__).parents[2]
 def test_gate14_policy_and_real_project_pass() -> None:
     report = Gate14Qualification().collect(
         project_root=ROOT,
-        candidate_id="openinfra-0.34.18-unit",
+        candidate_id="openinfra-0.34.19-unit",
         source_commit="a" * 40,
         now=datetime(2026, 7, 21, 12, 0, tzinfo=UTC),
         enforce=True,
@@ -37,7 +37,7 @@ def test_gate14_policy_and_real_project_pass() -> None:
 
     assert report.passed is True
     assert report.gate_id == "GATE-14"
-    assert report.release_version == "0.34.18"
+    assert report.release_version == "0.34.19"
     assert report.metrics == Gate14Metrics(667, 31, 588, 48, 44, 77, 0, 0)
     assert tuple(control.identifier for control in report.controls) == (
         Gate14Policy.EXPECTED_CONTROLS
@@ -50,7 +50,7 @@ def test_gate14_report_serialization_and_atomic_write(
     report = Gate14Report(
         1,
         "GATE-14",
-        "0.34.18",
+        "0.34.19",
         "candidate",
         "b" * 40,
         datetime(2026, 7, 21, 12, 0, tzinfo=UTC),

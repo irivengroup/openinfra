@@ -1,0 +1,10 @@
+flow,source,destination,protocol,port,scope,required
+UI to Backend API,web clients,Backend API VIP,HTTPS,443,web/server,oui
+Frontend health,load balancer,openinfra-web nodes,HTTPS,443,web,oui
+Backend health,load balancer,backend API nodes,HTTPS,443,server,oui
+Backend to PostgreSQL,backend API,PostgreSQL VIP,TCP,5432,server,oui
+Backend to PgBouncer,backend API,PgBouncer VIP,TCP,6432,server,si_pooling
+Patroni API,cluster nodes,PostgreSQL nodes,TCP,8008,database,si_pgsql_géré
+Consensus,cluster nodes,etcd or Consul nodes,TCP,2379-2380,database,si_pgsql_géré
+Agent to Backend,openinfra-agent,Backend API VIP,HTTPS,443,agent,oui
+Metrics scrape,Prometheus,OpenInfra services,HTTP/HTTPS,9100+,all,oui

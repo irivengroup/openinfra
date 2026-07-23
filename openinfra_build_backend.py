@@ -35,14 +35,27 @@ class PackageAssetStager(AbstractContextManager["PackageAssetStager"]):
         )
         if not isinstance(mapping, dict) or not mapping:
             raise RuntimeError("OpenInfra packaging force-include mapping is missing")
-        package_root = self._root / "src"
+        package_root = (self._root / "src").resolve()
+        resolved_mapping: list[tuple[str, Path, Path]] = []
+        missing_sources: list[str] = []
         for source_value, destination_value in sorted(mapping.items()):
-            source = (self._root / str(source_value)).resolve()
+            source_name = str(source_value)
+            source = (self._root / source_name).resolve()
             destination = (package_root / str(destination_value)).resolve()
             source.relative_to(self._root)
-            destination.relative_to(package_root.resolve())
+            destination.relative_to(package_root)
             if not source.exists():
-                raise RuntimeError(f"OpenInfra packaging source is missing: {source_value}")
+                missing_sources.append(source_name)
+            resolved_mapping.append((source_name, source, destination))
+
+        if missing_sources:
+            missing = ", ".join(missing_sources)
+            raise RuntimeError(
+                "OpenInfra packaging sources are missing: "
+                f"{missing}. Restore the complete qualified source archive before building."
+            )
+
+        for _source_name, source, destination in resolved_mapping:
             first_missing = self._first_missing_parent(destination, package_root)
             if first_missing is not None:
                 self._created_roots.append(first_missing)

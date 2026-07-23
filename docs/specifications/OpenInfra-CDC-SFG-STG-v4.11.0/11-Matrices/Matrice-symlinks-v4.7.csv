@@ -1,0 +1,2 @@
+symlink,target,owner_logical,writer_allowed,purpose,validation
+/opt/openinfra/data,/data/openinfra/,postgresql_service_account,PostgreSQL service only,stable OpenInfra reference to PostgreSQL backend data path,"readlink target, target ownership by PostgreSQL service account, no write by openinfra application user"

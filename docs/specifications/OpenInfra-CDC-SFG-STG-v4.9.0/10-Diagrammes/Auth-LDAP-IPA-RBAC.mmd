@@ -1,0 +1,9 @@
+flowchart TD
+  USER[Utilisateur humain] --> WEB[openinfra-web.service]
+  WEB --> API[openinfra.service]
+  API --> AUTH[AuthN/AuthZ]
+  AUTH --> LDAP[LDAP/LDAPS]
+  AUTH --> IPA[IPA/FreeIPA]
+  AUTH --> MAP[Mapping groupes vers roles]
+  MAP --> RBAC[Permissions effectives]
+  RBAC --> AUDIT[Audit immuable]

@@ -36,6 +36,32 @@ Les valeurs suivantes sont gérées exclusivement par OpenInfra et ne font plus 
 
 Lors d’un nouvel `init`, toute occurrence héritée de ces quatre clés est supprimée atomiquement du `.env`. Les commandes recommandées du lab passent par `scripts/docker_environment.py`, qui génère un override Compose temporaire depuis la version lue dans `VERSION` puis le supprime après exécution. Les appels Docker Compose directs restent compatibles grâce au tag figé de la release et au service interne `runtime-secrets`, mais ne doivent jamais réintroduire ces clés dans `.env`.
 
+
+## Intégrité du contexte de build — v0.34.19
+
+Avant l’installation du paquet, le Dockerfile exécute :
+
+```bash
+python scripts/validate_docker_build_context.py --project-root . --json
+```
+
+Le validateur croise les sources déclarées dans `[tool.hatch.build.targets.wheel.force-include]` avec l’arbre local et les instructions `COPY` exécutées avant le packaging. Le build est bloqué si une ressource est absente ou non copiée dans l’image.
+
+L’erreur suivante indique un arbre local incomplet, et non une dépendance PyPI défaillante :
+
+```text
+OpenInfra packaging sources are missing: docs/runbooks/RSOT_QUALITY_NON_AUTHORITATIVE_SOURCE.md
+```
+
+Restaurer la source qualifiée complète, puis vérifier avant Compose :
+
+```bash
+python scripts/validate_docker_build_context.py --project-root . --json
+python -m pip wheel . --no-deps --no-build-isolation --wheel-dir dist
+```
+
+Ne pas supprimer la ressource de `pyproject.toml` et ne pas désactiver le backend de build : ce runbook fait partie du contrat runtime distribué. Le staging valide désormais toutes les sources avant la première copie, de sorte qu’un échec ne laisse aucun contenu partiel sous `src/openinfra`.
+
 ## Démarrage du runtime
 
 ```bash

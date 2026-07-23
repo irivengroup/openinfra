@@ -1,19 +1,29 @@
-# OpenInfra 0.34.18 — rapport de validation
+# OpenInfra 0.34.19 — rapport de validation
 
 ## Incrément
 
-`TST-RSOTQUAL-048` automatise l’avertissement produit lorsqu’un attribut RSOT est alimenté par une source différente de la source autoritative définie par la gouvernance. Le contrôle est démontré de bout en bout par service applicatif, CLI, API HTTP, synthèse tenant, audit et portails.
+OpenInfra 0.34.19 corrige l’échec de build Compose déclenché lorsqu’une ressource déclarée dans le contrat de packaging n’est pas matérialisée dans l’arbre Docker. Le contrôle strict n’est pas supprimé ni contourné.
 
-Le finding reste rétrocompatible et expose désormais `field`, `actual_source`, `expected_source` et `governance_rule`. Les chemins imbriqués sont résolus sans modifier l’objet RSOT ni son stockage. Le packaging a été durci par une normalisation atomique et déterministe des sdists sous `SOURCE_DATE_EPOCH`.
+Le correctif comprend :
+
+- `COPY docs ./docs` afin d’aligner durablement le contexte Docker sur l’arborescence documentaire distribuée ;
+- `scripts/validate_docker_build_context.py`, exécuté avant `pip install` et dans GitHub Actions ;
+- croisement déterministe entre les sources `force-include`, les fichiers réellement présents et les instructions `COPY` précédant le packaging ;
+- diagnostic structuré `missing_sources` / `uncovered_sources` ;
+- prévalidation transactionnelle du backend de build avant toute copie sous `src/openinfra` ;
+- `.dockerignore` versionné et embarqué dans le sdist ;
+- documentation, tests et CI synchronisés.
+
+Aucune migration, aucune rupture API/CLI/RBAC, aucune suppression fonctionnelle et aucune modification de la charte graphique approuvée n’ont été introduites.
 
 ## Qualification fonctionnelle et autonome
 
-La campagne complète exécutée après toutes les modifications est entièrement verte :
+La campagne finale exécutée après toutes les modifications est entièrement verte :
 
-- fichiers de tests Python : **295/295 PASS** ;
-- tests Python : **1 687/1 687 PASS** ;
+- fichiers de tests Python : **296/296 PASS** ;
+- tests Python : **1 692/1 692 PASS** ;
 - échecs, erreurs, timeouts et tests ignorés : **0** ;
-- base Coverage issue d’une campagne complète réussie : **PASS** ;
+- stratégie : exécution isolée de chaque fichier, quatre workers supervisés, puis combinaison de **296 fragments Coverage** ;
 - instructions : **50 392** ;
 - couvertes : **49 396** ;
 - non couvertes : **996** ;
@@ -24,7 +34,16 @@ La campagne complète exécutée après toutes les modifications est entièremen
 - compilation Python, sécurité interne, contrats frontend, WCAG 2.2 AA, OpenAPI principal et CDC, documentation GA, CDC 4.12, roadmap 2.5 et GATE-14 : **PASS** ;
 - quality gate global : **code 0**.
 
-Le parcours `TST-RSOTQUAL-048` vérifie un attribut imbriqué `hardware.serial_number` gouverné par `inventory.cmdb` alors que l’observation provient de `discovery.snmp`. Le résultat est `warning`, le score d’autorité est dégradé, les métadonnées de gouvernance sont identiques sur toutes les interfaces et la collection `source_objects` reste strictement inchangée.
+## Régression Docker et packaging
+
+- ressources `force-include` requises : **29** ;
+- ressources absentes : **0** ;
+- ressources non couvertes par le Dockerfile : **0** ;
+- construction du wheel depuis l’arbre source : **PASS** ;
+- construction du wheel depuis le sdist extrait : **PASS** ;
+- présence de `docs/runbooks/RSOT_QUALITY_NON_AUTHORITATIVE_SOURCE.md` dans le sdist et le wheel : **PASS** ;
+- absence de staging partiel lorsqu’une source est manquante : **PASS** ;
+- nettoyage du staging après build réussi : **PASS**.
 
 ## Traçabilité GATE-14
 
@@ -36,23 +55,15 @@ Le parcours `TST-RSOTQUAL-048` vérifie un attribut imbriqué `hardware.serial_n
 - fichiers d’évidence : **77** ;
 - preuves manquantes et exigences N1 non classées : **0**.
 
-## Packaging
-
-- wheel : **reproductible bit à bit** ;
-- sdist : **reproductible bit à bit** après normalisation déterministe TAR/PAX/GZIP ;
-- contenu strict wheel/sdist : **PASS** ;
-- runbook `RSOT_QUALITY_NON_AUTHORITATIVE_SOURCE.md` présent dans les deux distributions ;
-- smoke du wheel installé hors arbre source avec le runtime local : **PASS** ;
-- smoke strict en environnement vierge : **bloqué**, le registre Python ne fournit pas `defusedxml>=0.7.1` ;
-- Twine : **non exécuté**, outil absent.
-
 ## Gates externes non exécutables dans l’environnement courant
 
-- Ruff, mypy, Bandit et pip-audit : outils absents ;
-- `npm ci` : échec registre HTTP **503**, arbre de dépendances Node non matérialisé ;
-- ESLint JSX, Vite et npm audit : non exécutables sans cet arbre ;
-- qualifications live PostgreSQL, Oracle 19c, fournisseurs DDI, Docker Compose, systemd et fédération d’identité : plateformes absentes.
+- Ruff, mypy, Bandit, Twine et pip-audit : outils absents ;
+- ESLint JSX, Vite et npm audit : arbre de dépendances Node complet non matérialisé ;
+- Docker Engine/Compose : indisponible dans l’environnement de qualification, donc le build d’image réel reste à confirmer sur la plateforme cible ;
+- qualifications live PostgreSQL, Oracle 19c, fournisseurs DDI, systemd et fédération d’identité : plateformes absentes.
+
+Le smoke de packaging reproduisant précisément l’étape fautive du Dockerfile (`pip wheel` depuis le contexte source puis depuis le sdist extrait) est vert.
 
 ## État de promotion
 
-L’incrément 0.34.18 est **fonctionnellement qualifié**. La promotion final-candidate et production reste **NO-GO** tant que les gates externes d’outillage, de registres et d’infrastructure ne sont pas exécutés avec succès dans un environnement approprié.
+L’incrément 0.34.19 est **fonctionnellement qualifié**. La promotion final-candidate et production reste **NO-GO** tant que les gates externes d’outillage et d’infrastructure ne sont pas exécutés avec succès dans un environnement approprié.

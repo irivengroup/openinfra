@@ -488,6 +488,9 @@ jobs:
       - name: Security gate - secrets and CI hardening
         run: python scripts/security_gate.py --project-root .
 
+      - name: Docker build context integrity
+        run: python scripts/validate_docker_build_context.py --project-root . --json
+
       - name: Build package
         run: python -m build
 
@@ -1204,7 +1207,10 @@ jobs:
         run: |
           python -m pytest -q --no-cov \
             tests/unit/test_runtime_secrets.py \
+            tests/unit/test_docker_build_context_validation.py \
             tests/integration/test_runtime_docker_environment.py::TestRuntimeEnvironment::test_optional_docker_assets_remain_test_only \
+            tests/integration/test_runtime_docker_environment.py::TestRuntimeEnvironment::test_docker_build_context_contains_all_forced_wheel_resources \
+            tests/integration/test_runtime_docker_environment.py::TestRuntimeEnvironment::test_minimal_docker_context_can_build_runtime_wheel \
             tests/integration/test_runtime_docker_environment.py::TestRuntimeEnvironment::test_runtime_env_manager_creates_private_env_file \
             tests/integration/test_runtime_docker_environment.py::TestRuntimeEnvironment::test_runtime_env_manager_upgrades_missing_and_blank_required_secrets \
             tests/integration/test_runtime_docker_environment.py::TestRuntimeEnvironment::test_compose_runner_generates_runtime_image_override_from_version \

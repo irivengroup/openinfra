@@ -1,0 +1,18 @@
+@startuml
+!define RECTANGLE class
+actor "Utilisateur" as User
+actor "Intégrateur" as Integrator
+rectangle "OpenInfra" as OpenInfra
+rectangle "ITSM externe" as ITSM
+rectangle "Cloud providers" as Cloud
+rectangle "DNS/DHCP" as DDI
+rectangle "IAM/SSO" as IAM
+rectangle "SIEM" as SIEM
+User --> OpenInfra : UI / API
+Integrator --> OpenInfra : API / SDK / Webhooks
+OpenInfra --> ITSM : CI links / webhooks
+OpenInfra --> Cloud : discovery APIs
+OpenInfra --> DDI : DNS/DHCP sync
+OpenInfra --> IAM : OIDC/SAML/LDAP
+OpenInfra --> SIEM : audit events
+@enduml

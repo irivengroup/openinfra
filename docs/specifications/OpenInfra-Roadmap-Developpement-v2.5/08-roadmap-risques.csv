@@ -1,0 +1,27 @@
+id,risk,severity,mitigation,owner_stream
+RSK-001,Incohérence éditions/feature gates,High,Tests de conformité éditions en CI; matrice capacités versionnée.,STR-ED
+RSK-002,Installateur trop complexe pour opérateur non expert,High,"install.ini strict, dry-run, messages explicites, rollback, auto-dépendances.",STR-PKG
+RSK-003,Erreur PGDATA ou ownership PostgreSQL,High,Validation LVM/symlink/PGDATA; résolution gestionnaire PostgreSQL; tests multi-OS.,STR-DATA
+RSK-004,ancien service backend obsolète réintroduit,Medium,Test bloquant de noms systemd; grep artefacts et packages.,STR-SRE
+RSK-005,Synchronisation quasi temps réel dégrade les performances,High,"Mode strict optionnel, seuils lag, benchmarks, tuning par édition.",STR-DATA
+RSK-006,LDAP/IPA mal mappé vers RBAC,High,"Tests groupes, refus, audit, cache et expiration sessions.",STR-SEC
+RSK-007,Frontend contourne API backend,High,Architecture tests; interdiction dépendances DB; revue code.,STR-FE
+RSK-008,ITSM intégré par dérive fonctionnelle,Medium,Connecteurs uniquement; tests absence objets tickets natifs.,STR-PROD
+RSK-009,Full table scans sur tables massives,High,"EXPLAIN CI, partitions, index, pagination obligatoire.",STR-DATA
+RSK-010,Agents découvrent trop vite et saturent réseau,High,"Rate limiting, fenêtres, quotas, backpressure, segmentation.",STR-DISC
+RSK-011,Multisite sans DR démontré,High,"Tests chaos multisite, failover, runbooks, RPO/RTO mesurés.",STR-MSITE
+RSK-012,Support constructeur écrasé par support tiers,Medium,Modèle séparé et tests de non-régression imports/API/discovery.,STR-BE
+RSK-013,Explosion du nombre de connexions par multiplication workers/réplicas,Critical,"Budget global, pool borné, PgBouncer, startup validation, métriques et alertes.",STR-DATA
+RSK-014,Fausse impression d’asynchronisme avec services synchrones non bornés,High,"Threadpool contrôlé, profiling, migration progressive des adaptateurs I/O et backpressure.",STR-ARCH
+RSK-015,Réplicas de lecture trop en retard,High,"Lag gate, fallback primaire, sticky read-after-write et alertes.",STR-DATA
+RSK-016,Frontend découpé mais régressions d’accessibilité ou requêtes en cascade,High,"Budgets, tests WCAG, query cache, préchargement contrôlé et observabilité RUM.",STR-FE
+RSK-017,Microservices prématurés augmentant la complexité,High,"Monolithe modulaire par défaut ; extraction seulement sur métriques, ownership et ADR.",STR-ARCH
+RSK-018,Explosion de cardinalité ou ingestion de secrets dans l’inventaire Kubernetes,Critical,"Snapshots bornés, validation stricte, rejet des clés sensibles, index adaptés, pagination curseur et tests de charge multi-cluster.",STR-DISC
+RSK-019,Substitution de configuration IdP ou fuite de secrets dans les requêtes,Critical,"Configuration de confiance côté serveur, références de secrets, schémas HTTP fermés et tests d’injection.",STR-SEC
+RSK-020,Divergence fonctionnelle PostgreSQL/Oracle,High,"Ports communs, tests contractuels, migrations séparées, qualification réelle et PostgreSQL conservé par défaut.",STR-DATA
+RSK-021,Team Sync supprime des identités locales ou boucle sur la pagination,Critical,"Ownership par source, idempotence, politique orphelins explicite, limites et pagination same-origin.",STR-SEC
+RSK-022,Copie ou substitution d’un entitlement entre installations ou entreprises,Critical,"Binding signé sur UUID licence/installation, entreprise, édition et dates; validation Ed25519 fail-closed.",STR-SEC
+RSK-023,Dépassement concurrent du quota d’hôtes,High,Evaluation du quota sous le même verrou transactionnel que la création d’équipement pour chaque backend.,STR-DATA
+RSK-024,Fuite de la clé privée d’autorité dans une source ou un artefact,Critical,"Clé privée chiffrée, émission offline, scan GATE-12 des sources et artefacts, trust bundle public uniquement.",STR-SEC
+RSK-025,Rupture d’une intégration utilisant encore un alias ITRM/RI/SOT,High,"Guide de migration, tests de rejet explicites, release notes et inventaire des remplacements exacts avant promotion.",STR-PROD
+RSK-026,Confondre preuve partielle ou qualification externe avec validation fonctionnelle complète,Critical,"Niveaux de preuve fermés, métriques bloquantes, libellés explicites et GATE-14 fail-closed.",STR-QA

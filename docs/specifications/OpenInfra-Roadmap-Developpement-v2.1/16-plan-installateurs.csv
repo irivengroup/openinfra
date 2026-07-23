@@ -1,0 +1,7 @@
+path,edition,scope,service,responsabilites
+installers/setup/lite,Lite,all-in-one,openinfra.service,"Installe dépendances, PGDATA 2GB, migrations, UI intégrée ou servie par backend selon packaging."
+installers/setup/pro/server,Pro,server/backend,openinfra.service,"Installe backend, PostgreSQL géré, PGDATA 100GB, migrations et cluster DB optionnel."
+installers/setup/pro/web,Pro,web/frontend,openinfra-web.service,"Installe React/Bootstrap 5, endpoint API backend, aucun accès DB."
+installers/setup/enterprise/server,Entreprise,server/backend,openinfra.service,"Installe backend, PostgreSQL large, PGDATA 1TB, cluster, quasi-sync et migrations."
+installers/setup/enterprise/web,Entreprise,web/frontend,openinfra-web.service,"Installe frontend clusterisable, health checks et reverse proxy."
+installers/setup/enterprise/agent,Entreprise,agent/discovery,openinfra-agent.service,"Installe collecteur discovery régional, mTLS, endpoint central, aucune connexion DB."

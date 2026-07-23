@@ -1,0 +1,23 @@
+{
+  "expected_metrics": {
+    "automated_proofs": 31,
+    "contractual_tests": 667,
+    "evidence_files": 77,
+    "external_proofs": 48,
+    "missing_proofs": 0,
+    "partial_proofs": 588,
+    "pytest_selectors": 44,
+    "unclassified_n1_requirements": 0
+  },
+  "gate_id": "GATE-14",
+  "release_id": "REL-15",
+  "required_controls": [
+    "CDC-TRACEABILITY",
+    "ROADMAP-ALIGNMENT",
+    "PROOF-REGISTRY",
+    "PYTEST-AUTOMATION",
+    "EVIDENCE-CLASSIFICATION",
+    "REPOSITORY-HYGIENE"
+  ],
+  "schema_version": 1
+}

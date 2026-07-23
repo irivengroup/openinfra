@@ -1,0 +1,8 @@
+control_id,edition,requirement,enforcement,evidence
+LIC-EDITION-LITE,Lite,Aucune licence commerciale,not_required,TST-LIC-155
+LIC-EDITION-PRO,Pro,"Entitlement lié à entreprise, installation, édition et quota",fail_closed,TST-LIC-148;TST-LIC-154
+LIC-EDITION-ENTERPRISE,Entreprise,"Entitlement lié à entreprise, installation, édition et quota",fail_closed,TST-LIC-148;TST-LIC-154
+LIC-GRACE,Pro;Entreprise,Grâce fixe après expiration,30_days,TST-LIC-151
+LIC-QUOTA,Pro;Entreprise,Quota contrôlé dans la transaction d’écriture hôte,serialized,TST-LIC-153;TST-LIC-161
+LIC-TRUST,Pro;Entreprise,Clé privée autorité absente du runtime,public_trust_bundle_only,TST-LIC-147;TST-LIC-158
+LIC-GATE,Pro;Entreprise,GATE-12 bloquant REL-13,7_of_7,TST-LIC-159;TST-LIC-162

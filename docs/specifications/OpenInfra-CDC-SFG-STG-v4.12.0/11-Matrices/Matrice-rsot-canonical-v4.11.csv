@@ -1,0 +1,7 @@
+control_id,surface,required_state,evidence
+RSOT-CLI,CLI,rsot_only,tests/integration/test_rsot_canonical_contract.py
+RSOT-HTTP,HTTP API and discovery,rsot_only_legacy_404,tests/integration/test_rsot_canonical_contract.py;tests/integration/test_http_api.py
+RSOT-RBAC,Builtin roles,rsot_roles_only,tests/integration/test_rsot_canonical_contract.py
+RSOT-EDITION,Feature capabilities,core_rsot_only,tests/integration/test_rsot_canonical_contract.py
+RSOT-CODE,Python modules and symbols,no_compatibility_modules,tests/integration/test_rsot_canonical_contract.py;scripts/validate_rsot_canonical.py
+RSOT-PACKAGING,wheel and sdist,no_active_legacy_alias,scripts/verify_artifact.py;scripts/validate_rsot_canonical.py

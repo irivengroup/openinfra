@@ -1,8 +1,8 @@
-# OpenInfra v0.34.19
+# OpenInfra v0.34.20
 
-OpenInfra 0.34.19 corrige la matérialisation du contexte de build Docker observée lorsque le runbook `RSOT_QUALITY_NON_AUTHORITATIVE_SOURCE.md` manque dans l’arbre local alors que le backend de packaging l’exige. Le contrôle strict n’est pas contourné : la source qualifiée est complète, le Dockerfile embarque désormais l’ensemble de `docs/`, et un préflight déterministe bloque immédiatement toute source incomplète avant l’installation Python.
+OpenInfra 0.34.20 corrige la matérialisation du contexte de build Docker observée lorsque le runbook `RSOT_QUALITY_NON_AUTHORITATIVE_SOURCE.md` manque dans l’arbre local alors que le backend de packaging l’exige. Le contrôle strict n’est pas contourné : la source qualifiée est complète, le Dockerfile embarque désormais l’ensemble de `docs/`, et un préflight déterministe bloque immédiatement toute source incomplète avant l’installation Python.
 
-## Correctif du contexte Docker et du packaging — v0.34.19
+## Correctif du contexte Docker et du packaging — v0.34.20
 
 - copie atomique de l’arborescence documentaire complète par `COPY docs ./docs` ;
 - validation préalable de chaque source `force-include` déclarée dans `pyproject.toml` ;

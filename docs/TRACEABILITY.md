@@ -1,6 +1,6 @@
 # Traçabilité OpenInfra
 
-## v0.34.19 — Intégrité du contexte Docker et du packaging
+## v0.34.20 — Intégrité du contexte Docker et du packaging
 
 | Exigence | Implémentation | Vérification |
 |---|---|---|

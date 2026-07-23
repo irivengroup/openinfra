@@ -131,7 +131,7 @@ jobs:
           mkdir -p artifacts/gate14
           openinfra-gate14 \
             --project-root . \
-            --candidate-id "openinfra-0.34.19-${GITHUB_RUN_ID}" \
+            --candidate-id "openinfra-0.34.20-${GITHUB_RUN_ID}" \
             --source-commit "${GITHUB_SHA}" \
             --output artifacts/gate14/report.json \
             --enforce
@@ -151,7 +151,7 @@ jobs:
           python -m venv /tmp/openinfra-gate14-smoke
           /tmp/openinfra-gate14-smoke/bin/python -m pip install --upgrade pip
           /tmp/openinfra-gate14-smoke/bin/python -m pip install \
-            "dist/openinfra-0.34.19-py3-none-any.whl[postgresql,oracle]"
+            "dist/openinfra-0.34.20-py3-none-any.whl[postgresql,oracle]"
           cd /tmp
           /tmp/openinfra-gate14-smoke/bin/python \
             "$GITHUB_WORKSPACE/scripts/smoke_installed_wheel.py"

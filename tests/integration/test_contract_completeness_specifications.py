@@ -65,11 +65,11 @@ def test_gate14_workflow_is_fail_closed_and_complete() -> None:
 
 
 def test_release_contract_versions_are_consistent() -> None:
-    assert (ROOT / "VERSION").read_text(encoding="utf-8").strip() == "0.34.19"
+    assert (ROOT / "VERSION").read_text(encoding="utf-8").strip() == "0.34.20"
     assert (CDC / "VERSION").read_text(encoding="utf-8").strip() == "4.12.0"
     assert (ROADMAP / "VERSION").read_text(encoding="utf-8").strip() == "2.5.0"
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    assert 'version = "0.34.19"' in pyproject
+    assert 'version = "0.34.20"' in pyproject
     assert "openinfra-gate14" in pyproject
     assert "precision = 8" in pyproject
     assert '"docs/runbooks/ASYNC_BULK_IMPORTS.md" = ' in pyproject

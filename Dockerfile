@@ -14,6 +14,7 @@ RUN groupadd --gid "${OPENINFRA_GID}" openinfra \
 WORKDIR /app
 
 COPY pyproject.toml README.md LICENSE VERSION MANIFEST.in openinfra_build_backend.py ./
+COPY Dockerfile ./Dockerfile
 COPY src ./src
 COPY installers ./installers
 COPY docs ./docs
@@ -23,6 +24,7 @@ COPY scripts/validate_docker_build_context.py ./scripts/validate_docker_build_co
 RUN python scripts/validate_docker_build_context.py --project-root . \
     && python -m pip install --upgrade "pip>=26.0" \
     && python -m pip install '.[postgresql]' \
+    && rm -f Dockerfile scripts/validate_docker_build_context.py \
     && chown -R openinfra:openinfra /app
 
 USER openinfra

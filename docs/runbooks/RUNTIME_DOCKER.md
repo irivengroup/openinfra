@@ -37,13 +37,17 @@ Les valeurs suivantes sont gérées exclusivement par OpenInfra et ne font plus 
 Lors d’un nouvel `init`, toute occurrence héritée de ces quatre clés est supprimée atomiquement du `.env`. Les commandes recommandées du lab passent par `scripts/docker_environment.py`, qui génère un override Compose temporaire depuis la version lue dans `VERSION` puis le supprime après exécution. Les appels Docker Compose directs restent compatibles grâce au tag figé de la release et au service interne `runtime-secrets`, mais ne doivent jamais réintroduire ces clés dans `.env`.
 
 
-## Intégrité du contexte de build — v0.34.19
+## Intégrité du contexte de build — v0.34.20
 
 Avant l’installation du paquet, le Dockerfile exécute :
 
 ```bash
 python scripts/validate_docker_build_context.py --project-root . --json
 ```
+
+Le même contrôle est exécuté dans le stage runtime. Le `Dockerfile` doit donc être
+matérialisé dans `/app` avant le préflight ; sa présence est un invariant testé et
+ne doit pas être retirée des instructions `COPY`.
 
 Le validateur croise les sources déclarées dans `[tool.hatch.build.targets.wheel.force-include]` avec l’arbre local et les instructions `COPY` exécutées avant le packaging. Le build est bloqué si une ressource est absente ou non copiée dans l’image.
 

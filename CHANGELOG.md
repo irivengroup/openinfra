@@ -1,5 +1,12 @@
 # Changelog OpenInfra
 
+## 0.34.20 — Préflight Docker exécutable dans le stage runtime
+
+- correction du code retour 2 du préflight Docker : le `Dockerfile` analysé est désormais copié dans `/app` avant l’exécution du validateur ;
+- ajout d’un test d’intégration qui reproduit le système de fichiers matérialisé dans le stage runtime et exécute réellement le préflight depuis ce stage ;
+- conservation du contrôle strict des 29 ressources `force-include`, sans contournement ni désactivation ;
+- aucune migration, aucune rupture API/CLI/RBAC et aucune modification du thème approuvé.
+
 ## 0.34.19 — Contexte Docker et packaging transactionnel
 
 - correction du build Compose lorsque l’arbre local omet une ressource documentaire exigée par le packaging ;

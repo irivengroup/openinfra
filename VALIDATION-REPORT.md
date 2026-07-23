@@ -1,18 +1,20 @@
-# OpenInfra 0.34.19 — rapport de validation
+# OpenInfra 0.34.20 — rapport de validation
 
 ## Incrément
 
-OpenInfra 0.34.19 corrige l’échec de build Compose déclenché lorsqu’une ressource déclarée dans le contrat de packaging n’est pas matérialisée dans l’arbre Docker. Le contrôle strict n’est pas supprimé ni contourné.
+OpenInfra 0.34.20 corrige le code retour `2` du préflight exécuté pendant le build Docker.
+Le validateur devait analyser `Dockerfile`, mais la version 0.34.19 ne copiait pas ce fichier dans
+le stage `/app` avant de lancer `scripts/validate_docker_build_context.py`. Le contrôle passait donc
+depuis l’arbre hôte puis échouait à l’intérieur de l’image avec `OpenInfra Dockerfile is missing`.
 
 Le correctif comprend :
 
-- `COPY docs ./docs` afin d’aligner durablement le contexte Docker sur l’arborescence documentaire distribuée ;
-- `scripts/validate_docker_build_context.py`, exécuté avant `pip install` et dans GitHub Actions ;
-- croisement déterministe entre les sources `force-include`, les fichiers réellement présents et les instructions `COPY` précédant le packaging ;
-- diagnostic structuré `missing_sources` / `uncovered_sources` ;
-- prévalidation transactionnelle du backend de build avant toute copie sous `src/openinfra` ;
-- `.dockerignore` versionné et embarqué dans le sdist ;
-- documentation, tests et CI synchronisés.
+- `COPY Dockerfile ./Dockerfile` avant l’exécution du préflight ;
+- conservation du contrôle strict des 29 ressources `force-include` ;
+- suppression du Dockerfile et du validateur après installation afin de ne pas les conserver inutilement dans l’image runtime ;
+- test d’intégration reproduisant le système de fichiers exact du stage `/app` et exécutant réellement le validateur depuis celui-ci ;
+- assertions statiques empêchant la suppression future de la copie ou du nettoyage ;
+- documentation, version, tests et CI synchronisés.
 
 Aucune migration, aucune rupture API/CLI/RBAC, aucune suppression fonctionnelle et aucune modification de la charte graphique approuvée n’ont été introduites.
 
@@ -21,9 +23,9 @@ Aucune migration, aucune rupture API/CLI/RBAC, aucune suppression fonctionnelle 
 La campagne finale exécutée après toutes les modifications est entièrement verte :
 
 - fichiers de tests Python : **296/296 PASS** ;
-- tests Python : **1 692/1 692 PASS** ;
+- tests Python : **1 693/1 693 PASS** ;
 - échecs, erreurs, timeouts et tests ignorés : **0** ;
-- stratégie : exécution isolée de chaque fichier, quatre workers supervisés, puis combinaison de **296 fragments Coverage** ;
+- stratégie : campagne pytest complète unique, puis validation du ratio entier exact produit par Coverage ;
 - instructions : **50 392** ;
 - couvertes : **49 396** ;
 - non couvertes : **996** ;
@@ -36,6 +38,8 @@ La campagne finale exécutée après toutes les modifications est entièrement v
 
 ## Régression Docker et packaging
 
+- préflight exécuté depuis le stage `/app` matérialisé : **PASS** ;
+- `Dockerfile` disponible pendant le contrôle puis retiré de l’image runtime : **PASS** ;
 - ressources `force-include` requises : **29** ;
 - ressources absentes : **0** ;
 - ressources non couvertes par le Dockerfile : **0** ;
@@ -66,4 +70,4 @@ Le smoke de packaging reproduisant précisément l’étape fautive du Dockerfil
 
 ## État de promotion
 
-L’incrément 0.34.19 est **fonctionnellement qualifié**. La promotion final-candidate et production reste **NO-GO** tant que les gates externes d’outillage et d’infrastructure ne sont pas exécutés avec succès dans un environnement approprié.
+L’incrément 0.34.20 est **fonctionnellement qualifié**. La promotion final-candidate et production reste **NO-GO** tant que les gates externes d’outillage et d’infrastructure ne sont pas exécutés avec succès dans un environnement approprié.

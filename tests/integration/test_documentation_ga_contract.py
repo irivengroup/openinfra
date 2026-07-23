@@ -13,7 +13,7 @@ class TestGaDocumentationContract:
         project_root = Path(__file__).resolve().parents[2]
         report = GaDocumentationValidator(project_root).validate()
         assert report.passed is True
-        assert report.version == "0.34.19"
+        assert report.version == "0.34.20"
         assert report.epic == "EPIC-1804"
         assert report.document_count == 10
         assert report.command_count >= 20
@@ -40,7 +40,7 @@ class TestGaDocumentationContract:
         assert completed.returncode == 0, completed.stderr
         payload = json.loads(output.read_text(encoding="utf-8"))
         assert payload["passed"] is True
-        assert payload["version"] == "0.34.19"
+        assert payload["version"] == "0.34.20"
 
     def test_ci_executes_documentation_gate(self) -> None:
         project_root = Path(__file__).resolve().parents[2]

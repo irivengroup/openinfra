@@ -106,7 +106,7 @@ jobs:
           mkdir -p artifacts/gate12
           openinfra-gate12 \
             --project-root . \
-            --candidate-id "openinfra-0.34.19-${GITHUB_RUN_ID}" \
+            --candidate-id "openinfra-0.34.20-${GITHUB_RUN_ID}" \
             --source-commit "${GITHUB_SHA}" \
             --output artifacts/gate12/report.json \
             --enforce
@@ -125,7 +125,7 @@ jobs:
           set -euo pipefail
           python -m venv /tmp/openinfra-gate12-smoke
           /tmp/openinfra-gate12-smoke/bin/python -m pip install --upgrade pip
-          /tmp/openinfra-gate12-smoke/bin/python -m pip install "dist/openinfra-0.34.19-py3-none-any.whl[postgresql,oracle]"
+          /tmp/openinfra-gate12-smoke/bin/python -m pip install "dist/openinfra-0.34.20-py3-none-any.whl[postgresql,oracle]"
           cd /tmp
           /tmp/openinfra-gate12-smoke/bin/python "$GITHUB_WORKSPACE/scripts/smoke_installed_wheel.py"
 

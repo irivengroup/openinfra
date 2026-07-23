@@ -1,5 +1,5 @@
 {
-  "candidate_id": "openinfra-0.34.19-qualification-candidate",
+  "candidate_id": "openinfra-0.34.20-qualification-candidate",
   "certification_date": "2026-07-23",
   "contracts": {
     "cdc": "4.12.0",
@@ -19,16 +19,16 @@
     "traceability_rows": 861
   },
   "coverage": {
-    "coverage_data_files": 296,
+    "coverage_data_files": 1,
     "covered": 49396,
     "missing": 996,
     "percent": 98.02349579298301,
     "rounding_regression": "97.99 percent is rejected",
     "statements": 50392,
     "status": "passed",
-    "strategy": "296 isolated test-file executions with parallel coverage fragments combined into one exact integer-ratio gate",
+    "strategy": "single complete pytest campaign with one exact coverage data file and integer-ratio gate",
     "threshold": 98.0,
-    "workers": 4
+    "workers": 1
   },
   "database": {
     "last_migration": "0060_ipam_ddi_execution_journal.sql",
@@ -64,14 +64,15 @@
     "auth_policy_side_effect_free": "passed",
     "distributed_discovery_runbook_in_wheel": "passed",
     "docker_build_context_missing_assets": 0,
-    "docker_build_context_preflight": "passed-and-ci-blocking",
+    "docker_build_context_preflight": "passed-host-and-materialized-runtime-stage-ci-blocking",
     "docker_build_context_required_assets": 29,
     "docker_build_context_uncovered_assets": 0,
+    "dockerfile_available_during_preflight": "passed-and-removed-after-install",
     "governed_rag_runbook_in_wheel": "required-and-tested",
     "installed_wheel_gate14_metrics": "31/588/44/77 required",
     "json_backend_reopen_seed_free": "passed",
     "license_directory_exact_mode": "passed",
-    "new_docker_packaging_regression_tests": 5,
+    "new_docker_packaging_regression_tests": 6,
     "new_sdist_reproducibility_tests": 6,
     "package_asset_staging": "transactional-prevalidated-and-cleaned",
     "qualified_source_sdist_context_smoke": "passed",
@@ -178,6 +179,6 @@
   },
   "schema_version": 1,
   "test_files": 296,
-  "tests": 1692,
-  "version": "0.34.19"
+  "tests": 1693,
+  "version": "0.34.20"
 }

@@ -1,5 +1,14 @@
 # Changelog OpenInfra
 
+## 0.34.22 — Qualification du dashboard Bootstrap et des secrets runtime
+
+- automatisation bout-en-bout de `TST-WEB-049` avec démarrage réel de `openinfra-web` ;
+- vérification de Bootstrap 5 local, sans dépendance CDN ;
+- contrôle d’un header principal unique, de la sidebar dashboard et des neuf domaines OpenInfra ;
+- preuve négative d’absence de bearer token, DSN et mot de passe dans les assets et endpoints navigateur ;
+- intégration du test dans le workflow GATE-14 ;
+- registre GATE-14 : 32 preuves automatisées, 587 partielles, 48 externes, 45 sélecteurs et 78 fichiers d’évidence.
+
 ## 0.34.21 — Catalogue de migrations exhaustif dans les livrables
 
 - ajout d’une archive autonome `openinfra-0.34.21-migrations.zip` directement exposée dans le bundle de qualification et les artefacts de release ;

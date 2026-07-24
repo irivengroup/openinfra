@@ -1,4 +1,4 @@
-# Synchronisation transactionnelle IPAM vers DNS/DHCP — OpenInfra 0.34.21
+# Synchronisation transactionnelle IPAM vers DNS/DHCP — OpenInfra 0.34.22
 
 ## Objet
 

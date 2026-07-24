@@ -26,7 +26,7 @@ def test_gate13_policy_and_real_project_pass(tmp_path: Path) -> None:
     qualification = Gate13Qualification()
     report = qualification.collect(
         project_root=ROOT,
-        candidate_id="openinfra-0.34.21-unit",
+        candidate_id="openinfra-0.34.22-unit",
         source_commit=COMMIT,
         now=datetime(2026, 7, 21, 12, tzinfo=UTC),
         enforce=True,

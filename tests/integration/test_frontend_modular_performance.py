@@ -50,7 +50,7 @@ def test_packaged_runtime_loads_all_business_domains_on_demand() -> None:
 
     assert domain_files == EXPECTED_DOMAINS
     for domain in sorted(EXPECTED_DOMAINS):
-        assert f'import("./domains/{domain}.js?v=0.34.21")' in manifest
+        assert f'import("./domains/{domain}.js?v=0.34.22")' in manifest
     assert '"operations": []' in manifest
     assert '"loaded": false' in manifest
     assert '"path": "/v1/discovery/evidence"' not in shell

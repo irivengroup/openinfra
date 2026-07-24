@@ -1,60 +1,100 @@
-# OpenInfra 0.34.21 — rapport de validation
+# OpenInfra 0.34.22 — rapport de qualification
 
-## Incrément
+## Décision
 
-OpenInfra 0.34.21 corrige l’incomplétude observable du catalogue de migrations dans les livrables. Jusqu’à 0.34.20, les migrations étaient principalement accessibles à l’intérieur de la source, du wheel ou du sdist et le vérificateur d’artefacts ne contrôlait qu’un sous-ensemble de fichiers nommés en dur. Le bundle ne permettait donc pas d’auditer directement et exhaustivement les deux catalogues.
+- incrément fonctionnel `TST-WEB-049` : **GO** ;
+- checkpoint local reproductible : **GO** ;
+- promotion final-candidate/production : **NO-GO** tant que les qualifications externes listées ci-dessous ne sont pas exécutées.
 
-Le correctif comprend :
+## Objet de l'incrément
 
-- une archive autonome `openinfra-0.34.21-migrations.zip` exposée directement sous `artifacts/migrations` ;
-- **60 migrations PostgreSQL** et **60 migrations Oracle**, plus le manifeste Oracle ;
-- un manifeste unifié avec la version, les bornes `0001`/`0060` et le SHA-256 de chaque migration des deux moteurs ;
-- une validation stricte des noms, de la contiguïté, de la parité PostgreSQL/Oracle et du manifeste Oracle ;
-- une comparaison exhaustive du wheel et du sdist avec les catalogues sources ;
-- une génération reproductible sous `SOURCE_DATE_EPOCH`, atomique et bloquante dans la CI ;
-- des tests de corruption, omission, divergence de hash, rupture d’ordre et nettoyage après échec.
+OpenInfra 0.34.22 automatise le contrat `TST-WEB-049` relatif au dashboard Bootstrap `openinfra-web`. La preuve démarre un backend de contrôle et le serveur Web réel, injecte trois secrets sentinelles uniquement côté serveur, puis télécharge toutes les surfaces accessibles au navigateur.
 
-Aucun fichier SQL, schéma de base de données, contrat API/CLI/RBAC ni élément de la charte graphique approuvée n’a été modifié.
+Le scénario vérifie :
 
-## Qualification fonctionnelle et autonome
+- Bootstrap 5 servi localement depuis `/assets/bootstrap.min.css` ;
+- absence de dépendance CDN dans l'index packagé ;
+- exactement un header principal `role="banner"` ;
+- présence de la sidebar et du dashboard ;
+- présence des neuf domaines canoniques OpenInfra ;
+- absence du bearer backend, du DSN et du mot de passe de base dans l'index, les assets statiques et les endpoints publics `/config.json`, `/status` et `/bootstrap.json` ;
+- exposition limitée aux états de confiance publics `server-side` et `configured` ;
+- absence de mutation fonctionnelle, de migration et de modification du thème approuvé.
 
-La campagne finale exécutée après les modifications est verte :
+## Traçabilité
 
-- fichiers de tests Python : **298/298 PASS** ;
-- tests Python : **1 711/1 711 PASS** ;
-- échecs, erreurs et tests ignorés : **0** ;
-- stratégie : isolation par fichier, 298 fragments Coverage combinés uniquement après réussite ;
-- instructions : **50 621** ;
-- couvertes : **49 625** ;
-- non couvertes : **996** ;
-- couverture exacte : **98,03243713083504 %**, seuil `>= 98 %` franchi ;
-- tests frontend autonomes : **100/100 PASS** ;
-- contrat frontend statique et WCAG 2.2 AA : **PASS** ;
-- OpenAPI principal et CDC : **PASS** ;
-- sécurité interne, documentation GA et compilation Python : **PASS** ;
-- migrations PostgreSQL/Oracle : **60/60**, parité stricte : **PASS** ;
-- quality gate global : **code 0**.
+- test : `tests/integration/test_contract_web_bootstrap_dashboard.py` ;
+- sélecteur : `tests/integration/test_contract_web_bootstrap_dashboard.py::test_tst_web_049_dashboard_is_local_unique_domain_complete_and_secret_free` ;
+- registre : `docs/release/contract-proof-registry-v4.12.csv` ;
+- politique : `docs/release/contract-completeness-promotion-policy.json` ;
+- CI : `.github/workflows/contract-completeness.yml`.
 
-## Intégrité des migrations et du packaging
+## Résultats de qualification
 
-- catalogue PostgreSQL source : **60 fichiers**, `0001` à `0060` ;
-- catalogue Oracle source : **60 fichiers**, `0001` à `0060` ;
-- parité des noms PostgreSQL/Oracle : **PASS** ;
-- manifeste Oracle : **PASS** ;
-- archive autonome : **123 fichiers** — README, manifeste unifié, 120 SQL et manifeste Oracle ;
-- comparaison SHA-256 source/wheel/sdist : **PASS** ;
-- reconstruction du wheel depuis le sdist extrait : **PASS** ;
-- corruption, omission, migration inattendue et divergence de hash : **bloquantes et testées** ;
-- archive de migrations incluse directement dans le bundle : **obligatoire et vérifiée**.
+| Contrôle | Résultat |
+|---|---:|
+| Fichiers de tests Python | 299/299 |
+| Tests Python | 1 712/1 712 |
+| Échecs | 0 |
+| Instructions | 50 621 |
+| Instructions couvertes | 49 625 |
+| Instructions non couvertes | 996 |
+| Couverture exacte | 98,03243713083504 % |
+| Seuil obligatoire | >= 98 % — PASS |
+| Tests frontend autonomes | 100/100 |
+| Migrations PostgreSQL | 60/60 |
+| Migrations Oracle | 60/60 |
+| Catalogue autonome | 123/123 membres |
+| Quality gate global | code 0 |
+| GATE-14 | PASS |
 
-## Gates externes non exécutables dans l’environnement courant
+## Métriques GATE-14
 
-- Ruff, mypy, Bandit, Twine et pip-audit : outils absents ;
-- Vite : dépendance Node non matérialisée dans l’environnement ;
-- npm audit : registre npm indisponible, réponse HTTP 503 ;
-- Docker Engine/Compose : indisponible dans l’environnement de qualification ;
-- qualifications live PostgreSQL, Oracle 19c, fournisseurs DDI, systemd et fédération d’identité : plateformes absentes.
+- 667 tests contractuels ;
+- 32 preuves automatisées ;
+- 587 preuves partielles ;
+- 48 preuves externes ;
+- 45 sélecteurs pytest résolus ;
+- 78 fichiers d'évidence ;
+- zéro preuve manquante ;
+- zéro exigence N1 non classifiée.
 
-## État de promotion
+## Packaging et reproductibilité
 
-L’incrément 0.34.21 et son catalogue de migrations sont **fonctionnellement qualifiés — GO**. La promotion final-candidate et production reste **NO-GO** jusqu’à l’exécution réussie des gates externes d’outillage et d’infrastructure.
+- wheel construit deux fois et identique bit à bit ;
+- sdist construit deux fois et identique bit à bit sous `SOURCE_DATE_EPOCH` ;
+- catalogue migrations construit deux fois et identique bit à bit ;
+- vérification exhaustive du contenu du wheel et du sdist ;
+- parité SHA-256 des 60 migrations PostgreSQL et 60 migrations Oracle avec les sources ;
+- smoke du wheel installé hors de l'arbre source : **PASS** avec le runtime local disponible ;
+- préflight du contexte Docker : **PASS**, 29 ressources requises, zéro absente et zéro non couverte.
+
+## Contrôles complémentaires passés
+
+- compilation Python ;
+- security gate interne ;
+- OpenAPI principal et CDC ;
+- validation CDC 4.12 ;
+- validation roadmap 2.5 ;
+- validation Oracle et parité des catalogues ;
+- contrat frontend statique ;
+- WCAG 2.2 AA statique ;
+- documentation GA ;
+- build depuis le sdist extrait ;
+- vérification de l'archive autonome des migrations.
+
+## Qualifications externes restantes
+
+Les contrôles suivants ne peuvent pas être déclarés exécutés dans l'environnement courant :
+
+- Ruff, mypy, Bandit, Twine et pip-audit, outils non installés ;
+- ESLint/Vite/npm audit, dépendances Node ou registre externe indisponibles ;
+- installation strictement vierge avec résolution en ligne de toutes les dépendances Python ;
+- Docker Compose réel et scans des images ;
+- PostgreSQL live et Oracle 19c Enterprise ;
+- fournisseurs DDI réels ;
+- unités systemd ;
+- fédération SAML, LDAP, OAuth, Auth Proxy et Okta en environnement intégré ;
+- qualification de charge et de reprise sur infrastructure de production représentative.
+
+Aucune promotion production ne doit contourner ces preuves externes.

@@ -5,7 +5,7 @@ backend-path = ["."]
 
 [project]
 name = "openinfra"
-version = "0.34.21"
+version = "0.34.22"
 description = "OpenInfra Python POO RSOT, DCIM and IPAM foundation"
 readme = "README.md"
 requires-python = ">=3.11"

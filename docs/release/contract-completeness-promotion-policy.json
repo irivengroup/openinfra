@@ -1,12 +1,12 @@
 {
   "expected_metrics": {
-    "automated_proofs": 31,
+    "automated_proofs": 32,
     "contractual_tests": 667,
-    "evidence_files": 77,
+    "evidence_files": 78,
     "external_proofs": 48,
     "missing_proofs": 0,
-    "partial_proofs": 588,
-    "pytest_selectors": 44,
+    "partial_proofs": 587,
+    "pytest_selectors": 45,
     "unclassified_n1_requirements": 0
   },
   "gate_id": "GATE-14",

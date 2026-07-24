@@ -193,7 +193,7 @@ Le snapshot doit être un fichier normal, non symbolique, avec signature HMAC va
 ## Installation et unités systemd
 
 ```bash
-sudo /opt/openinfra/venv/bin/python -m pip install '/opt/openinfra/openinfra-0.34.21-py3-none-any.whl[postgresql,advanced-identity]'
+sudo /opt/openinfra/venv/bin/python -m pip install '/opt/openinfra/openinfra-0.34.22-py3-none-any.whl[postgresql,advanced-identity]'
 # Oracle : remplacer postgresql par oracle.
 sudo install -o root -g root -m 0644 installers/systemd/openinfra-runtime-secrets.service /etc/systemd/system/
 sudo install -o root -g root -m 0644 installers/systemd/openinfra-migrate.service /etc/systemd/system/
@@ -239,7 +239,7 @@ La promotion REL-12 exige cinq preuves JSON produites sur le même commit, pour 
 Préparer un identifiant de candidat, le SHA-1 Git complet et un identifiant stable de l'environnement :
 
 ```bash
-export GATE11_CANDIDATE_ID="openinfra-0.34.21-rc1"
+export GATE11_CANDIDATE_ID="openinfra-0.34.22-rc1"
 export GATE11_SOURCE_COMMIT="$(git rev-parse HEAD)"
 export GATE11_ENVIRONMENT_ID="oracle19c-idp-prodlike-01"
 umask 077

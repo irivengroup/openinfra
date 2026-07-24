@@ -54,6 +54,7 @@ def test_gate14_workflow_is_fail_closed_and_complete() -> None:
         "tests/integration/test_contract_functional_distributed_discovery.py",
         "tests/integration/test_contract_functional_time_travel.py",
         "tests/integration/test_contract_functional_rag_assistant.py",
+        "tests/integration/test_contract_web_bootstrap_dashboard.py",
         "web/tests/bulk-import.test.mjs",
         "web/tests/distributed-discovery.test.mjs",
         "web/tests/time-travel.test.mjs",
@@ -65,11 +66,11 @@ def test_gate14_workflow_is_fail_closed_and_complete() -> None:
 
 
 def test_release_contract_versions_are_consistent() -> None:
-    assert (ROOT / "VERSION").read_text(encoding="utf-8").strip() == "0.34.21"
+    assert (ROOT / "VERSION").read_text(encoding="utf-8").strip() == "0.34.22"
     assert (CDC / "VERSION").read_text(encoding="utf-8").strip() == "4.12.0"
     assert (ROADMAP / "VERSION").read_text(encoding="utf-8").strip() == "2.5.0"
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    assert 'version = "0.34.21"' in pyproject
+    assert 'version = "0.34.22"' in pyproject
     assert "openinfra-gate14" in pyproject
     assert "precision = 8" in pyproject
     assert '"docs/runbooks/ASYNC_BULK_IMPORTS.md" = ' in pyproject
@@ -91,10 +92,10 @@ def test_release_contract_versions_are_consistent() -> None:
         "APPLICATION_CHANGE_IMPACT.md",
         "RSOT_TIME_TRAVEL.md",
         "GOVERNED_RAG_ASSISTANT.md",
-        "automated_proofs != 31",
-        "partial_proofs != 588",
-        "pytest_selectors != 44",
-        "evidence_files != 77",
+        "automated_proofs != 32",
+        "partial_proofs != 587",
+        "pytest_selectors != 45",
+        "evidence_files != 78",
     ):
         assert token in installed_smoke
 
@@ -169,9 +170,9 @@ def test_registry_has_exact_policy_metrics() -> None:
         selectors.update(item for item in row["pytest_selectors"].split(";") if item)
         evidence.update(item for item in row["evidence_files"].split(";") if item)
     assert len(rows) == 667
-    assert levels == {"partial": 588, "external": 48, "automated": 31}
-    assert len(selectors) == 44
-    assert len(evidence) == 77
+    assert levels == {"partial": 587, "external": 48, "automated": 32}
+    assert len(selectors) == 45
+    assert len(evidence) == 78
 
 
 def test_active_gate14_documents_publish_current_registry_metrics() -> None:

@@ -1,6 +1,6 @@
 {
-  "candidate_id": "openinfra-0.34.21-qualification-candidate",
-  "certification_date": "2026-07-23",
+  "candidate_id": "openinfra-0.34.22-qualification-candidate",
+  "certification_date": "2026-07-24",
   "contracts": {
     "cdc": "4.12.0",
     "cdc_alignments": 140,
@@ -19,22 +19,22 @@
     "traceability_rows": 861
   },
   "coverage": {
-    "coverage_data_files": 298,
+    "coverage_data_files": 1,
     "covered": 49625,
     "missing": 996,
     "percent": 98.03243713083504,
     "rounding_regression": "97.99 percent is rejected",
     "statements": 50621,
     "status": "passed",
-    "strategy": "298 isolated pytest file runs; only successful fragments combined; exact integer-ratio gate",
+    "strategy": "single complete pytest campaign; exact integer-ratio gate",
     "threshold": 98.0,
-    "workers": 4
+    "workers": 1
   },
   "database": {
     "first_migration": "0001_initial_schema.sql",
     "last_migration": "0060_ipam_ddi_execution_journal.sql",
     "migration_archive_members": 123,
-    "migration_catalog_archive": "openinfra-0.34.21-migrations.zip",
+    "migration_catalog_archive": "openinfra-0.34.22-migrations.zip",
     "migration_catalog_hash_parity": "source-wheel-sdist-passed",
     "oracle_migrations": 60,
     "oracle_parity": "passed",
@@ -52,13 +52,13 @@
     "production_promotion": "no-go"
   },
   "executable_traceability": {
-    "automated": 31,
+    "automated": 32,
     "external": 48,
     "missing": 0,
     "n1_missing": 0,
-    "partial": 588,
-    "partial_external_evidence_files": 77,
-    "pytest_selectors_resolved": 44,
+    "partial": 587,
+    "partial_external_evidence_files": 78,
+    "pytest_selectors_resolved": 45,
     "registry_entries": 667
   },
   "finalization_fixes": {
@@ -73,7 +73,7 @@
     "docker_build_context_uncovered_assets": 0,
     "dockerfile_available_during_preflight": "passed-and-removed-after-install",
     "governed_rag_runbook_in_wheel": "required-and-tested",
-    "installed_wheel_gate14_metrics": "31/588/44/77 required",
+    "installed_wheel_gate14_metrics": "32/587/45/78 required",
     "json_backend_reopen_seed_free": "passed",
     "license_directory_exact_mode": "passed",
     "migration_archive_members": 123,
@@ -89,7 +89,8 @@
     "rsot_quality_runbook_in_wheel": "required-and-tested",
     "rsot_time_travel_runbook_in_wheel": "required-and-tested",
     "sdist_source_date_epoch_normalization": "required-and-tested",
-    "setgid_inheritance_regression": "passed"
+    "setgid_inheritance_regression": "passed",
+    "tst_web_049": "bootstrap-local-single-header-sidebar-nine-domains-secret-free"
   },
   "frontend": {
     "eslint_jsx": "blocked-node-registry-http-503",
@@ -109,6 +110,7 @@
     "TST-FUNC-0005": "automated-passed",
     "TST-FUNC-0009": "automated-passed",
     "TST-FUNC-0010": "automated-passed",
+    "TST-WEB-049": "automated-passed",
     "async_bulk_csv_max_bytes": 536870912,
     "async_bulk_idempotency": "passed",
     "async_bulk_non_blocking_health": "passed",
@@ -139,20 +141,24 @@
     "time_travel_api_cli_portal_parity": "passed",
     "time_travel_bounded_completeness": "passed",
     "time_travel_historical_relations": "passed",
-    "time_travel_provenance": "passed"
+    "time_travel_provenance": "passed",
+    "web_bootstrap_local": "passed",
+    "web_domain_count": 9,
+    "web_primary_header_count": 1,
+    "web_runtime_secret_exposure": "none"
   },
   "packaging": {
     "artifact_content": "passed-exhaustive-migration-parity",
     "docker_context_validation": "passed-29-required-assets",
     "final_reproducible_source": "verified-by-deterministic-checkpoint-build",
     "hash_manifest": "external qualification bundle SHA256SUMS",
-    "installed_wheel_smoke": "passed-content-with-local-runtime-outside-source-tree",
+    "installed_wheel_smoke": "passed-with-local-runtime-outside-source-tree",
     "migration_catalog": "passed-60-postgresql-60-oracle-123-members",
     "migration_catalog_direct_bundle_exposure": "required",
     "migration_catalog_reproducibility": "required-and-tested",
     "sdist_build": "passed-reproducible-bit-for-bit-with-source-date-epoch-normalization",
     "sdist_rebuild_smoke": "passed-from-extracted-sdist",
-    "strict_wheel_smoke": "blocked-defusedxml-unresolvable",
+    "strict_wheel_smoke": "blocked-online-dependency-resolution-unavailable",
     "twine_check": "blocked-tool-unavailable",
     "wheel_build": "passed-reproducible-bit-for-bit"
   },
@@ -189,7 +195,13 @@
     "service_cli_http_portal_parity": "passed"
   },
   "schema_version": 1,
-  "test_files": 298,
-  "tests": 1711,
-  "version": "0.34.21"
+  "test_files": 299,
+  "tests": {
+    "frontend_tests_failed": 0,
+    "frontend_tests_passed": 100,
+    "python_tests_failed": 0,
+    "python_tests_passed": 1712,
+    "test_files": 299
+  },
+  "version": "0.34.22"
 }

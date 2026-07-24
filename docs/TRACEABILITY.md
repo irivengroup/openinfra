@@ -1,5 +1,15 @@
 # Traçabilité OpenInfra
 
+## v0.34.22 — Dashboard Bootstrap et confidentialité runtime
+
+| Exigence | Preuve | Résultat |
+|---|---|---|
+| Bootstrap doit être servi localement | `TST-WEB-049` télécharge `/assets/bootstrap.min.css` depuis `openinfra-web` et refuse les CDN | PASS |
+| Le portail doit conserver un header principal unique et une sidebar dashboard | inspection de l’asset runtime réellement servi | PASS |
+| Les domaines OpenInfra doivent être complets | neuf domaines canoniques vérifiés dans le manifeste packagé | PASS |
+| Aucun secret runtime ne doit atteindre le navigateur | bearer, DSN et mot de passe sentinelles absents de l’index, des assets, de `/config.json`, `/status` et `/bootstrap.json` | PASS |
+| Promotion | 667 tests contractuels : 32 automatisés, 587 partiels, 48 externes | 45 sélecteurs pytest, 78 fichiers d’évidence, zéro manque |
+
 ## v0.34.21 — Intégrité et exposition du catalogue de migrations
 
 | Exigence | Implémentation | Vérification |

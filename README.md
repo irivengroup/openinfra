@@ -1,6 +1,14 @@
-# OpenInfra v0.34.21
+# OpenInfra v0.34.22
 
-OpenInfra 0.34.21 rend le catalogue de migrations intégral, autonome et vérifiable dans chaque livraison. Les 60 migrations PostgreSQL et les 60 migrations Oracle restent inchangées, mais elles sont désormais exposées directement dans une archive dédiée, contrôlées par empreinte SHA-256 et comparées exhaustivement au wheel et au sdist.
+OpenInfra 0.34.22 automatise le contrat `TST-WEB-049` du portail Bootstrap. La preuve démarre réellement `openinfra-web`, sert les assets navigateur, contrôle le header principal unique, la sidebar dashboard, les neuf domaines OpenInfra et l’absence de toute valeur secrète runtime dans les surfaces publiques.
+
+## Dashboard Bootstrap et confidentialité runtime — v0.34.22
+
+- Bootstrap 5 est servi localement depuis `/assets/bootstrap.min.css`, sans CDN ;
+- un seul header principal `role="banner"` est rendu par le portail runtime ;
+- la sidebar dashboard et les neuf domaines canoniques sont vérifiés ;
+- les endpoints `/config.json`, `/status` et `/bootstrap.json` exposent uniquement des états de confiance, jamais les tokens, DSN ou mots de passe ;
+- le test contractuel est bloquant dans GATE-14 et dans GitHub Actions.
 
 ## Catalogue de migrations exhaustif — v0.34.21
 
@@ -43,7 +51,7 @@ Voir `docs/runbooks/RSOT_QUALITY_NON_AUTHORITATIVE_SOURCE.md`.
 - couverture exacte : **49 396/50 392**, soit **98,023495792983 %** ;
 - **100/100** tests frontend autonomes ;
 - **60/60** migrations PostgreSQL/Oracle ;
-- GATE-14 : **31 automatisées, 588 partielles, 48 externes, 44 sélecteurs et 77 fichiers d’évidence** ;
+- GATE-14 : **32 automatisées, 587 partielles, 48 externes, 45 sélecteurs et 78 fichiers d’évidence** ;
 - wheel et sdist reproductibles bit à bit ; vérification stricte du contenu et smoke installé local : **PASS** ;
 - promotion final-candidate maintenue en **NO-GO** jusqu’à la fermeture des gates d’outillage, de registres et d’infrastructure externes.
 
@@ -202,9 +210,9 @@ Voir `docs/runbooks/DCIM_PLACEMENT_RECOMMENDATIONS.md`.
 
 - CDC 4.12.0 : 861 exigences, 667 tests, 861 lignes de traçabilité et 529 entités ;
 - roadmap 2.5.0 : P25, REL-15, EPIC-2501 à EPIC-2504 et GATE-14 ;
-- registre exhaustif de 667 preuves : 31 automatisées, 588 partielles et 48 externes ;
-- 44 sélecteurs pytest réels, validés par analyse AST, rattachés aux preuves automatisées ;
-- 77 fichiers d’évidence distincts, aucun test sans preuve et aucune exigence N1 non classifiée ;
+- registre exhaustif de 667 preuves : 32 automatisées, 587 partielles et 48 externes ;
+- 45 sélecteurs pytest réels, validés par analyse AST, rattachés aux preuves automatisées ;
+- 78 fichiers d’évidence distincts, aucun test sans preuve et aucune exigence N1 non classifiée ;
 - scanner d’hygiène contextuel : les règles de détection sont exclues par chemin exact, tandis que les sources produit restent contrôlées ;
 - packaging du registre, de la politique, du runbook et du validateur dans le wheel et le sdist ;
 - workflow GitHub Actions complet : formatage, lint, typage, tests, couverture, sécurité, frontend, build, vérification et smoke isolé.

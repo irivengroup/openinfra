@@ -2,14 +2,14 @@
 
 ## Objet
 
-GATE-14 qualifie la complétude contractuelle d’OpenInfra 0.34.21. Il ne transforme pas une preuve documentaire ou une qualification à exécuter sur infrastructure réelle en validation fonctionnelle complète.
+GATE-14 qualifie la complétude contractuelle d’OpenInfra 0.34.22. Il ne transforme pas une preuve documentaire ou une qualification à exécuter sur infrastructure réelle en validation fonctionnelle complète.
 
 ## Commande
 
 ```bash
 openinfra-gate14 \
   --project-root . \
-  --candidate-id openinfra-0.34.21-candidate \
+  --candidate-id openinfra-0.34.22-candidate \
   --source-commit "$(git rev-parse HEAD)" \
   --output artifacts/gate14-report.json \
   --enforce

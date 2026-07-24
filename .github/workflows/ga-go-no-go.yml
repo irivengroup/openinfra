@@ -53,7 +53,7 @@ jobs:
           python -m pip install -e .
 
       - name: Download signed GA evidence bundle
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           name: ${{ inputs.evidence_artifact_name }}
           path: artifacts/ga/evidence

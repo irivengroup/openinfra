@@ -1,73 +1,60 @@
-# OpenInfra 0.34.20 — rapport de validation
+# OpenInfra 0.34.21 — rapport de validation
 
 ## Incrément
 
-OpenInfra 0.34.20 corrige le code retour `2` du préflight exécuté pendant le build Docker.
-Le validateur devait analyser `Dockerfile`, mais la version 0.34.19 ne copiait pas ce fichier dans
-le stage `/app` avant de lancer `scripts/validate_docker_build_context.py`. Le contrôle passait donc
-depuis l’arbre hôte puis échouait à l’intérieur de l’image avec `OpenInfra Dockerfile is missing`.
+OpenInfra 0.34.21 corrige l’incomplétude observable du catalogue de migrations dans les livrables. Jusqu’à 0.34.20, les migrations étaient principalement accessibles à l’intérieur de la source, du wheel ou du sdist et le vérificateur d’artefacts ne contrôlait qu’un sous-ensemble de fichiers nommés en dur. Le bundle ne permettait donc pas d’auditer directement et exhaustivement les deux catalogues.
 
 Le correctif comprend :
 
-- `COPY Dockerfile ./Dockerfile` avant l’exécution du préflight ;
-- conservation du contrôle strict des 29 ressources `force-include` ;
-- suppression du Dockerfile et du validateur après installation afin de ne pas les conserver inutilement dans l’image runtime ;
-- test d’intégration reproduisant le système de fichiers exact du stage `/app` et exécutant réellement le validateur depuis celui-ci ;
-- assertions statiques empêchant la suppression future de la copie ou du nettoyage ;
-- documentation, version, tests et CI synchronisés.
+- une archive autonome `openinfra-0.34.21-migrations.zip` exposée directement sous `artifacts/migrations` ;
+- **60 migrations PostgreSQL** et **60 migrations Oracle**, plus le manifeste Oracle ;
+- un manifeste unifié avec la version, les bornes `0001`/`0060` et le SHA-256 de chaque migration des deux moteurs ;
+- une validation stricte des noms, de la contiguïté, de la parité PostgreSQL/Oracle et du manifeste Oracle ;
+- une comparaison exhaustive du wheel et du sdist avec les catalogues sources ;
+- une génération reproductible sous `SOURCE_DATE_EPOCH`, atomique et bloquante dans la CI ;
+- des tests de corruption, omission, divergence de hash, rupture d’ordre et nettoyage après échec.
 
-Aucune migration, aucune rupture API/CLI/RBAC, aucune suppression fonctionnelle et aucune modification de la charte graphique approuvée n’ont été introduites.
+Aucun fichier SQL, schéma de base de données, contrat API/CLI/RBAC ni élément de la charte graphique approuvée n’a été modifié.
 
 ## Qualification fonctionnelle et autonome
 
-La campagne finale exécutée après toutes les modifications est entièrement verte :
+La campagne finale exécutée après les modifications est verte :
 
-- fichiers de tests Python : **296/296 PASS** ;
-- tests Python : **1 693/1 693 PASS** ;
-- échecs, erreurs, timeouts et tests ignorés : **0** ;
-- stratégie : campagne pytest complète unique, puis validation du ratio entier exact produit par Coverage ;
-- instructions : **50 392** ;
-- couvertes : **49 396** ;
+- fichiers de tests Python : **298/298 PASS** ;
+- tests Python : **1 711/1 711 PASS** ;
+- échecs, erreurs et tests ignorés : **0** ;
+- stratégie : isolation par fichier, 298 fragments Coverage combinés uniquement après réussite ;
+- instructions : **50 621** ;
+- couvertes : **49 625** ;
 - non couvertes : **996** ;
-- couverture exacte : **98,023495792983 %**, seuil `>= 98 %` franchi ;
+- couverture exacte : **98,03243713083504 %**, seuil `>= 98 %` franchi ;
 - tests frontend autonomes : **100/100 PASS** ;
-- catalogue frontend runtime : **300 opérations uniques** ;
-- migrations PostgreSQL/Oracle : **60/60** ;
-- compilation Python, sécurité interne, contrats frontend, WCAG 2.2 AA, OpenAPI principal et CDC, documentation GA, CDC 4.12, roadmap 2.5 et GATE-14 : **PASS** ;
+- contrat frontend statique et WCAG 2.2 AA : **PASS** ;
+- OpenAPI principal et CDC : **PASS** ;
+- sécurité interne, documentation GA et compilation Python : **PASS** ;
+- migrations PostgreSQL/Oracle : **60/60**, parité stricte : **PASS** ;
 - quality gate global : **code 0**.
 
-## Régression Docker et packaging
+## Intégrité des migrations et du packaging
 
-- préflight exécuté depuis le stage `/app` matérialisé : **PASS** ;
-- `Dockerfile` disponible pendant le contrôle puis retiré de l’image runtime : **PASS** ;
-- ressources `force-include` requises : **29** ;
-- ressources absentes : **0** ;
-- ressources non couvertes par le Dockerfile : **0** ;
-- construction du wheel depuis l’arbre source : **PASS** ;
-- construction du wheel depuis le sdist extrait : **PASS** ;
-- présence de `docs/runbooks/RSOT_QUALITY_NON_AUTHORITATIVE_SOURCE.md` dans le sdist et le wheel : **PASS** ;
-- absence de staging partiel lorsqu’une source est manquante : **PASS** ;
-- nettoyage du staging après build réussi : **PASS**.
-
-## Traçabilité GATE-14
-
-- entrées contractuelles : **667** ;
-- preuves automatisées : **31** ;
-- preuves partielles : **588** ;
-- qualifications externes : **48** ;
-- sélecteurs pytest résolus : **44** ;
-- fichiers d’évidence : **77** ;
-- preuves manquantes et exigences N1 non classées : **0**.
+- catalogue PostgreSQL source : **60 fichiers**, `0001` à `0060` ;
+- catalogue Oracle source : **60 fichiers**, `0001` à `0060` ;
+- parité des noms PostgreSQL/Oracle : **PASS** ;
+- manifeste Oracle : **PASS** ;
+- archive autonome : **123 fichiers** — README, manifeste unifié, 120 SQL et manifeste Oracle ;
+- comparaison SHA-256 source/wheel/sdist : **PASS** ;
+- reconstruction du wheel depuis le sdist extrait : **PASS** ;
+- corruption, omission, migration inattendue et divergence de hash : **bloquantes et testées** ;
+- archive de migrations incluse directement dans le bundle : **obligatoire et vérifiée**.
 
 ## Gates externes non exécutables dans l’environnement courant
 
 - Ruff, mypy, Bandit, Twine et pip-audit : outils absents ;
-- ESLint JSX, Vite et npm audit : arbre de dépendances Node complet non matérialisé ;
-- Docker Engine/Compose : indisponible dans l’environnement de qualification, donc le build d’image réel reste à confirmer sur la plateforme cible ;
+- Vite : dépendance Node non matérialisée dans l’environnement ;
+- npm audit : registre npm indisponible, réponse HTTP 503 ;
+- Docker Engine/Compose : indisponible dans l’environnement de qualification ;
 - qualifications live PostgreSQL, Oracle 19c, fournisseurs DDI, systemd et fédération d’identité : plateformes absentes.
-
-Le smoke de packaging reproduisant précisément l’étape fautive du Dockerfile (`pip wheel` depuis le contexte source puis depuis le sdist extrait) est vert.
 
 ## État de promotion
 
-L’incrément 0.34.20 est **fonctionnellement qualifié**. La promotion final-candidate et production reste **NO-GO** tant que les gates externes d’outillage et d’infrastructure ne sont pas exécutés avec succès dans un environnement approprié.
+L’incrément 0.34.21 et son catalogue de migrations sont **fonctionnellement qualifiés — GO**. La promotion final-candidate et production reste **NO-GO** jusqu’à l’exécution réussie des gates externes d’outillage et d’infrastructure.

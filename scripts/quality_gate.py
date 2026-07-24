@@ -244,7 +244,9 @@ class ReleasePackagingGuard:
     def assert_release_packaging_controls_are_present(self) -> None:
         required_files = (
             "src/openinfra/quality/release_packaging.py",
+            "src/openinfra/quality/migration_packaging.py",
             "scripts/release_packaging_audit.py",
+            "scripts/build_migration_catalog.py",
             "scripts/isolated_wheel_smoke.py",
             ".github/workflows/release-packaging.yml",
             "docs/architecture/release-packaging-certification.md",
@@ -270,6 +272,9 @@ class ReleasePackagingGuard:
             "actions/upload-artifact@v6",
             "OPENINFRA_RELEASE_SIGNING_PRIVATE_KEY_B64",
             "release_packaging_audit.py",
+            "build_migration_catalog.py",
+            "openinfra-${version}-migrations.zip",
+            "snapshot.count == 60",
             "--signing-key-from-env",
             "--enforce",
             "sha256sum --check",
@@ -303,6 +308,8 @@ class ReleasePackagingGuard:
             "InstallerPackagingValidator",
             "IsolatedWheelSmokeValidator",
             "ReleaseChecksumManifest",
+            "MigrationCatalogArchiveBuilder",
+            '"migration-catalog-archive"',
         ):
             if fragment not in source:
                 raise QualityGateError(

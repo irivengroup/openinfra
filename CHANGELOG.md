@@ -1,5 +1,15 @@
 # Changelog OpenInfra
 
+## 0.34.21 — Catalogue de migrations exhaustif dans les livrables
+
+- ajout d’une archive autonome `openinfra-0.34.21-migrations.zip` directement exposée dans le bundle de qualification et les artefacts de release ;
+- embarquement exhaustif de **60 migrations PostgreSQL** et **60 migrations Oracle**, plus le manifeste Oracle ;
+- validation stricte des versions contiguës `0001` à `0060`, de la parité des noms et des SHA-256 de chaque fichier ;
+- vérification exhaustive du wheel et du sdist contre les catalogues sources, en remplacement du contrôle partiel par fichiers nommés en dur ;
+- manifeste de release enrichi avec les deux catalogues, leurs compteurs, leurs bornes et leurs empreintes ;
+- génération reproductible du catalogue sous `SOURCE_DATE_EPOCH`, contrôle CI bloquant et tests de corruption, omission, divergence et ordre ;
+- aucune migration ajoutée ou modifiée, aucune rupture API/CLI/RBAC et aucune modification du thème approuvé.
+
 ## 0.34.20 — Préflight Docker exécutable dans le stage runtime
 
 - correction du code retour 2 du préflight Docker : le `Dockerfile` analysé est désormais copié dans `/app` avant l’exécution du validateur ;

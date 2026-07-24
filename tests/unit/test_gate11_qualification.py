@@ -30,7 +30,7 @@ from openinfra.quality.advanced_identity_oracle_promotion import (
     Gate11TeamSyncQualification,
 )
 
-CANDIDATE = "openinfra-0.34.20-rc1"
+CANDIDATE = "openinfra-0.34.21-rc1"
 COMMIT = "a" * 40
 ENVIRONMENT = "qualification-lab-01"
 

@@ -1,4 +1,4 @@
-# Consultation historique RSOT « time travel » — OpenInfra 0.34.20
+# Consultation historique RSOT « time travel » — OpenInfra 0.34.21
 
 Ce runbook couvre `TST-FUNC-0009`. Il restitue l’état cohérent d’un objet RSOT à une date ISO-8601, avec la version résolue, la provenance du snapshot et les relations valides à cet instant.
 

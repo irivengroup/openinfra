@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import re
 import sys
 import tarfile
 import zipfile
@@ -8,6 +10,101 @@ from pathlib import Path
 
 class ArtifactVerificationError(Exception):
     """Raised when a packaged artifact does not contain required files."""
+
+
+class MigrationArtifactParityVerifier:
+    MIGRATION_NAME = re.compile(r"[0-9]{4}_[a-z0-9][a-z0-9_]*\.sql")
+
+    def __init__(self, project_root: Path | None = None) -> None:
+        self._project_root = (project_root or Path.cwd()).resolve()
+        self._expected = {
+            database: self._source_payloads(database)
+            for database in ("postgresql", "oracle")
+        }
+
+    def verify_wheel(self, archive: zipfile.ZipFile, artifact: Path) -> None:
+        names = set(archive.namelist())
+        for database, expected in self._expected.items():
+            prefix = f"openinfra/migrations/{database}/"
+            observed = {
+                name.removeprefix(prefix): name
+                for name in names
+                if name.startswith(prefix) and not name.endswith("/")
+            }
+            self._verify_members(archive, artifact, database, expected, observed)
+
+    def verify_sdist(self, archive: tarfile.TarFile, artifact: Path) -> None:
+        names = {member.name for member in archive.getmembers() if member.isfile()}
+        for database, expected in self._expected.items():
+            for relative_root in (
+                f"installers/migrations/{database}/",
+                f"src/openinfra/migrations/{database}/",
+            ):
+                observed: dict[str, str] = {}
+                for name in names:
+                    marker = f"/{relative_root}"
+                    if marker in name:
+                        observed[name.split(marker, 1)[1]] = name
+                self._verify_members(archive, artifact, database, expected, observed)
+
+    def _source_payloads(self, database: str) -> dict[str, bytes]:
+        root = self._project_root / "installers/migrations" / database
+        if not root.is_dir():
+            raise ArtifactVerificationError(
+                f"source migration catalogue is missing: {root}"
+            )
+        payloads = {path.name: path.read_bytes() for path in sorted(root.glob("*.sql"))}
+        if database == "oracle":
+            manifest = root / "manifest.json"
+            if not manifest.is_file():
+                raise ArtifactVerificationError(
+                    f"source Oracle migration manifest is missing: {manifest}"
+                )
+            payloads[manifest.name] = manifest.read_bytes()
+        invalid = [
+            name
+            for name in payloads
+            if name != "manifest.json" and self.MIGRATION_NAME.fullmatch(name) is None
+        ]
+        if invalid or not payloads:
+            raise ArtifactVerificationError(
+                f"source {database} migration catalogue is invalid: {invalid}"
+            )
+        return payloads
+
+    @classmethod
+    def _verify_members(
+        cls,
+        archive: zipfile.ZipFile | tarfile.TarFile,
+        artifact: Path,
+        database: str,
+        expected: dict[str, bytes],
+        observed: dict[str, str],
+    ) -> None:
+        expected_names = set(expected)
+        observed_names = set(observed)
+        if observed_names != expected_names:
+            missing = sorted(expected_names - observed_names)
+            unexpected = sorted(observed_names - expected_names)
+            raise ArtifactVerificationError(
+                f"{artifact.name} has an incomplete {database} migration catalogue: "
+                f"missing={missing}, unexpected={unexpected}"
+            )
+        for filename, source_payload in expected.items():
+            member_name = observed[filename]
+            if isinstance(archive, zipfile.ZipFile):
+                payload = archive.read(member_name)
+            else:
+                extracted = archive.extractfile(member_name)
+                if extracted is None:
+                    raise ArtifactVerificationError(
+                        f"{artifact.name} migration member cannot be read: {member_name}"
+                    )
+                payload = extracted.read()
+            if hashlib.sha256(payload).digest() != hashlib.sha256(source_payload).digest():
+                raise ArtifactVerificationError(
+                    f"{artifact.name} migration checksum mismatch: {member_name}"
+                )
 
 
 class WheelVerifier:
@@ -31,6 +128,7 @@ class WheelVerifier:
         "openinfra/quality/continuity_certification.py",
         "openinfra/quality/release_security.py",
         "openinfra/quality/release_packaging.py",
+        "openinfra/quality/migration_packaging.py",
         "openinfra/quality/ga_go_no_go.py",
         "openinfra/docs/release/ga-go-no-go-policy.json",
         "openinfra/docs/release/ga-trust-policy.schema.json",
@@ -157,7 +255,8 @@ class WheelVerifier:
             raise ArtifactVerificationError(f"artifact does not exist: {path}")
         with zipfile.ZipFile(path) as archive:
             names = set(archive.namelist())
-        self._assert_required_files(path, names)
+            self._assert_required_files(path, names)
+            MigrationArtifactParityVerifier().verify_wheel(archive, path)
 
     def _assert_required_files(self, path: Path, names: set[str]) -> None:
         missing = [
@@ -174,7 +273,10 @@ class WheelVerifier:
 class SourceDistributionVerifier:
     REQUIRED_SUFFIXES = (
         "openinfra_build_backend.py",
+        "src/openinfra/quality/migration_packaging.py",
+        "scripts/build_migration_catalog.py",
         "tests/unit/test_openinfra_build_backend.py",
+        "tests/unit/test_migration_packaging.py",
         "src/openinfra/interfaces/openapi_taxonomy.py",
         "docs/api/openapi.yaml",
         "docs/operations/api-documentation-organization.md",
@@ -393,6 +495,7 @@ class SourceDistributionVerifier:
             raise ArtifactVerificationError(f"artifact does not exist: {path}")
         with tarfile.open(path) as archive:
             names = set(archive.getnames())
+            MigrationArtifactParityVerifier().verify_sdist(archive, path)
         missing = [
             suffix
             for suffix in self.REQUIRED_SUFFIXES

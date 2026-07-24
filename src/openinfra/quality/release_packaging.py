@@ -21,6 +21,11 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 
 from openinfra import __version__
+from openinfra.quality.migration_packaging import (
+    MigrationCatalogArchiveBuilder,
+    MigrationCatalogSnapshot,
+    MigrationPackagingError,
+)
 
 
 class ReleasePackagingError(Exception):
@@ -644,6 +649,7 @@ class ReleaseManifestBuilder:
         installer_evidence: dict[str, object],
         signing_material: ReleaseSigningMaterial,
         project_root: Path,
+        migration_catalog: MigrationCatalogSnapshot | None = None,
     ) -> dict[str, object]:
         migration_names = self._migration_names(project_root)
         rollback_items = installer_evidence.get("rollbacks", [])
@@ -674,6 +680,9 @@ class ReleaseManifestBuilder:
                 "database_restore_required_if_schema_rollback_is_needed": True,
             },
             "migrations": migration_names,
+            "migration_catalog": (
+                migration_catalog.as_dict() if migration_catalog is not None else None
+            ),
         }
 
     @classmethod
@@ -686,6 +695,7 @@ class ReleasePackagingAuditService:
     _REQUIRED_CONTROLS: Final[tuple[str, ...]] = (
         "reproducible-distributions",
         "artifact-content",
+        "migration-catalog-archive",
         "isolated-wheel-smoke",
         "installer-dry-run-and-rollback",
         "release-sbom",
@@ -699,11 +709,13 @@ class ReleasePackagingAuditService:
         content_validator: ReleaseArtifactContentValidator | None = None,
         installer_validator: InstallerPackagingValidator | None = None,
         smoke_validator: IsolatedWheelSmokeValidator | None = None,
+        migration_builder: MigrationCatalogArchiveBuilder | None = None,
     ) -> None:
         self._builder = builder or ReproducibleDistributionBuilder()
         self._content_validator = content_validator or ReleaseArtifactContentValidator()
         self._installer_validator = installer_validator or InstallerPackagingValidator()
         self._smoke_validator = smoke_validator or IsolatedWheelSmokeValidator()
+        self._migration_builder = migration_builder or MigrationCatalogArchiveBuilder()
 
     def run(
         self,
@@ -746,6 +758,32 @@ class ReleasePackagingAuditService:
                     started,
                     "wheel and source distribution contain all required runtime and release assets",
                     {"artifacts": [item.name for item in artifacts]},
+                )
+            )
+
+            started = time.perf_counter()
+            try:
+                migration_archive, migration_catalog = self._migration_builder.build(
+                    project_root, output_dir, source_date_epoch
+                )
+            except MigrationPackagingError as exc:
+                raise ReleasePackagingError(str(exc)) from exc
+            migration_record = ReleaseArtifactRecord.from_path(
+                migration_archive, "migration-catalog"
+            )
+            artifacts.append(migration_record)
+            controls.append(
+                self._passed(
+                    "migration-catalog-archive",
+                    started,
+                    "complete PostgreSQL and Oracle migration catalogues are exposed as a standalone archive",
+                    {
+                        "artifact": migration_record.as_dict(),
+                        "count_per_database": migration_catalog.count,
+                        "first_version": migration_catalog.first_version,
+                        "last_version": migration_catalog.last_version,
+                        "parity": True,
+                    },
                 )
             )
 
@@ -801,6 +839,7 @@ class ReleasePackagingAuditService:
                 installer_evidence,
                 signing_material,
                 project_root,
+                migration_catalog,
             )
             manifest_path = output_dir / f"openinfra-{version}-release-manifest.json"
             ReleaseFileWriter.write_json_atomic(manifest_path, manifest_payload)

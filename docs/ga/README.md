@@ -1,6 +1,6 @@
 # Documentation GA OpenInfra
 
-Version cible : `0.34.20`
+Version cible : `0.34.21`
 Périmètre : `P18 / EPIC-1804`
 
 Cette documentation constitue le point d’entrée opérationnel de la version GA candidate. Elle complète le CDC et la roadmap sans les remplacer. Les contrats d’API font foi dans `docs/api/openapi.yaml` et les règles d’installation natives dans `installers/`.

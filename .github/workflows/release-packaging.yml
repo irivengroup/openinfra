@@ -39,12 +39,24 @@ jobs:
         shell: bash
         run: echo "value=$(git log -1 --pretty=%ct)" >> "$GITHUB_OUTPUT"
 
-      - name: Validate deterministic build backend
+      - name: Validate deterministic build backend and migration catalogue
         run: |
-          ruff format --check openinfra_build_backend.py tests/unit/test_openinfra_build_backend.py
-          ruff check openinfra_build_backend.py tests/unit/test_openinfra_build_backend.py
-          mypy openinfra_build_backend.py
-          python -m pytest -q --no-cov tests/unit/test_openinfra_build_backend.py
+          ruff format --check \
+            openinfra_build_backend.py \
+            src/openinfra/quality/migration_packaging.py \
+            scripts/build_migration_catalog.py \
+            tests/unit/test_openinfra_build_backend.py \
+            tests/unit/test_migration_packaging.py
+          ruff check \
+            openinfra_build_backend.py \
+            src/openinfra/quality/migration_packaging.py \
+            scripts/build_migration_catalog.py \
+            tests/unit/test_openinfra_build_backend.py \
+            tests/unit/test_migration_packaging.py
+          mypy openinfra_build_backend.py src/openinfra/quality/migration_packaging.py
+          python -m pytest -q --no-cov \
+            tests/unit/test_openinfra_build_backend.py \
+            tests/unit/test_migration_packaging.py
 
       - name: Run blocking packaging certification
         env:
@@ -56,6 +68,38 @@ jobs:
             --source-date-epoch "${{ steps.epoch.outputs.value }}" \
             --signing-key-from-env \
             --enforce
+
+      - name: Verify complete standalone migration catalogue
+        shell: bash
+        run: |
+          version="$(cat VERSION)"
+          python scripts/build_migration_catalog.py \
+            --project-root . \
+            --output-dir artifacts/migration-rebuild \
+            --source-date-epoch "${{ steps.epoch.outputs.value }}" \
+            --json
+          cmp \
+            "artifacts/release-packaging/openinfra-${version}-migrations.zip" \
+            "artifacts/migration-rebuild/openinfra-${version}-migrations.zip"
+          python - <<'PYTHON'
+          from pathlib import Path
+          from openinfra.quality.migration_packaging import (
+              MigrationCatalog,
+              MigrationCatalogArchiveVerifier,
+          )
+
+          epoch = int("${{ steps.epoch.outputs.value }}")
+          version = Path("VERSION").read_text(encoding="utf-8").strip()
+          snapshot = MigrationCatalog().load(Path.cwd(), epoch)
+          assert snapshot.count == 60
+          assert snapshot.first_version == "0001"
+          assert snapshot.last_version == "0060"
+          MigrationCatalogArchiveVerifier().verify(
+              Path(f"artifacts/release-packaging/openinfra-{version}-migrations.zip"),
+              snapshot,
+          )
+          PYTHON
+          rm -rf artifacts/migration-rebuild
 
       - name: Verify checksums and detached signature
         shell: bash

@@ -36,6 +36,19 @@ python scripts/release_packaging_audit.py \
 
 Le rapport doit alors contenir `release_packaging_certification=false` et signaler que l'identité de signature est éphémère.
 
+## Construire et vérifier le catalogue autonome des migrations
+
+```bash
+SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-1700000000}"
+python scripts/build_migration_catalog.py \
+  --project-root . \
+  --output-dir artifacts/migrations \
+  --source-date-epoch "$SOURCE_DATE_EPOCH" \
+  --json
+```
+
+L’archive `openinfra-$(cat VERSION)-migrations.zip` doit contenir exactement 60 fichiers SQL PostgreSQL, 60 fichiers SQL Oracle, `oracle/manifest.json`, `MIGRATIONS-MANIFEST.json` et un README. Le manifeste unifié donne le SHA-256 de chaque migration et les bornes `0001` à `0060`.
+
 ## Vérifier les artefacts
 
 ```bash

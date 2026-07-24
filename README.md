@@ -1,19 +1,28 @@
-# OpenInfra v0.34.20
+# OpenInfra v0.34.21
 
-OpenInfra 0.34.20 corrige la matérialisation du contexte de build Docker observée lorsque le runbook `RSOT_QUALITY_NON_AUTHORITATIVE_SOURCE.md` manque dans l’arbre local alors que le backend de packaging l’exige. Le contrôle strict n’est pas contourné : la source qualifiée est complète, le Dockerfile embarque désormais l’ensemble de `docs/`, et un préflight déterministe bloque immédiatement toute source incomplète avant l’installation Python.
+OpenInfra 0.34.21 rend le catalogue de migrations intégral, autonome et vérifiable dans chaque livraison. Les 60 migrations PostgreSQL et les 60 migrations Oracle restent inchangées, mais elles sont désormais exposées directement dans une archive dédiée, contrôlées par empreinte SHA-256 et comparées exhaustivement au wheel et au sdist.
 
-## Correctif du contexte Docker et du packaging — v0.34.20
+## Catalogue de migrations exhaustif — v0.34.21
 
-- copie atomique de l’arborescence documentaire complète par `COPY docs ./docs` ;
-- validation préalable de chaque source `force-include` déclarée dans `pyproject.toml` ;
-- diagnostic explicite des fichiers absents et des sources non couvertes par les instructions `COPY` ;
-- backend de packaging rendu transactionnel : aucune ressource partiellement stagée lorsqu’une source requise manque ;
-- `.dockerignore` versionné et inclus dans le sdist afin de stabiliser le contexte Docker sans exclure les ressources runtime ;
-- tests unitaires et d’intégration couvrant source incomplète, ressource non copiée, staging/cleanup et build de wheel en contexte minimal ;
-- quality gate GitHub Actions dédié avant la construction des distributions ;
-- aucune migration, aucune rupture API/CLI/RBAC et aucune modification de la charte graphique approuvée.
+- archive autonome `openinfra-0.34.21-migrations.zip` placée sous `artifacts/migrations` dans le bundle de qualification ;
+- **60 migrations PostgreSQL** et **60 migrations Oracle**, versions contiguës `0001` à `0060` ;
+- manifeste unifié `MIGRATIONS-MANIFEST.json` contenant les noms, versions et SHA-256 des deux moteurs ;
+- contrôle de parité stricte des noms entre PostgreSQL et Oracle ;
+- validation du manifeste Oracle historique et comparaison octet par octet des catalogues sources, du wheel et du sdist ;
+- génération déterministe sous `SOURCE_DATE_EPOCH`, écriture atomique et contrôle CI bloquant ;
+- aucun fichier SQL ajouté ou modifié, aucune rupture API/CLI/RBAC et aucune modification de la charte graphique approuvée.
 
-Voir `docs/runbooks/RUNTIME_DOCKER.md`.
+Construction et vérification locales :
+
+```bash
+python scripts/build_migration_catalog.py \
+  --project-root . \
+  --output-dir artifacts/migrations \
+  --source-date-epoch 1704067200 \
+  --json
+```
+
+Voir `docs/runbooks/RELEASE_PACKAGING.md` et `docs/architecture/release-packaging-certification.md`.
 
 ## Alerte de source non autoritative RSOT — v0.34.18
 

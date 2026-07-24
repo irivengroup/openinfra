@@ -8,6 +8,13 @@ import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
+from openinfra.quality.migration_packaging import (
+    MigrationCatalogArchiveBuilder,
+    MigrationCatalogSnapshot,
+    MigrationFileRecord,
+    MigrationPackagingError,
+)
+
 from openinfra.quality.release_packaging import (
     InstallerPackagingValidator,
     IsolatedWheelSmokeValidator,
@@ -85,6 +92,36 @@ class FakeSmokeValidator(IsolatedWheelSmokeValidator):
             "smoke": "passed",
             "wheel": wheel_path.name,
         }
+
+
+
+
+class FakeMigrationCatalogBuilder(MigrationCatalogArchiveBuilder):
+    def __init__(self, fail: bool = False) -> None:
+        self.fail = fail
+
+    def build(
+        self, project_root: Path, output_dir: Path, source_date_epoch: int
+    ) -> tuple[Path, MigrationCatalogSnapshot]:
+        del project_root
+        if self.fail:
+            raise MigrationPackagingError("synthetic migration catalogue failure")
+        output_dir.mkdir(parents=True, exist_ok=True)
+        archive = output_dir / "openinfra-test-migrations.zip"
+        archive.write_bytes(b"migrations")
+        postgresql = MigrationFileRecord(
+            "postgresql", "0001", "0001_bootstrap.sql", 1, "0" * 64
+        )
+        oracle = MigrationFileRecord(
+            "oracle", "0001", "0001_bootstrap.sql", 1, "1" * 64
+        )
+        return archive, MigrationCatalogSnapshot(
+            release_version="test",
+            source_date_epoch=source_date_epoch,
+            postgresql=(postgresql,),
+            oracle=(oracle,),
+            oracle_manifest_sha256="2" * 64,
+        )
 
 
 class TestReleaseSigningMaterial:
@@ -237,6 +274,7 @@ class TestReleasePackagingAuditService:
             content_validator=FakeContentValidator(),
             installer_validator=FakeInstallerValidator(),
             smoke_validator=FakeSmokeValidator(),
+            migration_builder=FakeMigrationCatalogBuilder(),
         )
 
     def test_ephemeral_key_produces_complete_but_non_certified_report(self, tmp_path: Path) -> None:
@@ -251,6 +289,9 @@ class TestReleasePackagingAuditService:
         assert report["release_packaging_certification"] is False
         assert report["trusted_signing_key"] is False
         assert "release signing key is ephemeral" in str(report["failures"])
+        controls = {item["identifier"] for item in report["controls"]}
+        assert "migration-catalog-archive" in controls
+        assert (tmp_path / "openinfra-test-migrations.zip").is_file()
         checksum = tmp_path / f"openinfra-{report['release_version']}-SHA256SUMS.txt"
         ReleaseChecksumManifest.verify(checksum, tmp_path)
 
@@ -284,6 +325,23 @@ class TestReleasePackagingAuditService:
             (output / f"openinfra-{version}-release-packaging-report.json").read_text()
         )
         assert stored == report
+
+    def test_rejects_migration_catalog_failure(self, tmp_path: Path) -> None:
+        service = ReleasePackagingAuditService(
+            builder=FakeDistributionBuilder(),
+            content_validator=FakeContentValidator(),
+            installer_validator=FakeInstallerValidator(),
+            smoke_validator=FakeSmokeValidator(),
+            migration_builder=FakeMigrationCatalogBuilder(fail=True),
+        )
+
+        with pytest.raises(ReleasePackagingError, match="synthetic migration catalogue"):
+            service.run(
+                Path.cwd(),
+                tmp_path,
+                1_700_000_000,
+                ReleaseSigningMaterial.generate_ephemeral(),
+            )
 
     def test_rejects_non_positive_source_epoch(self, tmp_path: Path) -> None:
         with pytest.raises(ReleasePackagingError, match="positive Unix timestamp"):

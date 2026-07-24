@@ -7,6 +7,7 @@ OpenInfra 0.32.1 introduit un gate de packaging fermé qui valide une release av
 - `SOURCE_DATE_EPOCH`, `PYTHONHASHSEED=0` et `TZ=UTC` rendent la construction déterministe.
 - Le wheel et le sdist issus des deux builds doivent avoir le même nom et le même SHA-256.
 - Le manifeste de release référence chaque artefact par taille et SHA-256.
+- Une archive autonome de migrations expose directement les catalogues PostgreSQL et Oracle complets, avec versions contiguës, parité et SHA-256 par fichier.
 - Le SBOM SPDX est déterministe et recense les dépendances de production Python et frontend.
 - La signature est Ed25519, détachée et vérifiée avant certification.
 - Une clé éphémère permet les tests locaux mais interdit la certification.
@@ -17,7 +18,7 @@ OpenInfra 0.32.1 introduit un gate de packaging fermé qui valide une release av
 
 La clé privée n'est jamais stockée dans le dépôt ni dans les artefacts. La CI reçoit un PEM Ed25519 encodé en base64 via le secret GitHub `OPENINFRA_RELEASE_SIGNING_PRIVATE_KEY_B64`. Seule la clé publique est publiée avec la signature.
 
-La signature atteste le manifeste. Le manifeste atteste le wheel, le sdist et le SBOM. `SHA256SUMS` permet un contrôle indépendant avec les outils système.
+La signature atteste le manifeste. Le manifeste atteste le wheel, le sdist, le catalogue autonome de migrations et le SBOM. `SHA256SUMS` permet un contrôle indépendant avec les outils système.
 
 ## Rollback
 

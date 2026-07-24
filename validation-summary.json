@@ -1,5 +1,5 @@
 {
-  "candidate_id": "openinfra-0.34.20-qualification-candidate",
+  "candidate_id": "openinfra-0.34.21-qualification-candidate",
   "certification_date": "2026-07-23",
   "contracts": {
     "cdc": "4.12.0",
@@ -19,19 +19,23 @@
     "traceability_rows": 861
   },
   "coverage": {
-    "coverage_data_files": 1,
-    "covered": 49396,
+    "coverage_data_files": 298,
+    "covered": 49625,
     "missing": 996,
-    "percent": 98.02349579298301,
+    "percent": 98.03243713083504,
     "rounding_regression": "97.99 percent is rejected",
-    "statements": 50392,
+    "statements": 50621,
     "status": "passed",
-    "strategy": "single complete pytest campaign with one exact coverage data file and integer-ratio gate",
+    "strategy": "298 isolated pytest file runs; only successful fragments combined; exact integer-ratio gate",
     "threshold": 98.0,
-    "workers": 1
+    "workers": 4
   },
   "database": {
+    "first_migration": "0001_initial_schema.sql",
     "last_migration": "0060_ipam_ddi_execution_journal.sql",
+    "migration_archive_members": 123,
+    "migration_catalog_archive": "openinfra-0.34.21-migrations.zip",
+    "migration_catalog_hash_parity": "source-wheel-sdist-passed",
     "oracle_migrations": 60,
     "oracle_parity": "passed",
     "postgresql_migrations": 60
@@ -39,9 +43,8 @@
   "decision": {
     "blockers": [
       "Ruff, mypy, Bandit, Twine and pip-audit are absent from the qualification environment",
-      "npm ci failed because the Node registry returned HTTP 503 and no dependency tree was materialized",
-      "ESLint JSX, Vite and npm audit cannot run without the Node dependency tree",
-      "strict wheel smoke cannot resolve defusedxml>=0.7.1 from the Python registry",
+      "Vite is not materialized in the local Node dependency tree",
+      "npm audit is blocked by an HTTP 503 response from the Node registry",
       "live PostgreSQL, Oracle 19c, DDI providers, Docker Compose, systemd and identity qualification"
     ],
     "functional_increment": "go",
@@ -62,6 +65,7 @@
     "application_change_impact_runbook_in_wheel": "required-and-tested",
     "async_bulk_import_runbook_in_wheel": "passed",
     "auth_policy_side_effect_free": "passed",
+    "complete_migration_catalog": "60-postgresql-60-oracle",
     "distributed_discovery_runbook_in_wheel": "passed",
     "docker_build_context_missing_assets": 0,
     "docker_build_context_preflight": "passed-host-and-materialized-runtime-stage-ci-blocking",
@@ -72,6 +76,10 @@
     "installed_wheel_gate14_metrics": "31/588/44/77 required",
     "json_backend_reopen_seed_free": "passed",
     "license_directory_exact_mode": "passed",
+    "migration_archive_members": 123,
+    "migration_artifact_parity": "source-wheel-sdist-sha256-passed",
+    "migration_catalog_ci_gate": "blocking",
+    "migration_catalog_direct_bundle_artifact": "required",
     "new_docker_packaging_regression_tests": 6,
     "new_sdist_reproducibility_tests": 6,
     "package_asset_staging": "transactional-prevalidated-and-cleaned",
@@ -90,7 +98,7 @@
     "npm_ci": "blocked-registry-http-503",
     "runtime_operations": "300 unique operations passed",
     "static_contract": "passed",
-    "vite_build": "blocked-node-registry-http-503",
+    "vite_build": "blocked-vite-not-materialized",
     "wcag_2_2_aa_static": "passed"
   },
   "functional_contracts": {
@@ -134,11 +142,14 @@
     "time_travel_provenance": "passed"
   },
   "packaging": {
-    "artifact_content": "passed",
+    "artifact_content": "passed-exhaustive-migration-parity",
     "docker_context_validation": "passed-29-required-assets",
     "final_reproducible_source": "verified-by-deterministic-checkpoint-build",
     "hash_manifest": "external qualification bundle SHA256SUMS",
     "installed_wheel_smoke": "passed-content-with-local-runtime-outside-source-tree",
+    "migration_catalog": "passed-60-postgresql-60-oracle-123-members",
+    "migration_catalog_direct_bundle_exposure": "required",
+    "migration_catalog_reproducibility": "required-and-tested",
     "sdist_build": "passed-reproducible-bit-for-bit-with-source-date-epoch-normalization",
     "sdist_rebuild_smoke": "passed-from-extracted-sdist",
     "strict_wheel_smoke": "blocked-defusedxml-unresolvable",
@@ -178,7 +189,7 @@
     "service_cli_http_portal_parity": "passed"
   },
   "schema_version": 1,
-  "test_files": 296,
-  "tests": 1693,
-  "version": "0.34.20"
+  "test_files": 298,
+  "tests": 1711,
+  "version": "0.34.21"
 }

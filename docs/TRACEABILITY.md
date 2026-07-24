@@ -1,5 +1,17 @@
 # Traçabilité OpenInfra
 
+## v0.34.21 — Intégrité et exposition du catalogue de migrations
+
+| Exigence | Implémentation | Vérification |
+|---|---|---|
+| Le bundle doit exposer toutes les migrations sans archive imbriquée obligatoire | artefact autonome `openinfra-0.34.21-migrations.zip` sous `artifacts/migrations` | catalogue de 123 fichiers : README, manifeste unifié, 60 PostgreSQL, 60 Oracle et manifeste Oracle |
+| Les distributions doivent contenir l’intégralité des catalogues | comparaison exacte des membres et SHA-256 du wheel/sdist avec `installers/migrations` | `MigrationArtifactParityVerifier`, `scripts/verify_artifact.py` |
+| PostgreSQL et Oracle doivent rester strictement paritaires | versions contiguës, mêmes noms, contrôle du manifeste Oracle et hashes source/cible | `MigrationCatalog`, `tests/unit/test_migration_packaging.py` |
+| La CI doit bloquer toute omission | reconstruction déterministe et comparaison octet à octet de l’archive de migrations | workflow `release-packaging.yml`, quality gate |
+
+- Aucun fichier SQL n’est ajouté ni modifié par cet incrément.
+- Le manifeste historique `migrations` reste conservé pour compatibilité ; `migration_catalog` ajoute la preuve exhaustive des deux moteurs.
+
 ## v0.34.20 — Intégrité du contexte Docker et du packaging
 
 | Exigence | Implémentation | Vérification |

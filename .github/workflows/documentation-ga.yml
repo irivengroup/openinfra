@@ -40,7 +40,7 @@ jobs:
             --enforce
 
       - name: Upload documentation evidence
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: ga-documentation-report
           path: build/reports/ga-documentation-report.json

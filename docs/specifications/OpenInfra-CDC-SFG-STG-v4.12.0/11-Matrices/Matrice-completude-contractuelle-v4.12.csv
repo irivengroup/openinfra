@@ -2,6 +2,6 @@ control_id,objective,evidence,acceptance
 CDC-TRACEABILITY,Valider les catalogues CDC 4.12,"Exigences.csv;Tests.csv;Traceabilite.csv",861 exigences et 667 tests tracés
 ROADMAP-ALIGNMENT,Valider P25 REL-15 et GATE-14,"roadmap 2.5;alignement CDC",Aucune référence structurelle inconnue
 PROOF-REGISTRY,Classifier chaque test une seule fois,contract-proof-registry-v4.12.csv,Aucune preuve manquante ou inconnue
-PYTEST-AUTOMATION,Résoudre les preuves automatisées,43 sélecteurs pytest,Chaque nœud déclaré existe dans les sources de tests
-EVIDENCE-CLASSIFICATION,Distinguer preuves partielles et externes,74 fichiers de preuve,Aucune preuve partielle ou externe déclarée comme validation complète
+PYTEST-AUTOMATION,Résoudre les preuves automatisées,48 sélecteurs pytest,Chaque nœud déclaré existe dans les sources de tests
+EVIDENCE-CLASSIFICATION,Distinguer preuves partielles et externes,83 fichiers de preuve,Aucune preuve partielle ou externe déclarée comme validation complète
 REPOSITORY-HYGIENE,Refuser dette active secrets et chemins obsolètes,"sources;packaging;workflow",Audit contextuel vert et GATE-14 packagé

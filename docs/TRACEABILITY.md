@@ -1,6 +1,18 @@
 # Traçabilité OpenInfra
 
-## v0.34.22 — Dashboard Bootstrap et confidentialité runtime
+## v0.34.24 — Header réintégré et statistiques composants
+
+| Exigence | Preuve | Résultat |
+|---|---|---|
+| `REQ-00748/TST-WEB-051` — préserver la double barre approuvée | serveur `openinfra-web` réel, assets runtime et sources React | barre principale, recherche/actions, Swagger/ReDoc présents ; Login/Sign-up absents |
+| `REQ-00749/TST-WEB-052` — statistiques par composant | cartes générées pour chaque module métier, métriques et camemberts lecture/mutation | PASS Python et Node |
+| Cohérence avec `REQ-00777/TST-WEB-080` | priorité explicite donnée à la réintégration approuvée | aucune suppression du second bandeau |
+| Promotion | 667 tests : 35 automatisés, 584 partiels, 48 externes | 48 sélecteurs pytest, 83 fichiers d’évidence, zéro manque |
+
+- Aucun changement visuel ni modification du thème.
+- Aucune migration et aucune rupture API/CLI/RBAC.
+
+## v0.34.23 — Dashboard Bootstrap et confidentialité runtime
 
 | Exigence | Preuve | Résultat |
 |---|---|---|

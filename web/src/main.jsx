@@ -885,7 +885,6 @@ function Dashboard() {
       const body = { tenant_id: tenant };
       query.set('tenant_id', tenant);
       let uploadFile = null;
-      let authorizationToken = '';
       for (const field of fields) {
         if (field.type === 'file') {
           const file = form.querySelector(`[name="${field.name}"]`)?.files?.[0];
@@ -900,10 +899,6 @@ function Dashboard() {
         }
         const normalized = normalizeFieldValue(field, formData.get(field.name), { countryCode });
         if (normalized === undefined) continue;
-        if (selected.authField === field.name) {
-          authorizationToken = String(normalized);
-          continue;
-        }
         if (selected.method === 'GET' || selected.binaryUpload) query.append(field.name, typeof normalized === 'string' ? normalized : JSON.stringify(normalized));
         else body[field.name] = normalized;
       }
@@ -919,7 +914,6 @@ function Dashboard() {
               'X-OpenInfra-Filename': encodeURIComponent(uploadFile?.name || 'dataset'),
             }
           : { Accept: 'application/json', 'Content-Type': 'application/json' };
-      if (authorizationToken) headers.Authorization = `Bearer ${authorizationToken}`;
       if (selected.binaryUpload && !uploadFile) throw new Error('Le fichier source est obligatoire.');
       const response = await fetch(requestUrl, {
         method: selected.method,
@@ -1195,7 +1189,7 @@ function OperationSearchResults({ i18n, query, groups, onSelect }) {
   if (groups.length === 0) {
     return <div className="openinfra-global-search-empty">{i18n.t('noGlobalResult', { query: query.trim() })}</div>;
   }
-  return groups.map(({ module, operations, total }) => <section className="openinfra-global-search-group" role="group" aria-label={`${i18n.t('globalSearchResults')} ${module.shortLabel || module.label}`} key={module.id}><div className="openinfra-global-search-group-title"><span>{module.shortLabel || module.label}</span><span>{i18n.count(total, 'result', 'results')}</span></div>{operations.map((operation) => <button type="button" className="openinfra-global-search-item" role="option" aria-selected="false" key={operation.id} onClick={() => onSelect(module, operation)}><span>{operation.label}</span><small>{operation.method} {operation.path}</small></button>)}{total > operations.length && <div className="openinfra-global-search-more">{i18n.t(total - operations.length === 1 ? 'additionalResults' : 'additionalResultsPlural', { count: total - operations.length })}</div>}</section>);
+  return groups.map(({ module, operations, total }) => <section className="openinfra-global-search-group" role="group" aria-label={`${i18n.t('globalSearchResults')} ${module.shortLabel || module.label}`} key={module.id}><div className="openinfra-global-search-group-title"><span>{module.shortLabel || module.label}</span><span>{i18n.count(total, 'result', 'results')}</span></div>{operations.map((operation) => <button type="button" className="openinfra-global-search-item" role="option" aria-selected="false" key={operation.id} onClick={() => onSelect(module, operation)}><span>{operation.label}</span><small>{module.shortLabel || module.label}</small></button>)}{total > operations.length && <div className="openinfra-global-search-more">{i18n.t(total - operations.length === 1 ? 'additionalResults' : 'additionalResultsPlural', { count: total - operations.length })}</div>}</section>);
 }
 
 function OverviewStats({ i18n, modules, fieldsCount }) {

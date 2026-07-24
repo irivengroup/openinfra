@@ -11,7 +11,6 @@ const moduleDefinition = {
       "method": "POST",
       "path": "/v1/imports/async-bulk-datasets",
       "binaryUpload": true,
-      "authField": "admin_token",
       "query": [
         {"name":"actor","label":"Opérateur","required":true,"defaultValue":"web"},
         {"name":"format","label":"Format","type":"select","options":["csv","xlsx"],"defaultValue":"csv","required":true},
@@ -25,7 +24,6 @@ const moduleDefinition = {
         {"name":"resume_job_id","label":"Job à reprendre","placeholder":"optionnel"}
       ],
       "body": [
-        {"name":"admin_token","label":"Jeton administrateur","type":"password","required":true},
         {"name":"source_file","label":"Fichier CSV ou XLSX","type":"file","required":true,"accept":".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","maxSizeBytes":536870912,"help":"CSV — 512 Mio maximum ; XLSX — 50 Mio maximum."}
       ]
     },
@@ -34,13 +32,10 @@ const moduleDefinition = {
       "label": "Suivre un import massif asynchrone",
       "method": "GET",
       "path": "/v1/imports/async-bulk-status",
-      "authField": "admin_token",
       "query": [
         {"name":"job_id","label":"Job asynchrone","required":true}
       ],
-      "body": [
-        {"name":"admin_token","label":"Jeton administrateur","type":"password","required":true}
-      ]
+      "body": []
     },
     {
       "id": "import-bulk-progress",

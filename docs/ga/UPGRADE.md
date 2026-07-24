@@ -1,6 +1,6 @@
 # Mise à niveau
 
-Version cible : `0.34.22`
+Version cible : `0.34.24`
 
 ## Précontrôles
 

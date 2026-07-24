@@ -1,4 +1,4 @@
-import { OpenInfraI18n, localizeOpenInfraCatalog } from "./openinfra-i18n.js?v=0.34.22";
+import { OpenInfraI18n, localizeOpenInfraCatalog } from "./openinfra-i18n.js?v=0.34.24";
 let managementRegistryPromise = null;
 let collapseManagementOperations = (_moduleId, operations, operationIds) => {
   const byId = new Map(operations.map((operation) => [operation.id, operation]));
@@ -25,7 +25,7 @@ let managementResourcesForModule = () => [];
 
 async function ensureManagementRegistryLoaded() {
   if (!managementRegistryPromise) {
-    managementRegistryPromise = import("./management/resources.js?v=0.34.22").then((loaded) => {
+    managementRegistryPromise = import("./management/resources.js?v=0.34.24").then((loaded) => {
       collapseManagementOperations = loaded.collapseManagementOperations;
       flattenManagementCollection = loaded.flattenManagementCollection;
       localizedManagementLabel = loaded.localizedManagementLabel;
@@ -61,11 +61,11 @@ import {
   normalizeFieldValue,
   validateControl,
   validateFileForField
-} from "./openinfra-form-fields.js?v=0.34.22";
-import { OPENINFRA_DOMAIN_LOADERS, OPENINFRA_MODULES, OPENINFRA_SIDEBAR_CONTEXTS } from "./openinfra-domain-manifest.js?v=0.34.22";
-import { OpenInfraQueryCache } from "./openinfra-query-cache.js?v=0.34.22";
-import { OpenInfraVirtualList } from "./openinfra-virtual-list.js?v=0.34.22";
-import { installOpenInfraWebVitals } from "./openinfra-web-vitals.js?v=0.34.22";
+} from "./openinfra-form-fields.js?v=0.34.24";
+import { OPENINFRA_DOMAIN_LOADERS, OPENINFRA_MODULES, OPENINFRA_SIDEBAR_CONTEXTS } from "./openinfra-domain-manifest.js?v=0.34.24";
+import { OpenInfraQueryCache } from "./openinfra-query-cache.js?v=0.34.24";
+import { OpenInfraVirtualList } from "./openinfra-virtual-list.js?v=0.34.24";
+import { installOpenInfraWebVitals } from "./openinfra-web-vitals.js?v=0.34.24";
 
 
 class OpenInfraApiError extends Error {
@@ -92,10 +92,6 @@ class OpenInfraApiClient {
     this.currentOperationId = operation.id || "";
     const query = this.buildQuery(operation.query || [], payload);
     const headers = { Accept: "application/json" };
-    const authorizationToken = operation.authField
-      ? String(payload[operation.authField] || "").trim()
-      : "";
-    if (authorizationToken) headers.Authorization = `Bearer ${authorizationToken}`;
     let body;
     if (operation.binaryUpload) {
       const fileField = (operation.body || []).find((field) => field.type === "file");
@@ -506,7 +502,7 @@ class OpenInfraDashboard {
 
   async loadSearchIndex() {
     if (this.searchIndex) return this.searchIndex;
-    const loaded = await import("./openinfra-search-index.js?v=0.34.22");
+    const loaded = await import("./openinfra-search-index.js?v=0.34.24");
     const syntheticModules = OPENINFRA_MODULES.map((module) => ({
       ...module,
       operations: loaded.default.filter((entry) => entry.moduleId === module.id).map((entry) => ({ ...entry }))
@@ -1249,7 +1245,7 @@ class OpenInfraDashboard {
     return groups.map(({ module, operations, total }) => `<section class="openinfra-global-search-group" role="group" aria-label="${this.escape(this.i18n.t("globalSearchResults"))} ${this.escape(module.shortLabel || module.label)}">
       <div class="openinfra-global-search-group-title"><span>${this.escape(module.shortLabel || module.label)}</span><span>${this.escape(this.i18n.count(total, "result", "results"))}</span></div>
       ${operations.map((operation) => `<button type="button" class="openinfra-global-search-item" role="option" aria-selected="false" data-search-operation-id="${this.escape(operation.id)}">
-        <span>${this.escape(operation.label)}</span><small>${this.escape(operation.method)} ${this.escape(operation.path)}</small>
+        <span>${this.escape(operation.label)}</span><small>${this.escape(module.shortLabel || module.label)}</small>
       </button>`).join("")}
       ${total > operations.length ? `<div class="openinfra-global-search-more">${this.escape(this.i18n.t(total - operations.length === 1 ? "additionalResults" : "additionalResultsPlural", { count: total - operations.length }))}</div>` : ""}
     </section>`).join("");

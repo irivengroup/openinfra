@@ -166,7 +166,7 @@ services:
     - openinfra
   migrate:
     build: *openinfra-runtime-build
-    image: openinfra/runtime:0.34.22
+    image: openinfra/runtime:0.34.24
     pull_policy: build
     container_name: openinfra-migrate
     restart: 'no'
@@ -185,7 +185,7 @@ services:
     - openinfra
   runtime-secrets:
     build: *openinfra-runtime-build
-    image: openinfra/runtime:0.34.22
+    image: openinfra/runtime:0.34.24
     pull_policy: build
     container_name: openinfra-runtime-secrets
     restart: 'no'
@@ -206,7 +206,7 @@ services:
   auth-bootstrap:
     user: '10001:10001'
     build: *openinfra-runtime-build
-    image: openinfra/runtime:0.34.22
+    image: openinfra/runtime:0.34.24
     pull_policy: build
     container_name: openinfra-auth-bootstrap
     restart: 'no'
@@ -237,7 +237,7 @@ services:
     - openinfra
   api:
     build: *openinfra-runtime-build
-    image: openinfra/runtime:0.34.22
+    image: openinfra/runtime:0.34.24
     pull_policy: build
     container_name: openinfra-api
     restart: unless-stopped
@@ -297,7 +297,7 @@ services:
   web:
     user: '10001:10001'
     build: *openinfra-runtime-build
-    image: openinfra/runtime:0.34.22
+    image: openinfra/runtime:0.34.24
     pull_policy: build
     container_name: openinfra-web
     restart: unless-stopped
@@ -462,7 +462,7 @@ services:
   smoke:
     user: '10001:10001'
     build: *openinfra-runtime-build
-    image: openinfra/runtime:0.34.22
+    image: openinfra/runtime:0.34.24
     pull_policy: build
     container_name: openinfra-smoke
     restart: 'no'

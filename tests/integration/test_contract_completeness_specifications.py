@@ -66,11 +66,11 @@ def test_gate14_workflow_is_fail_closed_and_complete() -> None:
 
 
 def test_release_contract_versions_are_consistent() -> None:
-    assert (ROOT / "VERSION").read_text(encoding="utf-8").strip() == "0.34.22"
+    assert (ROOT / "VERSION").read_text(encoding="utf-8").strip() == "0.34.24"
     assert (CDC / "VERSION").read_text(encoding="utf-8").strip() == "4.12.0"
     assert (ROADMAP / "VERSION").read_text(encoding="utf-8").strip() == "2.5.0"
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    assert 'version = "0.34.22"' in pyproject
+    assert 'version = "0.34.24"' in pyproject
     assert "openinfra-gate14" in pyproject
     assert "precision = 8" in pyproject
     assert '"docs/runbooks/ASYNC_BULK_IMPORTS.md" = ' in pyproject
@@ -92,10 +92,10 @@ def test_release_contract_versions_are_consistent() -> None:
         "APPLICATION_CHANGE_IMPACT.md",
         "RSOT_TIME_TRAVEL.md",
         "GOVERNED_RAG_ASSISTANT.md",
-        "automated_proofs != 32",
-        "partial_proofs != 587",
-        "pytest_selectors != 45",
-        "evidence_files != 78",
+        "automated_proofs != 35",
+        "partial_proofs != 584",
+        "pytest_selectors != 48",
+        "evidence_files != 83",
     ):
         assert token in installed_smoke
 
@@ -170,43 +170,43 @@ def test_registry_has_exact_policy_metrics() -> None:
         selectors.update(item for item in row["pytest_selectors"].split(";") if item)
         evidence.update(item for item in row["evidence_files"].split(";") if item)
     assert len(rows) == 667
-    assert levels == {"partial": 587, "external": 48, "automated": 32}
-    assert len(selectors) == 45
-    assert len(evidence) == 78
+    assert levels == {"partial": 584, "external": 48, "automated": 35}
+    assert len(selectors) == 48
+    assert len(evidence) == 83
 
 
 def test_active_gate14_documents_publish_current_registry_metrics() -> None:
     expected_fragments = {
         ROOT / "docs/runbooks/CONTRACT_COMPLETENESS_PROMOTION.md": (
-            "30 preuves automatisées et 43 sélecteurs pytest résolus",
-            "589 preuves partielles, 48 externes, 74 fichiers distincts",
+            "35 preuves automatisées et 48 sélecteurs pytest résolus",
+            "584 preuves partielles, 48 externes, 83 fichiers distincts",
         ),
         ROOT / "docs/TRACEABILITY.md": (
-            "667 tests : 30 automatisés, 589 partiels, 48 externes",
-            "43 sélecteurs pytest, 74 fichiers d’évidence",
+            "667 tests : 35 automatisés, 584 partiels, 48 externes",
+            "48 sélecteurs pytest, 83 fichiers d’évidence",
         ),
         CDC / "00-Delta-v4.12.md": (
-            "30 preuves automatisées, 589 partielles et 48 externes",
-            "43 sélecteurs pytest réels",
-            "Référencement de 74 fichiers de preuve distincts",
+            "35 preuves automatisées, 584 partielles et 48 externes",
+            "48 sélecteurs pytest réels",
+            "Référencement de 83 fichiers de preuve distincts",
         ),
         CDC / "11-Matrices/Matrice-completude-contractuelle-v4.12.csv": (
-            "43 sélecteurs pytest",
-            "74 fichiers de preuve",
+            "48 sélecteurs pytest",
+            "83 fichiers de preuve",
         ),
         CDC / "11-Matrices/Tests.csv": (
-            "667 tests sont classifiés en 30 automatisés, 589 partiels et 48 externes",
-            "43 sélecteurs sont résolus, 74 fichiers de preuve existent",
+            "667 tests sont classifiés en 35 automatisés, 584 partiels et 48 externes",
+            "48 sélecteurs sont résolus, 83 fichiers de preuve existent",
         ),
         ROADMAP / "09-roadmap-tests-validation.csv": (
-            "Résoudre les 43 sélecteurs pytest",
-            "Valider 589 preuves partielles, 48 externes et 74 fichiers distincts",
+            "Résoudre les 48 sélecteurs pytest",
+            "Valider 584 preuves partielles, 48 externes et 83 fichiers distincts",
         ),
         ROADMAP / "07-roadmap-go-nogo.csv": (
-            "30 preuves automatisées; 589 partielles; 48 externes",
-            "43 sélecteurs résolus; 74 fichiers de preuve",
+            "35 preuves automatisées; 584 partielles; 48 externes",
+            "48 sélecteurs résolus; 83 fichiers de preuve",
         ),
-        ROADMAP / "04-roadmap-epics.csv": ("Résolveur AST; 43 sélecteurs",),
+        ROADMAP / "04-roadmap-epics.csv": ("Résolveur AST; 48 sélecteurs",),
     }
     for path, fragments in expected_fragments.items():
         content = path.read_text(encoding="utf-8")

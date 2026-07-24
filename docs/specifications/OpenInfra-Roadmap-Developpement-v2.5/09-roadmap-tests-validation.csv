@@ -22,7 +22,7 @@ TST-RM-020,P18,GA release gate,Toutes validations bloquantes passantes.,Release
 TST-P09-RSOT-QUALITY,P09,RSOT Quality & Certification,"Service, CLI, API, dashboard et RBAC","Score, statut de certification et alertes de gouvernance validés."
 TST-P08-WEB-BOOTSTRAP,P08,openinfra-web Bootstrap dashboard,"Valider thème Bootstrap 5 Dashboard, header principal unique, assets locaux et parité API-only.",Frontend/Integration
 TST-P08-WEB-FORMS,P08,openinfra-web typed forms,"Valider formulaires métier, accordéons sidebar, version package et trust server-side sans token opérateur.",Frontend/Security
-TST-P08-WEB-SINGLE-HEADER,P08,openinfra-web header principal unique,Valider absence du second bandeau recherche/actions et des boutons Login/Sign-up dans les assets runtime.,Frontend/Regression
+TST-P08-WEB-SINGLE-HEADER,P08,openinfra-web double barre réintégrée,Valider la conservation du bandeau recherche/actions approuvé et l’absence des boutons Login/Sign-up dans les assets runtime.,Frontend/Regression
 TST-P08-WEB-COMPONENT-STATS,P08,openinfra-web dashboard accueil statistiques composants,Valider métriques et camemberts par composant sur l’accueil du dashboard web.,Frontend/Regression
 TST-P08-WEB-RSOT-RENAMING,P08,openinfra-web RSOT rename,"Valider renommage transversal RSOT, routes primaires /api/v1/rsot, commande openinfra rsot, rôles rsot:* et alias compatibles ri/sot.",Frontend/API/CLI/Regression
 TST-P08-WEB-ALERT-SCOPE,P08,openinfra-web dashboard alert scope,Valider absence de l’alerte succès permanente Backend prêt sur l’accueil et conservation des alertes erreur/soumission.,Frontend/Regression
@@ -131,6 +131,6 @@ TST-P24-GATE13,P24,Qualification REL-14,"Valider CDC 4.11, roadmap 2.4, six cont
 TST-P25-CDC-TRACEABILITY,P25,Catalogue CDC,"Valider 861 exigences, 667 tests et 861 traces.",Contract/CI
 TST-P25-ROADMAP-ALIGNMENT,P25,Alignement roadmap,"Valider P25, REL-15, EPIC-2501 à EPIC-2504 et GATE-14.",Contract/Documentation
 TST-P25-PROOF-REGISTRY,P25,Registre de preuves,"Valider unicité, exhaustivité, niveaux et métriques du registre CSV.",Architecture/CI
-TST-P25-PYTEST-AUTOMATION,P25,Preuves automatisées,Résoudre les 43 sélecteurs pytest et refuser tout nœud fictif.,Unit/Regression
-TST-P25-EVIDENCE-CLASSIFICATION,P25,Classification des preuves,"Valider 589 preuves partielles, 48 externes et 74 fichiers distincts sans assimilation à un PASS complet.",QA/Governance
+TST-P25-PYTEST-AUTOMATION,P25,Preuves automatisées,Résoudre les 48 sélecteurs pytest et refuser tout nœud fictif.,Unit/Regression
+TST-P25-EVIDENCE-CLASSIFICATION,P25,Classification des preuves,"Valider 584 preuves partielles, 48 externes et 83 fichiers distincts sans assimilation à un PASS complet.",QA/Governance
 TST-P25-REPOSITORY-HYGIENE,P25,Hygiène et packaging,"Scanner les sources actives et vérifier CLI, workflow, wheel, sdist et smoke GATE-14.",Security/Packaging/CI

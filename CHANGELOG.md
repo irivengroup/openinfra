@@ -1,5 +1,26 @@
 # Changelog OpenInfra
 
+## 0.34.24 — Préservation du header réintégré et statistiques composants
+
+- réalignement de `REQ-00748/TST-WEB-051` sur la décision approuvée de conserver la double barre du header ;
+- preuve bout-en-bout que la barre principale, la recherche globale et les actions Swagger/ReDoc restent présentes sans Login/Sign-up ;
+- automatisation de `TST-WEB-052` pour les cartes de statistiques et camemberts lecture/mutation de chaque composant métier ;
+- test Node dédié aux deux portails et test Python contre les assets réellement servis par `openinfra-web` ;
+- registre GATE-14 : 35 preuves automatisées, 584 partielles, 48 externes, 48 sélecteurs et 83 fichiers d’évidence ;
+- aucune modification du rendu approuvé, aucune migration, aucune rupture API/CLI/RBAC et aucune modification du thème.
+
+## 0.34.23 — Formulaires Web typés et trust serveur exclusif
+
+- automatisation bout-en-bout de `TST-WEB-050` avec démarrage réel de `openinfra-web` et d’un backend de contrôle ;
+- suppression des champs navigateur `admin_token`, `authField`, « Token API » et « Jeton administrateur » dans les deux portails ;
+- suppression de toute synthèse client d’un en-tête `Authorization: Bearer` ;
+- bearer éventuellement présenté par le navigateur ignoré, bearer de service injecté exclusivement par le proxy Web ;
+- méthodes HTTP et routes techniques retirées du rendu des résultats de recherche, sans modifier le routage interne ;
+- formulaires d’import conservés avec des champs métier explicites et version package contrôlée par `/version`, `/config.json` et `/bootstrap.json` ;
+- runbook, tests Node, test d’intégration, GATE-14, CI et smoke du wheel synchronisés ;
+- registre GATE-14 : 33 preuves automatisées, 586 partielles, 48 externes, 46 sélecteurs et 81 fichiers d’évidence ;
+- aucune migration, aucune rupture API/CLI/RBAC et aucune modification du thème approuvé.
+
 ## 0.34.22 — Qualification du dashboard Bootstrap et des secrets runtime
 
 - automatisation bout-en-bout de `TST-WEB-049` avec démarrage réel de `openinfra-web` ;

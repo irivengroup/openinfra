@@ -53,6 +53,8 @@ def test_project_docker_context_contains_every_forced_packaging_asset() -> None:
     assert "docs/runbooks/RSOT_QUALITY_NON_AUTHORITATIVE_SOURCE.md" in payload[
         "required_sources"
     ]
+    assert "docs/runbooks/WEB_TYPED_FORMS_SERVER_TRUST.md" in payload["required_sources"]
+    assert len(payload["required_sources"]) == 30
     assert "docs" in payload["copied_sources"]
 
 

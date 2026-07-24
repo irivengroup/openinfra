@@ -5,7 +5,7 @@ backend-path = ["."]
 
 [project]
 name = "openinfra"
-version = "0.34.22"
+version = "0.34.24"
 description = "OpenInfra Python POO RSOT, DCIM and IPAM foundation"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -80,6 +80,7 @@ packages = ["src/openinfra"]
 "docs/runbooks/RSOT_QUALITY_CERTIFICATION.md" = "openinfra/docs/runbooks/RSOT_QUALITY_CERTIFICATION.md"
 "docs/runbooks/RSOT_QUALITY_RBAC.md" = "openinfra/docs/runbooks/RSOT_QUALITY_RBAC.md"
 "docs/runbooks/RSOT_QUALITY_NON_AUTHORITATIVE_SOURCE.md" = "openinfra/docs/runbooks/RSOT_QUALITY_NON_AUTHORITATIVE_SOURCE.md"
+"docs/runbooks/WEB_TYPED_FORMS_SERVER_TRUST.md" = "openinfra/docs/runbooks/WEB_TYPED_FORMS_SERVER_TRUST.md"
 "docs/runbooks/DCIM_PLACEMENT_RECOMMENDATIONS.md" = "openinfra/docs/runbooks/DCIM_PLACEMENT_RECOMMENDATIONS.md"
 "docs/runbooks/DCIM_LOCATION_IPAM_CONCURRENCY.md" = "openinfra/docs/runbooks/DCIM_LOCATION_IPAM_CONCURRENCY.md"
 "docs/runbooks/IPAM_DDI_SYNCHRONIZATION.md" = "openinfra/docs/runbooks/IPAM_DDI_SYNCHRONIZATION.md"

@@ -173,7 +173,9 @@ def test_tst_func_0003_async_bulk_import_csv_xlsx_is_traceable_restartable_and_n
             assert "import-async-bulk-status" in source
             assert "/v1/imports/async-bulk-datasets" in source
             assert '"binaryUpload": true' in source
-            assert '"authField": "admin_token"' in source
+            assert '"authField"' not in source
+            assert "admin_token" not in source
+            assert "Jeton administrateur" not in source
             assert '"maxSizeBytes":536870912' in source
     finally:
         blocking_parser.release.set()

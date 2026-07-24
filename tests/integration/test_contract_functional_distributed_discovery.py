@@ -416,7 +416,7 @@ def _register_collector(
             "kind": kind,
             "certificate_fingerprint": fingerprint,
             "scopes": ["site/par1"],
-            "version": "0.34.22",
+            "version": "0.34.24",
             "vault_secret_ref": f"vault://openinfra/discovery/{kind}/par1",
         },
         token=token,

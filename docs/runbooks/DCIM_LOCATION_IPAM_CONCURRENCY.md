@@ -1,4 +1,4 @@
-# Localisation DCIM et réservation IP concurrente — OpenInfra 0.34.22
+# Localisation DCIM et réservation IP concurrente — OpenInfra 0.34.24
 
 ## Objectif
 
@@ -144,7 +144,7 @@ PYTHONPATH=src python -m pytest -q --no-cov \
 
 PYTHONPATH=src python -m openinfra.quality.contract_completeness_promotion \
   --project-root . \
-  --candidate-id openinfra-0.34.22-local \
+  --candidate-id openinfra-0.34.24-local \
   --source-commit 0000000000000000000000000000000000000000 \
   --output artifacts/gate14/report.json \
   --enforce

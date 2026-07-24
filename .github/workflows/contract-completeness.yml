@@ -92,6 +92,8 @@ jobs:
             tests/integration/test_contract_functional_time_travel.py \
             tests/integration/test_contract_functional_rag_assistant.py \
             tests/integration/test_contract_web_bootstrap_dashboard.py \
+            tests/integration/test_contract_web_typed_server_trust.py \
+            tests/integration/test_contract_web_header_and_statistics.py \
             tests/integration/test_contract_rsot_quality_certification.py \
             tests/integration/test_contract_rsot_quality_rbac.py \
             tests/integration/test_contract_rsot_quality_non_authoritative.py \
@@ -103,6 +105,7 @@ jobs:
             tests/unit/test_gate12_qualification.py \
             tests/unit/test_gate13_qualification.py
           node --test web/tests/bulk-import.test.mjs
+          node --test web/tests/component-statistics.test.mjs
           node --test web/tests/distributed-discovery.test.mjs
           node --test web/tests/change-impact.test.mjs
           node --test web/tests/time-travel.test.mjs
@@ -132,7 +135,7 @@ jobs:
           mkdir -p artifacts/gate14
           openinfra-gate14 \
             --project-root . \
-            --candidate-id "openinfra-0.34.22-${GITHUB_RUN_ID}" \
+            --candidate-id "openinfra-0.34.24-${GITHUB_RUN_ID}" \
             --source-commit "${GITHUB_SHA}" \
             --output artifacts/gate14/report.json \
             --enforce
@@ -152,7 +155,7 @@ jobs:
           python -m venv /tmp/openinfra-gate14-smoke
           /tmp/openinfra-gate14-smoke/bin/python -m pip install --upgrade pip
           /tmp/openinfra-gate14-smoke/bin/python -m pip install \
-            "dist/openinfra-0.34.22-py3-none-any.whl[postgresql,oracle]"
+            "dist/openinfra-0.34.24-py3-none-any.whl[postgresql,oracle]"
           cd /tmp
           /tmp/openinfra-gate14-smoke/bin/python \
             "$GITHUB_WORKSPACE/scripts/smoke_installed_wheel.py"

@@ -29,7 +29,7 @@ class InstalledWheelSmokeError(RuntimeError):
 
 
 class InstalledWheelSmoke:
-    EXPECTED_VERSION = "0.34.22"
+    EXPECTED_VERSION = "0.34.24"
     EXPECTED_ASYNC_ROUTES = (
         "/api/v1/async/jobs",
         "/api/v1/async/jobs/get",
@@ -474,6 +474,9 @@ class InstalledWheelSmoke:
             / "runbooks"
             / "RSOT_QUALITY_NON_AUTHORITATIVE_SOURCE.md"
         )
+        web_typed_forms_runbook_path = (
+            package_root / "docs" / "runbooks" / "WEB_TYPED_FORMS_SERVER_TRUST.md"
+        )
         if (
             not registry_path.is_file()
             or not runbook_path.is_file()
@@ -487,6 +490,7 @@ class InstalledWheelSmoke:
             or not rsot_quality_runbook_path.is_file()
             or not rsot_quality_rbac_runbook_path.is_file()
             or not rsot_quality_non_authoritative_runbook_path.is_file()
+            or not web_typed_forms_runbook_path.is_file()
         ):
             raise InstalledWheelSmokeError(
                 "installed wheel is missing GATE-14 registry or promotion runbook"
@@ -506,11 +510,11 @@ class InstalledWheelSmoke:
             )
         if (
             policy.expected_metrics.contractual_tests != 667
-            or policy.expected_metrics.automated_proofs != 32
-            or policy.expected_metrics.partial_proofs != 587
+            or policy.expected_metrics.automated_proofs != 35
+            or policy.expected_metrics.partial_proofs != 584
             or policy.expected_metrics.external_proofs != 48
-            or policy.expected_metrics.pytest_selectors != 45
-            or policy.expected_metrics.evidence_files != 78
+            or policy.expected_metrics.pytest_selectors != 48
+            or policy.expected_metrics.evidence_files != 83
         ):
             raise InstalledWheelSmokeError(
                 "installed contractual completeness metrics are inconsistent"
@@ -781,7 +785,7 @@ class InstalledWheelSmoke:
     def _assert_release_security_contract(package_root: Path) -> None:
         controls = ReleaseSecurityControlCatalog.build(
             package_root,
-            image_ref="openinfra/runtime:0.34.22",
+            image_ref="openinfra/runtime:0.34.24",
             api_base_url="http://127.0.0.1:8080",
             web_base_url="http://127.0.0.1:2006",
         )

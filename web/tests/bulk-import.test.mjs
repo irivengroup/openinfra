@@ -6,14 +6,15 @@ import { readReactPortalSource, readRuntimePortalSource } from './helpers/fronte
 const react = await readReactPortalSource();
 const packaged = await readRuntimePortalSource();
 
-test('async bulk CSV/XLSX import is available and protected in both portals', () => {
+test('async bulk CSV/XLSX import exposes explicit business fields without browser credentials', () => {
   for (const source of [react, packaged]) {
     assert.match(source, /import-async-bulk-submit/u);
     assert.match(source, /import-async-bulk-status/u);
     assert.match(source, /\/v1\/imports\/async-bulk-datasets/u);
     assert.match(source, /\/v1\/imports\/async-bulk-status/u);
     assert.match(source, /"binaryUpload": true/u);
-    assert.match(source, /"authField": "admin_token"/u);
+    assert.doesNotMatch(source, /"authField"/u);
+    assert.doesNotMatch(source, /admin_token|Jeton administrateur|Token API/u);
     assert.match(source, /\.csv,\.xlsx/u);
     assert.match(source, /"maxSizeBytes":536870912/u);
     assert.match(source, /CSV — 512 Mio maximum ; XLSX — 50 Mio maximum/u);
@@ -22,11 +23,11 @@ test('async bulk CSV/XLSX import is available and protected in both portals', ()
   }
 });
 
-test('portal clients keep upload bytes raw and move credentials to Authorization', () => {
+test('portal clients keep upload bytes raw and never synthesize browser Authorization', () => {
   assert.match(react, /selected\.binaryUpload/u);
-  assert.match(react, /Authorization.*Bearer/u);
+  assert.doesNotMatch(react, /Authorization.*Bearer/u);
   assert.match(react, /X-OpenInfra-Filename/u);
   assert.match(packaged, /operation\.binaryUpload/u);
-  assert.match(packaged, /Authorization.*Bearer/u);
+  assert.doesNotMatch(packaged, /Authorization.*Bearer/u);
   assert.match(packaged, /X-OpenInfra-Filename/u);
 });

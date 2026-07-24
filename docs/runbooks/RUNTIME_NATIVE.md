@@ -33,7 +33,7 @@ sudo install -d -o root -g openinfra -m 0750 /etc/openinfra/secrets /var/lib/ope
 sudo ln -sfn /opt/openinfra/config /etc/openinfra
 python3.11 -m venv /opt/openinfra/venv
 /opt/openinfra/venv/bin/python -m pip install --upgrade pip
-/opt/openinfra/venv/bin/python -m pip install '/opt/openinfra/openinfra-0.34.22-py3-none-any.whl[postgresql,advanced-identity]'
+/opt/openinfra/venv/bin/python -m pip install '/opt/openinfra/openinfra-0.34.24-py3-none-any.whl[postgresql,advanced-identity]'
 ```
 
 Pour Oracle, utiliser l’extra `oracle` à la place de `postgresql`.

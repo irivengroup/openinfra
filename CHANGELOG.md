@@ -1,5 +1,16 @@
 # Changelog OpenInfra
 
+## 0.34.25 — CI qualité déterministe et preuves GATE-14 résilientes
+
+- correction de l’échec `Format, lint and strict typing` par normalisation des nouveaux tests Python et verrouillage explicite de Ruff `0.15.22` et mypy `2.2.0` ;
+- validation bloquante des versions réellement installées avant tout contrôle de formatage, lint ou typage ;
+- séparation des commandes Ruff format, Ruff lint, mypy strict et compilation afin d’identifier précisément le gate fautif ;
+- journaux qualité persistés sous `artifacts/quality` avec conservation du code retour grâce à `set -o pipefail` ;
+- correction de l’upload GATE-14 : diagnostics tolérants uniquement sur échec, preuves immuables strictes uniquement sur succès ;
+- même stratégie appliquée aux GATE-12 et GATE-13 afin d’éliminer le défaut latent ;
+- scripts standard-library pour le contexte d’évidence CI et la validation du toolchain, avec tests unitaires et contractuels ;
+- aucune migration, aucune modification fonctionnelle, aucune rupture API/CLI/RBAC et aucune modification du thème approuvé.
+
 ## 0.34.24 — Préservation du header réintégré et statistiques composants
 
 - réalignement de `REQ-00748/TST-WEB-051` sur la décision approuvée de conserver la double barre du header ;

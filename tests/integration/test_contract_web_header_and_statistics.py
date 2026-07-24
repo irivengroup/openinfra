@@ -7,7 +7,11 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from openinfra.interfaces.web import OpenInfraWebConfig, OpenInfraWebServer, OpenInfraWebStaticLocator
+from openinfra.interfaces.web import (
+    OpenInfraWebConfig,
+    OpenInfraWebServer,
+    OpenInfraWebStaticLocator,
+)
 
 
 _REACT_MAIN = Path("web/src/main.jsx")
@@ -128,7 +132,10 @@ def test_tst_web_052_dashboard_exposes_component_metrics_and_pie_charts() -> Non
         assert "operations" in source
         assert "fields" in source
 
-    assert '${components.map((module) => this.renderComponentStatsCard(module)).join("")}' in runtime_js
+    assert (
+        '${components.map((module) => this.renderComponentStatsCard(module)).join("")}'
+        in runtime_js
+    )
     assert "modules.map((module) => <ComponentStatsCard" in react_main
     assert 'role="img"' in runtime_js
     assert "distributionChart" in runtime_js

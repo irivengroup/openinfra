@@ -34,6 +34,9 @@ jobs:
           python -m pip install -e '.[postgresql,ldap]'
           python -m pip install --requirement requirements/dev.txt
 
+      - name: Validate deterministic quality toolchain
+        run: python scripts/validate_quality_toolchain.py
+
       - name: Resolve deterministic source epoch
         id: epoch
         shell: bash

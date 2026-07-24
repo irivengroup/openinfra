@@ -1,5 +1,5 @@
 {
-  "candidate_id": "openinfra-0.34.24-qualification-candidate",
+  "candidate_id": "openinfra-0.34.25-qualification-candidate",
   "certification_date": "2026-07-24",
   "contracts": {
     "cdc": "4.12.0",
@@ -19,22 +19,22 @@
     "traceability_rows": 861
   },
   "coverage": {
-    "coverage_data_files": 302,
+    "coverage_data_files": 303,
     "covered": 49625,
     "missing": 996,
     "percent": 98.03243713083504,
     "rounding_regression": "97.99 percent is rejected",
     "statements": 50621,
     "status": "passed",
-    "strategy": "per-file isolated coverage with four workers; 302 fragments combined after 301 successful test files",
+    "strategy": "per-file isolated coverage; 303 canonical fragments combined only after 303 successful JUnit files",
     "threshold": 98.0,
-    "workers": 4
+    "workers": 8
   },
   "database": {
     "first_migration": "0001_initial_schema.sql",
     "last_migration": "0060_ipam_ddi_execution_journal.sql",
     "migration_archive_members": 123,
-    "migration_catalog_archive": "openinfra-0.34.24-migrations.zip",
+    "migration_catalog_archive": "openinfra-0.34.25-migrations.zip",
     "migration_catalog_hash_parity": "source-wheel-sdist-passed",
     "oracle_migrations": 60,
     "oracle_parity": "passed",
@@ -42,9 +42,10 @@
   },
   "decision": {
     "blockers": [
-      "Ruff, mypy, Bandit, Twine and pip-audit are absent from the qualification environment",
+      "GitHub Actions rerun required for pinned Ruff 0.15.22 and mypy 2.2.0 execution",
+      "Bandit, Twine and pip-audit are absent from the qualification environment",
       "Vite is not materialized in the local Node dependency tree",
-      "npm audit is blocked by an HTTP 503 response from the Node registry",
+      "npm audit is blocked by the configured Node registry",
       "live PostgreSQL, Oracle 19c, DDI providers, Docker Compose, systemd and identity qualification"
     ],
     "functional_increment": "go",
@@ -66,6 +67,11 @@
     "application_change_impact_runbook_in_wheel": "required-and-tested",
     "async_bulk_import_runbook_in_wheel": "passed",
     "auth_policy_side_effect_free": "passed",
+    "ci_context_evidence": "atomic-json-prepared-before-dependency-install",
+    "ci_failure_diagnostic_upload": "failure-only-if-no-files-found-warn",
+    "ci_immutable_evidence_upload": "success-only-if-no-files-found-error",
+    "ci_quality_logs": "ruff-format-ruff-lint-mypy-separated-with-pipefail",
+    "ci_quality_toolchain": "ruff-0.15.22-mypy-2.2.0-exact-and-validated",
     "complete_migration_catalog": "60-postgresql-60-oracle",
     "distributed_discovery_runbook_in_wheel": "passed",
     "docker_build_context_missing_assets": 0,
@@ -170,7 +176,7 @@
     "migration_catalog_reproducibility": "required-and-tested",
     "quality_gate": "passed-exit-code-0",
     "sdist_build": "passed-reproducible-bit-for-bit-with-source-date-epoch-normalization",
-    "sdist_rebuild_smoke": "passed-from-extracted-sdist",
+    "sdist_rebuild_smoke": "passed-wheel-identical-to-source-build",
     "strict_wheel_smoke": "blocked-registry-missing-defusedxml-0.7.1",
     "twine_check": "blocked-tool-unavailable",
     "wheel_build": "passed-reproducible-bit-for-bit"
@@ -179,12 +185,14 @@
   "quality": {
     "bandit": "blocked-tool-unavailable",
     "compileall": "passed",
-    "mypy": "blocked-tool-unavailable",
+    "mypy": "pinned-2.2.0-ci-rerun-required-local-mirror-unavailable",
     "pip_audit": "blocked-tool-unavailable",
     "quality_gate_exit_code": 0,
-    "ruff": "blocked-tool-unavailable",
+    "ruff": "pinned-0.15.22-ci-rerun-required-local-mirror-unavailable",
     "security_gate": "passed",
-    "twine": "blocked-tool-unavailable"
+    "twine": "blocked-tool-unavailable",
+    "workflow_contract_tests": "32/32-passed",
+    "workflow_yaml": "16/16-passed"
   },
   "rsot_quality_contracts": {
     "TST-RSOTQUAL-046": "automated-passed",
@@ -208,18 +216,18 @@
     "service_cli_http_portal_parity": "passed"
   },
   "schema_version": 1,
-  "test_files": 300,
+  "test_files": 303,
   "tests": {
     "frontend_failures": 0,
     "frontend_tests": 103,
     "frontend_tests_failed": 0,
     "frontend_tests_passed": 103,
     "python_failures": 0,
-    "python_files": 301,
-    "python_tests": 1715,
+    "python_files": 303,
+    "python_tests": 1723,
     "python_tests_failed": 0,
-    "python_tests_passed": 1715,
-    "test_files": 301
+    "python_tests_passed": 1723,
+    "test_files": 303
   },
-  "version": "0.34.24"
+  "version": "0.34.25"
 }

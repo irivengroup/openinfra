@@ -1,6 +1,29 @@
-# OpenInfra v0.34.24
+# OpenInfra v0.34.25
 
-OpenInfra 0.34.24 préserve la réintégration approuvée de la double barre du header et automatise les contrats `TST-WEB-051` et `TST-WEB-052`. Aucun changement visuel n’est appliqué : l’incrément transforme l’état validé en preuve de non-régression exécutable.
+OpenInfra 0.34.25 durcit la CI qualité et la collecte des preuves GATE-12, GATE-13 et GATE-14. L’incrément ne modifie ni le produit, ni les migrations, ni le thème : il rend les validations reproductibles, diagnostiquables et strictement fail-closed.
+
+## CI qualité déterministe et diagnostics immuables — v0.34.25
+
+- Ruff est figé à `0.15.22` et mypy à `2.2.0` dans les dépendances de développement et les extras du package ;
+- `scripts/validate_quality_toolchain.py` bloque toute dérive ou absence de ces versions ;
+- Ruff format, Ruff lint, mypy strict et `compileall` sont exécutés dans des étapes distinctes ;
+- les sorties sont conservées dans `artifacts/quality` sans masquer le code retour ;
+- `scripts/prepare_ci_evidence.py` matérialise un contexte JSON dès le début du job ;
+- sur échec, un artefact de diagnostic est publié avec `if-no-files-found: warn` ;
+- sur succès seulement, le rapport GATE, les distributions et `web/dist` sont exigés avec `if-no-files-found: error` ;
+- les workflows GATE-12, GATE-13, GATE-14, CI principal, packaging et identité avancée vérifient le même toolchain ;
+- aucune migration, aucune rupture API/CLI/RBAC et aucune modification du thème approuvé.
+
+Validation ciblée locale :
+
+```bash
+PYTHONPATH=src python -m pytest -q --no-cov \
+  tests/unit/test_validate_quality_toolchain.py \
+  tests/integration/test_quality_ci_workflows.py \
+  tests/integration/test_contract_completeness_specifications.py
+```
+
+La validation réelle de Ruff et mypy reste exécutée dans GitHub Actions, avec les versions désormais verrouillées et les journaux téléchargeables en cas d’échec.
 
 ## Header réintégré et statistiques des composants — v0.34.24
 
@@ -13,7 +36,7 @@ OpenInfra 0.34.24 préserve la réintégration approuvée de la double barre du 
 - GATE-14 : **35 automatisées, 584 partielles, 48 externes, 48 sélecteurs et 83 fichiers d’évidence** ;
 - aucune migration, aucune rupture API/CLI/RBAC et aucune modification du thème approuvé.
 
-- qualification complète : **301/301 fichiers**, **1 715/1 715 tests Python**, **103/103 tests frontend**, couverture exacte **98,03243713083504 %**.
+- qualification 0.34.24 : **301/301 fichiers**, **1 715/1 715 tests Python**, **103/103 tests frontend**, couverture exacte **98,03243713083504 %**.
 
 ## Catalogue de migrations exhaustif — v0.34.21
 

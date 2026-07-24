@@ -1,6 +1,6 @@
 # Delta contractuel OpenInfra 4.12.0
 
-## Décision de cohérence Web 0.34.24
+## Décision de cohérence Web 0.34.25
 
 - La suppression historique du second bandeau (`REQ-00748`/`TST-WEB-051`) est annulée.
 - La double barre réintégrée est la référence active, conformément à `REQ-00777`/`TST-WEB-080`.

@@ -1,6 +1,6 @@
 # Installation et démarrage
 
-Version cible : `0.34.24`
+Version cible : `0.34.25`
 
 ## Prérequis
 

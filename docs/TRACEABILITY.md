@@ -1,6 +1,6 @@
 # Traçabilité OpenInfra
 
-## v0.34.24 — Header réintégré et statistiques composants
+## v0.34.25 — Header réintégré et statistiques composants
 
 | Exigence | Preuve | Résultat |
 |---|---|---|

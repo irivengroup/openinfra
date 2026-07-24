@@ -106,7 +106,7 @@ class TestRuntimeOfflineLicensingSpecifications:
             "validate_runtime_licensing.py",
             "OpenInfra-Roadmap-Developpement-v2.5/scripts/validate_roadmap.py",
             "ruff format --check",
-            "mypy src/openinfra",
+            "mypy --show-error-codes --pretty src/openinfra",
             "bandit -q -r src/openinfra",
             "python -m pytest",
             "npm audit --audit-level=high",

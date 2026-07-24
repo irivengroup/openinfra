@@ -1,44 +1,49 @@
-# OpenInfra 0.34.24 — rapport de qualification
+# OpenInfra 0.34.25 — rapport de qualification
 
 ## Décision
 
-- cohérence contractuelle du header réintégré : **GO** ;
-- incrément `TST-WEB-052` : **GO** ;
+- correction de la CI qualité et de l’upload GATE-14 : **GO local** ;
+- régression Python et frontend : **GO** ;
 - checkpoint local reproductible : **GO** ;
-- promotion production : **NO-GO** tant que les qualifications externes restent ouvertes.
+- promotion GitHub/production : **NO-GO** jusqu’à la réexécution réussie des jobs hébergés.
 
 ## Objet de l’incrément
 
-La suppression du second bandeau, encore présente dans `REQ-00748/TST-WEB-051`, contredisait la réintégration explicitement approuvée et l’exigence `REQ-00777/TST-WEB-080`. OpenInfra 0.34.24 réaligne les spécifications actives sans modifier l’interface : la double barre existante devient le comportement protégé.
+OpenInfra 0.34.25 corrige deux défauts de pipeline observés sur le checkpoint 0.34.24 :
 
-Le même incrément automatise `TST-WEB-052` : les deux portails doivent afficher une carte de statistiques par composant métier, avec métriques opérationnelles et camembert lecture/mutation accessible et responsive.
+1. le job `Format, lint and strict typing` pouvait absorber une nouvelle version de Ruff ou mypy sans modification du dépôt et ne conservait pas de diagnostic séparé par outil ;
+2. l’étape `Upload immutable GATE-14 evidence`, exécutée avec `if: always()`, exigeait `report.json`, `dist/*` et `web/dist/**` même lorsque le job avait été interrompu avant leur génération, produisant une seconde erreur sans rapport avec la cause initiale.
 
-## Traçabilité
+Le correctif verrouille le toolchain de qualité, vérifie les versions réellement installées, sépare formatage, lint, typage et compilation, puis distingue les artefacts de diagnostic sur échec des preuves immuables sur succès.
 
-- tests Python : `tests/integration/test_contract_web_header_and_statistics.py` ;
-- test frontend : `web/tests/component-statistics.test.mjs` ;
-- registre : `docs/release/contract-proof-registry-v4.12.csv` ;
-- politique : `docs/release/contract-completeness-promotion-policy.json` ;
-- CI : `.github/workflows/contract-completeness.yml` ;
-- CDC actif : `REQ-00748`, `TST-WEB-051`, `REQ-00749`, `TST-WEB-052` ;
-- référence détaillée de la double barre : `REQ-00777/TST-WEB-080`.
+## Changements structurants
+
+- Ruff `0.15.22` et mypy `2.2.0` figés dans `requirements/dev.txt` et `pyproject.toml` ;
+- `scripts/validate_quality_toolchain.py` bloque toute absence ou dérive de version ;
+- `scripts/prepare_ci_evidence.py` matérialise atomiquement le contexte d’exécution dès le début du job ;
+- sorties Ruff format, Ruff lint et mypy écrites séparément sous `artifacts/quality/` avec `set -o pipefail` ;
+- upload de diagnostic sous `if: failure()` avec `if-no-files-found: warn` ;
+- upload immuable sous `if: success()` avec `if-no-files-found: error` ;
+- stratégie appliquée aux GATE-12, GATE-13 et GATE-14 ;
+- validation du même toolchain ajoutée à la CI principale, au packaging et à l’identité avancée ;
+- tests de contrat mis à jour pour la commande mypy renforcée ;
+- aucune migration, aucune modification fonctionnelle, aucune rupture API/CLI/RBAC et aucune modification du thème approuvé.
 
 ## Résultats ciblés acquis
 
-- 2/2 tests Python contractuels ;
-- 3/3 tests Node du composant statistiques ;
-- double barre, recherche globale, Swagger et ReDoc présents ;
-- Login/Sign-up absents ;
-- cartes, métriques et camemberts présents dans les deux portails ;
-- aucune modification des migrations ni du thème.
-
+- 16/16 workflows GitHub Actions analysables en YAML ;
+- 32/32 tests de workflows et de contrats CI ;
+- 26/26 tests ciblés finaux du toolchain, GATE-12, GATE-13 et GATE-14 ;
+- qualité documentaire, sécurité interne, OpenAPI, CDC 4.12, roadmap 2.5 et préflight Docker : PASS ;
+- frontend autonome : 103/103 ;
+- migrations PostgreSQL et Oracle inchangées : 60/60 pour chaque catalogue.
 
 ## Résultats de qualification complète
 
 | Contrôle | Résultat |
 |---|---:|
-| Fichiers de tests Python | 301/301 |
-| Tests Python | 1 715/1 715 |
+| Fichiers de tests Python | 303/303 |
+| Tests Python | 1 723/1 723 |
 | Échecs | 0 |
 | Instructions | 50 621 |
 | Instructions couvertes | 49 625 |
@@ -49,12 +54,12 @@ Le même incrément automatise `TST-WEB-052` : les deux portails doivent affiche
 | Migrations PostgreSQL | 60/60 |
 | Migrations Oracle | 60/60 |
 | Catalogue autonome des migrations | 123/123 membres |
-| Préflight Docker source et sdist | 30/30 ressources |
+| Préflight Docker | 30/30 ressources |
 | Quality gate global | code 0 |
 | Wheel reproductible | PASS |
 | Sdist reproductible | PASS |
 | Wheel reconstruit depuis le sdist | identique |
-| Smoke du wheel hors source avec runtime local | PASS |
+| Smoke du wheel hors arbre source | PASS |
 
 ## Métriques GATE-14
 
@@ -67,15 +72,10 @@ Le même incrément automatise `TST-WEB-052` : les deux portails doivent affiche
 - zéro preuve manquante ;
 - zéro exigence N1 non classifiée.
 
+## Limites de l’environnement de qualification
 
-Le smoke strict dans un environnement Python vierge est bloqué avant l’exécution d’OpenInfra : le registre configuré ne fournit pas `defusedxml>=0.7.1`. Le même wheel installé hors de l’arbre source avec le runtime local disponible passe intégralement.
+Ruff et mypy n’étaient pas installables depuis le miroir Python disponible dans l’environnement local. Leur exécution réelle reste donc à confirmer par GitHub Actions avec les versions désormais verrouillées. Les tests contractuels vérifient que ces commandes sont bloquantes, séparées et que leurs journaux sont conservés.
 
-## Qualifications externes restantes
-
-- Ruff, mypy, Bandit, Twine et pip-audit selon disponibilité de l’environnement ;
-- build Vite, ESLint JSX et npm audit selon disponibilité du registre Node ;
-- Docker Compose réel et scans d’images ;
-- PostgreSQL live et Oracle 19c Enterprise ;
-- fournisseurs DDI réels, systemd, fédération d’identité, charge et reprise.
+Restent également externes : Bandit, Twine, pip-audit, Vite/ESLint/npm audit selon disponibilité des registres, Docker Compose réel, PostgreSQL live, Oracle 19c Enterprise, fournisseurs DDI, systemd, identité fédérée, charge et reprise.
 
 Aucune promotion production ne doit contourner ces preuves externes.

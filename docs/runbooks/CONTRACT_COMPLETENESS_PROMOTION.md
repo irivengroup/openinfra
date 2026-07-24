@@ -2,14 +2,14 @@
 
 ## Objet
 
-GATE-14 qualifie la complétude contractuelle d’OpenInfra 0.34.24. Il ne transforme pas une preuve documentaire ou une qualification à exécuter sur infrastructure réelle en validation fonctionnelle complète.
+GATE-14 qualifie la complétude contractuelle d’OpenInfra 0.34.25. Il ne transforme pas une preuve documentaire ou une qualification à exécuter sur infrastructure réelle en validation fonctionnelle complète.
 
 ## Commande
 
 ```bash
 openinfra-gate14 \
   --project-root . \
-  --candidate-id openinfra-0.34.24-candidate \
+  --candidate-id openinfra-0.34.25-candidate \
   --source-commit "$(git rev-parse HEAD)" \
   --output artifacts/gate14-report.json \
   --enforce
@@ -31,3 +31,11 @@ openinfra-gate14 \
 - `external` signifie qu’une plateforme réelle, un tiers ou une charge représentative est indispensable.
 
 La promotion production reste NO-GO tant que les preuves externes requises ne sont pas exécutées et associées au véritable commit de publication.
+
+## Résilience du pipeline et artefacts de diagnostic
+
+Le toolchain de qualité est déterministe : Ruff `0.15.22` et mypy `2.2.0` sont installés depuis `requirements/dev.txt`, puis contrôlés par `scripts/validate_quality_toolchain.py` avant toute analyse.
+
+Les étapes `Ruff format check`, `Ruff lint`, `Strict typing` et `Python bytecode compilation` sont séparées. Les trois premières écrivent leurs journaux sous `artifacts/quality/` avec `set -o pipefail`, de sorte que la journalisation ne transforme jamais un échec en succès.
+
+En cas d’échec avant la production du rapport ou des distributions, le workflow publie `openinfra-gate14-diagnostics-<run-id>` avec le contexte CI et les journaux disponibles. L’absence de `dist/` ou de `web/dist/` n’ajoute pas une seconde erreur. L’artefact immuable final reste, lui, strictement limité aux exécutions réussies et conserve `if-no-files-found: error`.

@@ -86,7 +86,7 @@ jobs:
 
       - name: Publish PRA/PCA evidence
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: openinfra-pra-pca-${{ github.run_id }}
           path: build/pra-pca

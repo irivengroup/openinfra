@@ -1,5 +1,5 @@
 {
-  "candidate_id": "openinfra-0.34.25-qualification-candidate",
+  "candidate_id": "openinfra-0.34.26-qualification-candidate",
   "certification_date": "2026-07-24",
   "contracts": {
     "cdc": "4.12.0",
@@ -19,14 +19,14 @@
     "traceability_rows": 861
   },
   "coverage": {
-    "coverage_data_files": 303,
-    "covered": 49625,
+    "coverage_data_files": 304,
+    "covered": 49626,
     "missing": 996,
-    "percent": 98.03243713083504,
+    "percent": 98.0324759985777,
     "rounding_regression": "97.99 percent is rejected",
-    "statements": 50621,
+    "statements": 50622,
     "status": "passed",
-    "strategy": "per-file isolated coverage; 303 canonical fragments combined only after 303 successful JUnit files",
+    "strategy": "per-file isolated coverage; 304 canonical fragments combined only after 304 successful JUnit files",
     "threshold": 98.0,
     "workers": 8
   },
@@ -34,7 +34,7 @@
     "first_migration": "0001_initial_schema.sql",
     "last_migration": "0060_ipam_ddi_execution_journal.sql",
     "migration_archive_members": 123,
-    "migration_catalog_archive": "openinfra-0.34.25-migrations.zip",
+    "migration_catalog_archive": "openinfra-0.34.26-migrations.zip",
     "migration_catalog_hash_parity": "source-wheel-sdist-passed",
     "oracle_migrations": 60,
     "oracle_parity": "passed",
@@ -183,12 +183,12 @@
   },
   "product": "OpenInfra",
   "quality": {
-    "bandit": "blocked-tool-unavailable",
+    "bandit": "pinned-1.9.4-ast-regression-passed-ci-rerun-required-local-mirror-unavailable",
     "compileall": "passed",
     "mypy": "pinned-2.2.0-ci-rerun-required-local-mirror-unavailable",
     "pip_audit": "blocked-tool-unavailable",
     "quality_gate_exit_code": 0,
-    "ruff": "pinned-0.15.22-ci-rerun-required-local-mirror-unavailable",
+    "ruff": "pinned-0.15.22-format-corrections-applied-ci-rerun-required-local-mirror-unavailable",
     "security_gate": "passed",
     "twine": "blocked-tool-unavailable",
     "workflow_contract_tests": "32/32-passed",
@@ -216,18 +216,18 @@
     "service_cli_http_portal_parity": "passed"
   },
   "schema_version": 1,
-  "test_files": 303,
+  "test_files": 304,
   "tests": {
     "frontend_failures": 0,
     "frontend_tests": 103,
     "frontend_tests_failed": 0,
     "frontend_tests_passed": 103,
     "python_failures": 0,
-    "python_files": 303,
-    "python_tests": 1723,
+    "python_files": 304,
+    "python_tests": 1724,
     "python_tests_failed": 0,
-    "python_tests_passed": 1723,
-    "test_files": 303
+    "python_tests_passed": 1724,
+    "test_files": 304
   },
-  "version": "0.34.25"
+  "version": "0.34.26"
 }

@@ -55,6 +55,21 @@ class AnalyzeDependencyImpactCommand:
     as_of: str | datetime | None = None
 
 
+DEFAULT_CHANGE_IMPACT_BUSINESS_SERVICE_KINDS: tuple[str, ...] = (
+    "application",
+    "service",
+    "software-service",
+    "database",
+)
+DEFAULT_CHANGE_IMPACT_BUSINESS_SERVICE_RESOURCE_TYPES: tuple[str, ...] = (
+    "application",
+    "service",
+    "api-service",
+    "web-service",
+    "database-instance",
+)
+
+
 @dataclass(frozen=True, slots=True)
 class AnalyzeChangeImpactCommand:
     tenant_id: str
@@ -65,18 +80,9 @@ class AnalyzeChangeImpactCommand:
     max_nodes: int = 2000
     relation_types: tuple[str, ...] = ()
     as_of: str | datetime | None = None
-    business_service_kinds: tuple[str, ...] = (
-        "application",
-        "service",
-        "software-service",
-        "database",
-    )
+    business_service_kinds: tuple[str, ...] = DEFAULT_CHANGE_IMPACT_BUSINESS_SERVICE_KINDS
     business_service_resource_types: tuple[str, ...] = (
-        "application",
-        "service",
-        "api-service",
-        "web-service",
-        "database-instance",
+        DEFAULT_CHANGE_IMPACT_BUSINESS_SERVICE_RESOURCE_TYPES
     )
     affected_sample_limit: int = 25
 

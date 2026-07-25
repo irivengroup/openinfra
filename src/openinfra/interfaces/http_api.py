@@ -118,6 +118,8 @@ from openinfra.application.dependency_graph_services import (
     AnalyzeChangeImpactCommand,
     AnalyzeDependencyImpactCommand,
     AnalyzeDependencySpofCommand,
+    DEFAULT_CHANGE_IMPACT_BUSINESS_SERVICE_KINDS,
+    DEFAULT_CHANGE_IMPACT_BUSINESS_SERVICE_RESOURCE_TYPES,
     ExportDependencyGraphCommand,
     FindDependencyPathCommand,
     TraverseDependencyGraphCommand,
@@ -3111,11 +3113,6 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
         if route == "/api/v1/graph/change-impact":
             try:
                 query = parse_qs(parsed.query)
-                defaults = AnalyzeChangeImpactCommand(
-                    tenant_id=self._first_query_value(query, "tenant_id"),
-                    admin_token="unused",
-                    root_key=self._first_query_value(query, "root_key"),
-                )
                 result = self.server.application.dependency_graph_service.analyze_change_impact(
                     AnalyzeChangeImpactCommand(
                         tenant_id=self._first_query_value(query, "tenant_id"),
@@ -3128,11 +3125,11 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         as_of=query.get("as_of", [None])[0],
                         business_service_kinds=(
                             tuple(query.get("business_service_kind", []))
-                            or defaults.business_service_kinds
+                            or DEFAULT_CHANGE_IMPACT_BUSINESS_SERVICE_KINDS
                         ),
                         business_service_resource_types=(
                             tuple(query.get("business_service_resource_type", []))
-                            or defaults.business_service_resource_types
+                            or DEFAULT_CHANGE_IMPACT_BUSINESS_SERVICE_RESOURCE_TYPES
                         ),
                         affected_sample_limit=int(
                             self._first_query_value(query, "affected_sample_limit", "25")

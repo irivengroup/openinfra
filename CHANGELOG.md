@@ -1,5 +1,14 @@
 # Changelog OpenInfra
 
+## 0.34.26 — Ruff format et Bandit SAST corrigés sans contournement
+
+- correction du format Ruff et de l’ordre des imports sur les fichiers introduits par 0.34.25 ;
+- suppression de la commande factice contenant `admin_token="unused"`, détectée par Bandit B106 ;
+- centralisation des valeurs métier par défaut dans des constantes immuables ;
+- Bandit figé à `1.9.4` et ajouté au validateur déterministe du toolchain qualité ;
+- ajout d’un contrôle AST bloquant interdisant les littéraux transmis aux arguments sensibles ;
+- aucune exclusion Bandit, aucun `# nosec`, aucune migration, aucune rupture API/CLI/RBAC et aucune modification du thème.
+
 ## 0.34.25 — CI qualité déterministe et preuves GATE-14 résilientes
 
 - correction de l’échec `Format, lint and strict typing` par normalisation des nouveaux tests Python et verrouillage explicite de Ruff `0.15.22` et mypy `2.2.0` ;

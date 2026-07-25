@@ -9,17 +9,16 @@ def test_quality_toolchain_is_pinned_in_all_python_dependency_surfaces() -> None
     requirements = (ROOT / "requirements/dev.txt").read_text(encoding="utf-8")
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
 
-    for requirement in ("ruff==0.15.22", "mypy==2.2.0"):
+    for requirement in ("bandit==1.9.4", "ruff==0.15.22", "mypy==2.2.0"):
         assert requirement in requirements
         assert f'"{requirement}"' in pyproject
+    assert "bandit>=" not in requirements
     assert "ruff>=" not in requirements
     assert "mypy>=" not in requirements
 
 
 def test_gate14_uploads_diagnostics_on_failure_and_strict_evidence_on_success() -> None:
-    workflow = (ROOT / ".github/workflows/contract-completeness.yml").read_text(
-        encoding="utf-8"
-    )
+    workflow = (ROOT / ".github/workflows/contract-completeness.yml").read_text(encoding="utf-8")
 
     for token in (
         "Prepare GATE-14 evidence workspace",

@@ -60,7 +60,7 @@ class TestSecurityGate:
                     "pytest-xdist>=3.6",
                     "ruff>=0.5",
                     "mypy>=1.10",
-                    "bandit>=1.7",
+                    "bandit==1.9.4",
                     "pip-audit>=2.10.1",
                     "build>=1.2",
                 )

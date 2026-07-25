@@ -1,3 +1,17 @@
+# OpenInfra v0.34.26
+
+OpenInfra 0.34.26 corrige les échecs hébergés Ruff format et Bandit SAST observés sur 0.34.25, sans affaiblir les gates. L’incrément supprime une valeur factice ressemblant à un jeton, centralise les valeurs métier par défaut et ajoute une régression AST bloquante. Il ne modifie ni les migrations, ni le thème, ni les contrats API/CLI/RBAC.
+
+## Ruff format et Bandit SAST déterministes — v0.34.26
+
+- normalisation Ruff des nouveaux tests et de l’ordre des imports selon `line-length = 100` ;
+- suppression de la construction factice `admin_token="unused"` dans l’API HTTP ;
+- constantes métier immuables partagées pour les catégories et types de services par défaut ;
+- Bandit figé à `1.9.4` dans le package et les dépendances de développement ;
+- validation du triplet Ruff `0.15.22`, mypy `2.2.0`, Bandit `1.9.4` avant les jobs qualité ;
+- test AST interdisant toute chaîne littérale fournie à un argument sensible dans le code applicatif ;
+- aucune suppression de règle, aucun `# nosec`, aucune migration et aucune modification visuelle.
+
 # OpenInfra v0.34.25
 
 OpenInfra 0.34.25 durcit la CI qualité et la collecte des preuves GATE-12, GATE-13 et GATE-14. L’incrément ne modifie ni le produit, ni les migrations, ni le thème : il rend les validations reproductibles, diagnostiquables et strictement fail-closed.

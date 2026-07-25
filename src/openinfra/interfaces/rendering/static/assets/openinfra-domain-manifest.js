@@ -716,14 +716,14 @@ const OPENINFRA_SIDEBAR_CONTEXTS = {
 };
 
 const OPENINFRA_DOMAIN_LOADERS={
-"rsot":()=>import("./domains/rsot.js?v=0.34.25"),
-"ipam":()=>import("./domains/ipam.js?v=0.34.25"),
-"dcim":()=>import("./domains/dcim.js?v=0.34.25"),
-"itam":()=>import("./domains/itam.js?v=0.34.25"),
-"discovery":()=>import("./domains/discovery.js?v=0.34.25"),
-"data":()=>import("./domains/data.js?v=0.34.25"),
-"integrations":()=>import("./domains/integrations.js?v=0.34.25"),
-"security":()=>import("./domains/security.js?v=0.34.25")
+"rsot":()=>import("./domains/rsot.js?v=0.34.26"),
+"ipam":()=>import("./domains/ipam.js?v=0.34.26"),
+"dcim":()=>import("./domains/dcim.js?v=0.34.26"),
+"itam":()=>import("./domains/itam.js?v=0.34.26"),
+"discovery":()=>import("./domains/discovery.js?v=0.34.26"),
+"data":()=>import("./domains/data.js?v=0.34.26"),
+"integrations":()=>import("./domains/integrations.js?v=0.34.26"),
+"security":()=>import("./domains/security.js?v=0.34.26")
 };
 
 export { OPENINFRA_DOMAIN_LOADERS, OPENINFRA_MODULES, OPENINFRA_SIDEBAR_CONTEXTS };

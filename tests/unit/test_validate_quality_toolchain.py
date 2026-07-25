@@ -26,8 +26,9 @@ def test_quality_toolchain_accepts_exact_versions() -> None:
 
 def test_quality_toolchain_rejects_missing_and_drifted_versions() -> None:
     module = _load_script("validate_quality_toolchain.py")
-    errors = module.validate_versions({"ruff": "0.16.0"}, ("mypy",))
+    errors = module.validate_versions({"ruff": "0.16.0"}, ("bandit", "mypy"))
     assert errors == (
+        "missing quality tool: bandit",
         "missing quality tool: mypy",
         "quality tool version mismatch for ruff: expected 0.15.22, got 0.16.0",
     )
@@ -36,13 +37,15 @@ def test_quality_toolchain_rejects_missing_and_drifted_versions() -> None:
 def test_installed_versions_reports_missing_packages() -> None:
     module = _load_script("validate_quality_toolchain.py")
 
+    versions = {"bandit": "1.9.4", "ruff": "0.15.22"}
+
     def resolver(package: str) -> str:
         if package == "mypy":
             raise PackageNotFoundError(package)
-        return "0.15.22"
+        return versions[package]
 
     actual, missing = module.installed_versions(resolver)
-    assert actual == {"ruff": "0.15.22"}
+    assert actual == {"bandit": "1.9.4", "ruff": "0.15.22"}
     assert missing == ("mypy",)
 
 

@@ -7,6 +7,7 @@ from importlib.metadata import PackageNotFoundError, version
 from typing import Callable, Mapping, Sequence
 
 EXPECTED_VERSIONS: Mapping[str, str] = {
+    "bandit": "1.9.4",
     "mypy": "2.2.0",
     "ruff": "0.15.22",
 }
@@ -45,7 +46,7 @@ def validate_versions(
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Validate the deterministic OpenInfra formatting and typing toolchain."
+        description="Validate the deterministic OpenInfra formatting, typing, and SAST toolchain."
     )
     parser.add_argument("--json", action="store_true", help="Emit a machine-readable report.")
     return parser

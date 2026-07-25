@@ -1,5 +1,22 @@
 # Changelog OpenInfra
 
+## 0.34.27 — stabilisation CI, DAST primaire et recherche globale backend
+
+### Corrigé
+
+- la recherche globale des portails React et runtime respecte désormais la limite backend de 25 résultats au lieu d’émettre une requête invalide à 80 résultats ;
+- la limite de recherche est normalisée défensivement entre 1 et 25 dans les deux clients ;
+- la topologie DAST de certification démarre explicitement PostgreSQL, les secrets runtime, les migrations, PgBouncer primaire, le bootstrap d’identité, l’API et le Web avec le routage lecture désactivé ;
+- l’API n’impose plus la santé de PgBouncer replica lorsque le routage lecture est désactivé, tout en conservant la topologie HA complète pour les démarrages normaux ;
+- les fichiers ciblés par Ruff format dans les jobs Python 3.12/3.13 et packaging reproductible sont normalisés sans réduire la portée des contrôles ;
+- les contrats CI vérifient la topologie DAST primaire, la disponibilité indépendante des services replica et le plafond de recherche backend.
+
+### Validation
+
+- migrations PostgreSQL et Oracle inchangées : 60/60 ;
+- thème et double header approuvés inchangés ;
+- tests Python, frontend, packaging, sécurité et reproductibilité détaillés dans `VALIDATION-REPORT.md`.
+
 ## 0.34.26 — Ruff format et Bandit SAST corrigés sans contournement
 
 - correction du format Ruff et de l’ordre des imports sur les fichiers introduits par 0.34.25 ;

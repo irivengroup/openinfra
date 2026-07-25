@@ -5,10 +5,11 @@ import json
 import os
 import re
 import zipfile
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
-from typing import Final, Iterable
+from typing import Final
 
 
 class MigrationPackagingError(Exception):

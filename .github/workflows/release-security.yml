@@ -15,6 +15,8 @@ jobs:
     name: Release security certification
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    env:
+      OPENINFRA_DB_READ_ROUTING_ENABLED: 'false'
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -47,16 +49,18 @@ jobs:
 
       - name: Start live DAST topology
         run: |
-          docker compose --env-file .env up -d postgres migrate auth-bootstrap api web
-          for attempt in $(seq 1 60); do
+          docker compose --env-file .env up -d \
+            postgres runtime-secrets migrate pgbouncer-primary auth-bootstrap api web
+          for attempt in $(seq 1 90); do
             if curl --fail --silent http://127.0.0.1:8080/ready >/dev/null \
               && curl --fail --silent http://127.0.0.1:2006/health >/dev/null; then
               exit 0
             fi
             sleep 2
           done
-          docker compose --env-file .env ps
-          docker compose --env-file .env logs --tail=200 api web postgres migrate auth-bootstrap
+          docker compose --env-file .env ps --all
+          docker compose --env-file .env logs --no-color --tail=300 \
+            postgres runtime-secrets migrate pgbouncer-primary auth-bootstrap api web
           exit 1
 
       - name: Execute blocking release security audit

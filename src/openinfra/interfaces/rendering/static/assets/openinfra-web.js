@@ -1,4 +1,4 @@
-import { OpenInfraI18n, localizeOpenInfraCatalog } from "./openinfra-i18n.js?v=0.34.26";
+import { OpenInfraI18n, localizeOpenInfraCatalog } from "./openinfra-i18n.js?v=0.34.27";
 let managementRegistryPromise = null;
 let collapseManagementOperations = (_moduleId, operations, operationIds) => {
   const byId = new Map(operations.map((operation) => [operation.id, operation]));
@@ -25,7 +25,7 @@ let managementResourcesForModule = () => [];
 
 async function ensureManagementRegistryLoaded() {
   if (!managementRegistryPromise) {
-    managementRegistryPromise = import("./management/resources.js?v=0.34.26").then((loaded) => {
+    managementRegistryPromise = import("./management/resources.js?v=0.34.27").then((loaded) => {
       collapseManagementOperations = loaded.collapseManagementOperations;
       flattenManagementCollection = loaded.flattenManagementCollection;
       localizedManagementLabel = loaded.localizedManagementLabel;
@@ -61,11 +61,11 @@ import {
   normalizeFieldValue,
   validateControl,
   validateFileForField
-} from "./openinfra-form-fields.js?v=0.34.26";
-import { OPENINFRA_DOMAIN_LOADERS, OPENINFRA_MODULES, OPENINFRA_SIDEBAR_CONTEXTS } from "./openinfra-domain-manifest.js?v=0.34.26";
-import { OpenInfraQueryCache } from "./openinfra-query-cache.js?v=0.34.26";
-import { OpenInfraVirtualList } from "./openinfra-virtual-list.js?v=0.34.26";
-import { installOpenInfraWebVitals } from "./openinfra-web-vitals.js?v=0.34.26";
+} from "./openinfra-form-fields.js?v=0.34.27";
+import { OPENINFRA_DOMAIN_LOADERS, OPENINFRA_MODULES, OPENINFRA_SIDEBAR_CONTEXTS } from "./openinfra-domain-manifest.js?v=0.34.27";
+import { OpenInfraQueryCache } from "./openinfra-query-cache.js?v=0.34.27";
+import { OpenInfraVirtualList } from "./openinfra-virtual-list.js?v=0.34.27";
+import { installOpenInfraWebVitals } from "./openinfra-web-vitals.js?v=0.34.27";
 
 
 class OpenInfraApiError extends Error {
@@ -502,7 +502,7 @@ class OpenInfraDashboard {
 
   async loadSearchIndex() {
     if (this.searchIndex) return this.searchIndex;
-    const loaded = await import("./openinfra-search-index.js?v=0.34.26");
+    const loaded = await import("./openinfra-search-index.js?v=0.34.27");
     const syntheticModules = OPENINFRA_MODULES.map((module) => ({
       ...module,
       operations: loaded.default.filter((entry) => entry.moduleId === module.id).map((entry) => ({ ...entry }))
@@ -844,10 +844,14 @@ class OpenInfraDashboard {
 
   globalSearchUrl(query, limit = 6) {
     const base = String(this.state.config?.apiBaseUrl || "/api").replace(/\/$/, "");
+    const parsedLimit = Number.parseInt(String(limit), 10);
+    const normalizedLimit = Number.isFinite(parsedLimit)
+      ? Math.min(25, Math.max(1, parsedLimit))
+      : 6;
     const params = new URLSearchParams({
       tenant_id: this.state.tenant || "default",
       query,
-      limit: String(limit)
+      limit: String(normalizedLimit)
     });
     return `${base}/v1/search/global?${params.toString()}`;
   }
@@ -2385,7 +2389,7 @@ class OpenInfraDashboard {
     this.state = { ...this.state, globalSearchLoading: true, globalSearchError: null };
     try {
       const payload = await this.queryCache.run(`global-search:${this.state.tenant}:${query}`, async (signal) => {
-        const response = await fetch(this.globalSearchUrl(query, 80), { credentials: "same-origin", headers: { Accept: "application/json" }, signal });
+        const response = await fetch(this.globalSearchUrl(query, 25), { credentials: "same-origin", headers: { Accept: "application/json" }, signal });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         return response.json();
       }, { ttlMs: 15_000, scope: "global-search" });

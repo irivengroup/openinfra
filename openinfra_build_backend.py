@@ -72,7 +72,11 @@ class PackageAssetStager(AbstractContextManager["PackageAssetStager"]):
         exc_value: BaseException | None,
         traceback: TracebackType | None,
     ) -> bool | None:
-        for path in sorted(set(self._created_roots), key=lambda item: len(item.parts), reverse=True):
+        for path in sorted(
+            set(self._created_roots),
+            key=lambda item: len(item.parts),
+            reverse=True,
+        ):
             if path.is_dir():
                 shutil.rmtree(path)
             elif path.exists():

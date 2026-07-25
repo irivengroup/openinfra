@@ -81,9 +81,9 @@ class AnalyzeChangeImpactCommand:
     relation_types: tuple[str, ...] = ()
     as_of: str | datetime | None = None
     business_service_kinds: tuple[str, ...] = DEFAULT_CHANGE_IMPACT_BUSINESS_SERVICE_KINDS
-    business_service_resource_types: tuple[str, ...] = (
-        DEFAULT_CHANGE_IMPACT_BUSINESS_SERVICE_RESOURCE_TYPES
-    )
+    business_service_resource_types: tuple[
+        str, ...
+    ] = DEFAULT_CHANGE_IMPACT_BUSINESS_SERVICE_RESOURCE_TYPES
     affected_sample_limit: int = 25
 
 

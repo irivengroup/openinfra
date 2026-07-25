@@ -1,6 +1,6 @@
 {
-  "candidate_id": "openinfra-0.34.26-qualification-candidate",
-  "certification_date": "2026-07-24",
+  "candidate_id": "openinfra-0.34.27-qualification-candidate",
+  "certification_date": "2026-07-25",
   "contracts": {
     "cdc": "4.12.0",
     "cdc_alignments": 140,
@@ -19,22 +19,22 @@
     "traceability_rows": 861
   },
   "coverage": {
-    "coverage_data_files": 304,
-    "covered": 49626,
+    "coverage_data_files": 305,
+    "covered": 49627,
     "missing": 996,
-    "percent": 98.0324759985777,
+    "percent": 98.032514864785,
     "rounding_regression": "97.99 percent is rejected",
-    "statements": 50622,
+    "statements": 50623,
     "status": "passed",
-    "strategy": "per-file isolated coverage; 304 canonical fragments combined only after 304 successful JUnit files",
+    "strategy": "per-file isolated coverage; 305 canonical fragments combined only after 305 successful JUnit files",
     "threshold": 98.0,
-    "workers": 8
+    "workers": 4
   },
   "database": {
     "first_migration": "0001_initial_schema.sql",
     "last_migration": "0060_ipam_ddi_execution_journal.sql",
     "migration_archive_members": 123,
-    "migration_catalog_archive": "openinfra-0.34.26-migrations.zip",
+    "migration_catalog_archive": "openinfra-0.34.27-migrations.zip",
     "migration_catalog_hash_parity": "source-wheel-sdist-passed",
     "oracle_migrations": 60,
     "oracle_parity": "passed",
@@ -42,11 +42,11 @@
   },
   "decision": {
     "blockers": [
-      "GitHub Actions rerun required for pinned Ruff 0.15.22 and mypy 2.2.0 execution",
-      "Bandit, Twine and pip-audit are absent from the qualification environment",
-      "Vite is not materialized in the local Node dependency tree",
-      "npm audit is blocked by the configured Node registry",
-      "live PostgreSQL, Oracle 19c, DDI providers, Docker Compose, systemd and identity qualification"
+      "GitHub Actions rerun required for Ruff 0.15.22, mypy 2.2.0 and Bandit 1.9.4",
+      "hosted Python 3.12 and Python 3.13 quality matrices must pass",
+      "live Docker DAST topology must pass in GitHub Actions",
+      "Twine and pip-audit are absent from the qualification environment",
+      "live PostgreSQL, Oracle 19c, DDI providers, systemd and identity qualification remain external"
     ],
     "functional_increment": "go",
     "local_checkpoint": "go",
@@ -64,6 +64,7 @@
     "registry_entries": 667
   },
   "finalization_fixes": {
+    "api_replica_dependency_when_read_routing_disabled": "removed",
     "application_change_impact_runbook_in_wheel": "required-and-tested",
     "async_bulk_import_runbook_in_wheel": "passed",
     "auth_policy_side_effect_free": "passed",
@@ -73,12 +74,17 @@
     "ci_quality_logs": "ruff-format-ruff-lint-mypy-separated-with-pipefail",
     "ci_quality_toolchain": "ruff-0.15.22-mypy-2.2.0-exact-and-validated",
     "complete_migration_catalog": "60-postgresql-60-oracle",
+    "dast_services": "postgres-runtime-secrets-migrate-pgbouncer-primary-auth-bootstrap-api-web",
+    "dast_topology": "primary-only-read-routing-disabled",
     "distributed_discovery_runbook_in_wheel": "passed",
     "docker_build_context_missing_assets": 0,
     "docker_build_context_preflight": "passed-host-and-materialized-runtime-stage-ci-blocking",
     "docker_build_context_required_assets": 30,
     "docker_build_context_uncovered_assets": 0,
     "dockerfile_available_during_preflight": "passed-and-removed-after-install",
+    "global_search_backend_limit": 25,
+    "global_search_invalid_limit_80_removed": true,
+    "global_search_limit_normalization": "react-and-runtime-1-to-25",
     "governed_rag_runbook_in_wheel": "required-and-tested",
     "installed_wheel_gate14_metrics": "35/584/48/83 required",
     "json_backend_reopen_seed_free": "passed",
@@ -89,12 +95,14 @@
     "migration_catalog_direct_bundle_artifact": "required",
     "new_docker_packaging_regression_tests": 6,
     "new_sdist_reproducibility_tests": 6,
+    "normal_ha_replica_services": "preserved",
     "package_asset_staging": "transactional-prevalidated-and-cleaned",
     "qualified_source_sdist_context_smoke": "passed",
     "rsot_quality_non_authoritative_runbook_in_wheel": "required-and-tested",
     "rsot_quality_rbac_runbook_in_wheel": "required-and-tested",
     "rsot_quality_runbook_in_wheel": "required-and-tested",
     "rsot_time_travel_runbook_in_wheel": "required-and-tested",
+    "ruff_packaging_target_normalization": "applied-without-scope-reduction",
     "sdist_source_date_epoch_normalization": "required-and-tested",
     "setgid_inheritance_regression": "passed",
     "tst_web_049": "bootstrap-local-single-header-sidebar-nine-domains-secret-free",
@@ -105,7 +113,7 @@
   },
   "frontend": {
     "eslint_jsx": "blocked-node-registry-http-503",
-    "node_tests": "103/103 passed",
+    "node_tests": "104/104 passed",
     "npm_audit": "blocked-registry-http-503",
     "npm_ci": "blocked-registry-http-503",
     "runtime_operations": "300 unique operations passed",
@@ -148,11 +156,14 @@
       "snmp",
       "ssh"
     ],
+    "global_search_backend": "available-contract-limit-25-passed",
+    "global_search_fallback": "reserved-for-real-backend-failure",
     "rag_change_validation_required": true,
     "rag_governance_mode": "read-only",
     "rag_service_cli_http_portal_parity": "passed",
     "rag_source_data_mutation_performed": false,
     "rag_source_object_citations": "passed",
+    "release_security_dast_topology": "primary-only-contract-passed-live-external",
     "time_travel_api_cli_portal_parity": "passed",
     "time_travel_bounded_completeness": "passed",
     "time_travel_historical_relations": "passed",
@@ -173,7 +184,7 @@
     "installed_wheel_smoke": "passed-with-local-runtime-outside-source-tree",
     "migration_catalog": "passed-60-postgresql-60-oracle-123-members",
     "migration_catalog_direct_bundle_exposure": "required",
-    "migration_catalog_reproducibility": "required-and-tested",
+    "migration_catalog_reproducibility": "passed-bit-for-bit",
     "quality_gate": "passed-exit-code-0",
     "sdist_build": "passed-reproducible-bit-for-bit-with-source-date-epoch-normalization",
     "sdist_rebuild_smoke": "passed-wheel-identical-to-source-build",
@@ -183,13 +194,14 @@
   },
   "product": "OpenInfra",
   "quality": {
-    "bandit": "pinned-1.9.4-ast-regression-passed-ci-rerun-required-local-mirror-unavailable",
+    "bandit": "pinned-1.9.4-hosted-rerun-required-tool-unavailable-locally",
     "compileall": "passed",
-    "mypy": "pinned-2.2.0-ci-rerun-required-local-mirror-unavailable",
+    "mypy": "pinned-2.2.0-hosted-rerun-required-tool-unavailable-locally",
     "pip_audit": "blocked-tool-unavailable",
     "quality_gate_exit_code": 0,
-    "ruff": "pinned-0.15.22-format-corrections-applied-ci-rerun-required-local-mirror-unavailable",
+    "ruff": "pinned-0.15.22-format-normalization-applied-hosted-rerun-required-local-mirror-http-503",
     "security_gate": "passed",
+    "targeted_regressions": "28/28-passed",
     "twine": "blocked-tool-unavailable",
     "workflow_contract_tests": "32/32-passed",
     "workflow_yaml": "16/16-passed"
@@ -216,18 +228,18 @@
     "service_cli_http_portal_parity": "passed"
   },
   "schema_version": 1,
-  "test_files": 304,
+  "test_files": 305,
   "tests": {
     "frontend_failures": 0,
-    "frontend_tests": 103,
+    "frontend_tests": 104,
     "frontend_tests_failed": 0,
-    "frontend_tests_passed": 103,
+    "frontend_tests_passed": 104,
     "python_failures": 0,
-    "python_files": 304,
-    "python_tests": 1724,
+    "python_files": 305,
+    "python_tests": 1725,
     "python_tests_failed": 0,
-    "python_tests_passed": 1724,
-    "test_files": 304
+    "python_tests_passed": 1725,
+    "test_files": 305
   },
-  "version": "0.34.26"
+  "version": "0.34.27"
 }

@@ -71,10 +71,21 @@ function normalizeSearchText(value) {
   return String(value || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 }
 
+const GLOBAL_SEARCH_BACKEND_LIMIT = 25;
+
+function normalizeGlobalSearchLimit(limit = 6) {
+  const parsed = Number.parseInt(String(limit), 10);
+  if (!Number.isFinite(parsed)) return 6;
+  return Math.min(GLOBAL_SEARCH_BACKEND_LIMIT, Math.max(1, parsed));
+}
 
 function buildGlobalSearchUrl(apiBaseUrl, tenant, query, limit = 6) {
   const base = String(apiBaseUrl || '/api').replace(/\/$/, '');
-  const params = new URLSearchParams({ tenant_id: tenant || 'default', query, limit: String(limit) });
+  const params = new URLSearchParams({
+    tenant_id: tenant || 'default',
+    query,
+    limit: String(normalizeGlobalSearchLimit(limit)),
+  });
   return `${base}/v1/search/global?${params.toString()}`;
 }
 
@@ -647,7 +658,7 @@ function Dashboard() {
     let active = true;
     setGlobalSearchLoading(true);
     cache.run(`global-search:${tenant}:${query}`, async (signal) => {
-      const response = await fetch(buildGlobalSearchUrl(config.apiBaseUrl, tenant, query, 80), { credentials: 'same-origin', headers: { Accept: 'application/json' }, signal });
+      const response = await fetch(buildGlobalSearchUrl(config.apiBaseUrl, tenant, query, GLOBAL_SEARCH_BACKEND_LIMIT), { credentials: 'same-origin', headers: { Accept: 'application/json' }, signal });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       return response.json();
     }, { ttlMs: 15_000, scope: 'global-search' }).then((payload) => {

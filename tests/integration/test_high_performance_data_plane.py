@@ -23,6 +23,10 @@ def test_compose_uses_idempotent_replication_and_transaction_pooling() -> None:
         services["pgbouncer-replica"]["depends_on"]["postgres-replica"]["condition"]
         == "service_healthy"
     )
+    assert services["api"]["depends_on"] == {
+        "auth-bootstrap": {"condition": "service_completed_successfully"},
+        "pgbouncer-primary": {"condition": "service_healthy"},
+    }
     api_environment = services["api"]["environment"]
     assert "@pgbouncer-primary:6432/" in api_environment["OPENINFRA_DATABASE_DSN"]
     assert "@pgbouncer-replica:6432/" in api_environment["OPENINFRA_DATABASE_READ_DSN"]

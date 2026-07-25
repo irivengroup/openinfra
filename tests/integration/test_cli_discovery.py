@@ -979,7 +979,7 @@ def test_cli_discovery_job_result_records_immutable_evidence(
                 "--scope",
                 "site/par1",
                 "--version",
-                "0.34.26",
+                "0.34.27",
             ]
         )
         == 0

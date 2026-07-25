@@ -16,7 +16,10 @@ from openinfra.quality.migration_packaging import (
 )
 
 
-def _write_catalog(root: Path, names: tuple[str, ...] = ("0001_bootstrap.sql", "0002_next.sql")) -> None:
+def _write_catalog(
+    root: Path,
+    names: tuple[str, ...] = ("0001_bootstrap.sql", "0002_next.sql"),
+) -> None:
     root.mkdir(parents=True, exist_ok=True)
     (root / "VERSION").write_text("9.9.9\n", encoding="utf-8")
     postgresql_root = root / "installers/migrations/postgresql"
@@ -59,7 +62,11 @@ def _write_catalog(root: Path, names: tuple[str, ...] = ("0001_bootstrap.sql", "
 def _rewrite_zip(source: Path, destination: Path, transform: object) -> None:
     callback = transform
     with zipfile.ZipFile(source) as archive:
-        entries = {name: archive.read(name) for name in archive.namelist() if not name.endswith("/")}
+        entries = {
+            name: archive.read(name)
+            for name in archive.namelist()
+            if not name.endswith("/")
+        }
     assert callable(callback)
     updated = callback(entries)
     with zipfile.ZipFile(destination, "w", compression=zipfile.ZIP_DEFLATED) as archive:
@@ -253,12 +260,14 @@ class TestMigrationCatalogArchive:
             MigrationCatalogArchiveVerifier().verify(unexpected, snapshot)
 
         manifest = tmp_path / "manifest.zip"
+
         def alter_manifest(entries: dict[str, bytes]) -> dict[str, bytes]:
             name = next(item for item in entries if item.endswith("MIGRATIONS-MANIFEST.json"))
             payload = json.loads(entries[name])
             payload["count_per_database"] = 99
             entries[name] = json.dumps(payload).encode()
             return entries
+
         _rewrite_zip(archive, manifest, alter_manifest)
         with pytest.raises(MigrationPackagingError, match="manifest does not match"):
             MigrationCatalogArchiveVerifier().verify(manifest, snapshot)
@@ -271,28 +280,34 @@ class TestMigrationCatalogArchive:
         archive, snapshot = MigrationCatalogArchiveBuilder().build(project, tmp_path / "out", 1)
 
         payload_archive = tmp_path / "payload.zip"
+
         def alter_payload(entries: dict[str, bytes]) -> dict[str, bytes]:
             name = next(item for item in entries if item.endswith("postgresql/0001_bootstrap.sql"))
             entries[name] = b"tampered"
             return entries
+
         _rewrite_zip(archive, payload_archive, alter_payload)
         with pytest.raises(MigrationPackagingError, match="size mismatch"):
             MigrationCatalogArchiveVerifier().verify(payload_archive, snapshot)
 
         same_size_archive = tmp_path / "checksum.zip"
+
         def alter_same_size(entries: dict[str, bytes]) -> dict[str, bytes]:
             name = next(item for item in entries if item.endswith("oracle/0001_bootstrap.sql"))
             entries[name] = b"x" * len(entries[name])
             return entries
+
         _rewrite_zip(archive, same_size_archive, alter_same_size)
         with pytest.raises(MigrationPackagingError, match="checksum mismatch"):
             MigrationCatalogArchiveVerifier().verify(same_size_archive, snapshot)
 
         oracle_manifest_archive = tmp_path / "oracle-manifest.zip"
+
         def alter_oracle_manifest(entries: dict[str, bytes]) -> dict[str, bytes]:
             name = next(item for item in entries if item.endswith("oracle/manifest.json"))
             entries[name] = b"{}"
             return entries
+
         _rewrite_zip(archive, oracle_manifest_archive, alter_oracle_manifest)
         with pytest.raises(MigrationPackagingError, match="Oracle manifest checksum"):
             MigrationCatalogArchiveVerifier().verify(oracle_manifest_archive, snapshot)

@@ -15,7 +15,10 @@ class TestReleaseSecurityWorkflow:
             "actions/upload-artifact@v6",
             "python scripts/docker_environment.py init",
             "docker compose --env-file .env build api",
-            "docker compose --env-file .env up -d postgres migrate auth-bootstrap api web",
+            "OPENINFRA_DB_READ_ROUTING_ENABLED: 'false'",
+            "postgres runtime-secrets migrate pgbouncer-primary auth-bootstrap api web",
+            "docker compose --env-file .env ps --all",
+            "docker compose --env-file .env logs --no-color --tail=300",
             "scripts/release_security_audit.py",
             "--image-ref",
             "--api-base-url",
@@ -30,3 +33,6 @@ class TestReleaseSecurityWorkflow:
         assert "pull_request_target:" not in workflow
         assert "actions/checkout@v4" not in workflow
         assert "actions/setup-python@v5" not in workflow
+        assert "pgbouncer-replica" not in workflow.split(
+            "- name: Start live DAST topology", 1
+        )[1].split("- name: Execute blocking release security audit", 1)[0]

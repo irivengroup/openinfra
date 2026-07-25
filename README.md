@@ -1,15 +1,28 @@
-# OpenInfra v0.34.26
+# OpenInfra v0.34.27
 
-OpenInfra 0.34.26 corrige les échecs hébergés Ruff format et Bandit SAST observés sur 0.34.25, sans affaiblir les gates. L’incrément supprime une valeur factice ressemblant à un jeton, centralise les valeurs métier par défaut et ajoute une régression AST bloquante. Il ne modifie ni les migrations, ni le thème, ni les contrats API/CLI/RBAC.
+OpenInfra 0.34.27 stabilise la recherche globale, la topologie DAST et les contrôles de formatage/packaging sans modifier les migrations, les contrats publics ni le thème approuvé.
 
-## Ruff format et Bandit SAST déterministes — v0.34.26
+## Recherche globale et DAST primaire — v0.34.27
 
-- normalisation Ruff des nouveaux tests et de l’ordre des imports selon `line-length = 100` ;
-- suppression de la construction factice `admin_token="unused"` dans l’API HTTP ;
+- la recherche globale React et runtime respecte la borne backend de **25 résultats** ;
+- toute limite cliente est normalisée entre 1 et 25 ;
+- l’ancienne requête invalide `limit=80`, qui provoquait un HTTP 400 puis le message « Recherche backend temporairement indisponible », est supprimée ;
+- le fallback local reste disponible uniquement en cas d’indisponibilité backend réelle ;
+- le DAST de release démarre une topologie primaire déterministe avec routage de lecture désactivé ;
+- l’API n’exige plus PgBouncer replica lorsque le routage de lecture est désactivé ;
+- les services replica et le routage HA restent présents pour les déploiements normaux ;
+- les fichiers du backend de build et du catalogue migrations ciblés par Ruff ont été normalisés sans désactiver de règle.
+
+Qualification locale : **305/305 fichiers**, **1 725/1 725 tests Python**, **104/104 tests frontend**, couverture exacte **98,032514864785 %**, quality gate **code 0**, migrations PostgreSQL/Oracle **60/60**.
+
+La promotion reste bloquée jusqu’au passage des jobs hébergés Ruff, mypy, Bandit, Python 3.12/3.13 et du DAST Docker réel.
+
+## Ruff format et Bandit SAST — v0.34.26
+
+- suppression de la construction factice `admin_token="unused"` ;
 - constantes métier immuables partagées pour les catégories et types de services par défaut ;
-- Bandit figé à `1.9.4` dans le package et les dépendances de développement ;
-- validation du triplet Ruff `0.15.22`, mypy `2.2.0`, Bandit `1.9.4` avant les jobs qualité ;
-- test AST interdisant toute chaîne littérale fournie à un argument sensible dans le code applicatif ;
+- Bandit figé à `1.9.4`, Ruff à `0.15.22` et mypy à `2.2.0` ;
+- test AST bloquant sur les littéraux transmis aux arguments sensibles ;
 - aucune suppression de règle, aucun `# nosec`, aucune migration et aucune modification visuelle.
 
 # OpenInfra v0.34.25

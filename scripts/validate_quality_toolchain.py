@@ -46,7 +46,7 @@ def validate_versions(
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Validate the deterministic OpenInfra formatting, typing, and SAST toolchain."
+        description="Validate the deterministic OpenInfra formatting, typing, and SAST toolchain.",
     )
     parser.add_argument("--json", action="store_true", help="Emit a machine-readable report.")
     return parser

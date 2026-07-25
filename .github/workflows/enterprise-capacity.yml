@@ -147,7 +147,7 @@ jobs:
 
       - name: Publish certification evidence
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: openinfra-enterprise-capacity-${{ github.run_id }}
           path: build/capacity

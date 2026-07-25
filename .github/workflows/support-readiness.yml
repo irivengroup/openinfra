@@ -46,7 +46,7 @@ jobs:
             --no-cov
 
       - name: Upload support readiness evidence
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: support-readiness-${{ github.sha }}
           path: artifacts/support-readiness/

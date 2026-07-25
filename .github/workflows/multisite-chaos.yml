@@ -82,7 +82,7 @@ jobs:
 
       - name: Publish multisite chaos evidence
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: openinfra-multisite-chaos-${{ github.run_id }}
           path: build/multisite-chaos
